@@ -13,117 +13,197 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.cream,
       appBar: AppBar(
-        title: Text(t.settingsTitle, style: const TextStyle(color: AppTheme.text, fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        title: Text(
+          t.settingsTitle,
+          style: const TextStyle(
+            color: AppTheme.primaryRose,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
+        ),
+        centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           children: [
-            // Menu Change Language
-            _buildSettingsItem(
-              context,
-              icon: Icons.language,
-              title: t.changeLanguage,
-              subtitle: t.languageDesc,
-              onTap: () {
-                final current = ref.read(languageProvider);
-                ref.read(languageProvider.notifier).state =
-                    current == AppLanguage.en ? AppLanguage.id : AppLanguage.en;
-              },
+            // AKUN SECTION
+            _buildSectionTitle(t.sectionAccount),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.grey.shade300,
+                  child: const Icon(Icons.person, size: 40, color: Colors.grey),
+                ),
+                title: const Text('Si Gemoy', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.text, fontSize: 16)),
+                subtitle: const Text('si.gemoy@email.com', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
+                trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+                onTap: () {},
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            // Menu Buy Voucher
-            _buildSettingsItem(
-              context,
-              icon: Icons.confirmation_number_outlined,
-              title: t.buyVoucher,
-              subtitle: t.buyVoucherDesc,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BuyVoucherScreen()),
-                );
-              },
+            // PENYIMPANAN SECTION
+            _buildSectionTitle(t.sectionStorage),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _buildListTile(
+                    icon: Icons.insert_drive_file_outlined,
+                    title: t.saveToDrive,
+                    trailing: Switch(
+                      value: true,
+                      onChanged: (val) {},
+                      activeColor: Colors.white,
+                      activeTrackColor: AppTheme.primaryRose,
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
+                  _buildListTile(
+                    icon: Icons.email_outlined,
+                    title: t.sendToEmail,
+                    trailing: Switch(
+                      value: false,
+                      onChanged: (val) {},
+                      activeColor: Colors.white,
+                      activeTrackColor: AppTheme.primaryRose,
+                    ),
+                  ),
+                  const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
+                  _buildListTile(
+                    icon: Icons.photo_size_select_actual_outlined,
+                    title: t.photoQuality,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(t.photoQualityHigh, style: const TextStyle(color: AppTheme.muted)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, color: AppTheme.muted),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            
-            _buildSettingsItem(
-              context,
-              icon: Icons.print_outlined,
-              title: t.printerConfig,
-              subtitle: t.printerConfigDesc,
-              onTap: () {},
+            const SizedBox(height: 24),
+
+            // LAINNYA SECTION
+            _buildSectionTitle(t.sectionOthers),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _buildListTile(
+                    icon: Icons.language,
+                    title: t.changeLanguage,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(t.languageDesc, style: const TextStyle(color: AppTheme.muted, fontSize: 13)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, color: AppTheme.muted),
+                      ],
+                    ),
+                    onTap: () {
+                      final current = ref.read(languageProvider);
+                      ref.read(languageProvider.notifier).state =
+                          current == AppLanguage.en ? AppLanguage.id : AppLanguage.en;
+                    },
+                  ),
+                  const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
+                  _buildListTile(
+                    icon: Icons.currency_bitcoin, // Using bitcoin icon as placeholder for monad
+                    title: t.useMonadCoin,
+                    iconColor: Colors.indigo,
+                    trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+                  ),
+                  const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
+                  _buildListTile(
+                    icon: Icons.card_giftcard,
+                    title: t.redeemVoucherSetting,
+                    trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const BuyVoucherScreen()),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
+                  _buildListTile(
+                    icon: Icons.info_outline,
+                    title: t.aboutApp,
+                    trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            
-            _buildSettingsItem(
-              context,
-              icon: Icons.wallet_outlined,
-              title: t.monadWallet,
-              subtitle: t.monadWalletDesc,
-              onTap: () {},
+            const SizedBox(height: 32),
+
+            // LOGOUT BUTTON
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(t.logout, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
             ),
-            const SizedBox(height: 16),
-            
-            _buildSettingsItem(
-              context,
-              icon: Icons.admin_panel_settings_outlined,
-              title: t.adminDashboard,
-              subtitle: t.adminDashboardDesc,
-              onTap: () {},
-            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSettingsItem(BuildContext context, {required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: AppTheme.pinkCard,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: AppTheme.primaryRose),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.text)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(fontSize: 13, color: AppTheme.muted)),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: AppTheme.muted),
-          ],
-        ),
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+        color: AppTheme.text,
       ),
+    );
+  }
+
+  Widget _buildListTile({
+    required IconData icon,
+    required String title,
+    required Widget trailing,
+    VoidCallback? onTap,
+    Color? iconColor,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor ?? AppTheme.primaryRose),
+      title: Text(title, style: const TextStyle(color: AppTheme.text, fontWeight: FontWeight.w500)),
+      trailing: trailing,
+      onTap: onTap,
     );
   }
 }

@@ -120,4 +120,19 @@ class AppTranslations {
   String get verifyMonad =>
       isEn ? 'Verify Monad Payment' : 'Verifikasi Pembayaran Monad';
   String get showQr => isEn ? 'Show Payment QR' : 'Tampilkan QR Pembayaran';
+
+  // Settings New UI
+  String get sectionAccount => isEn ? 'Account' : 'Akun';
+  String get sectionStorage => isEn ? 'Storage' : 'Penyimpanan';
+  String get sectionOthers => isEn ? 'Others' : 'Lainnya';
+  
+  String get saveToDrive => isEn ? 'Save to Google Drive' : 'Simpan ke Google Drive';
+  String get sendToEmail => isEn ? 'Send to Email' : 'Kirim ke Email';
+  String get photoQuality => isEn ? 'Photo Quality' : 'Kualitas Foto';
+  String get photoQualityHigh => isEn ? 'High' : 'Tinggi';
+  
+  String get useMonadCoin => isEn ? 'Use Monad Coin' : 'Gunakan Coin Monad';
+  String get redeemVoucherSetting => isEn ? 'Redeem Voucher' : 'Redeem Voucher';
+  String get aboutApp => isEn ? 'About App' : 'Tentang Aplikasi';
+  String get logout => isEn ? 'Logout' : 'Keluar';
 }

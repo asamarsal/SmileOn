@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
+import 'package:smileon/features/home/presentation/all_frames_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -184,7 +185,12 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AllFramesScreen()),
+                      );
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.primaryRose,
                     ),

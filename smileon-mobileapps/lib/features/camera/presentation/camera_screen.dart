@@ -10,7 +10,8 @@ class CameraScreen extends ConsumerStatefulWidget {
   ConsumerState<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerProviderStateMixin {
+class _CameraScreenState extends ConsumerState<CameraScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool isScanQrMode = true;
 
@@ -32,30 +33,25 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryRose),
-          onPressed: () {},
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primaryRose,
-          unselectedLabelColor: AppTheme.muted,
-          indicatorColor: AppTheme.primaryRose,
-          tabs: [
-            Tab(text: t.tabEvent),
-            Tab(text: t.tabPersonal),
-          ],
-        ),
-      ),
       body: SafeArea(
-        child: TabBarView(
-          controller: _tabController,
+        child: Column(
           children: [
-            _buildEventAccessTab(t),
-            _buildPersonalAccessTab(t),
+            TabBar(
+              controller: _tabController,
+              labelColor: AppTheme.primaryRose,
+              unselectedLabelColor: AppTheme.muted,
+              indicatorColor: AppTheme.primaryRose,
+              tabs: [
+                Tab(text: t.tabEvent),
+                Tab(text: t.tabPersonal),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [_buildEventAccessTab(t), _buildPersonalAccessTab(t)],
+              ),
+            ),
           ],
         ),
       ),
@@ -81,13 +77,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
           Text(
             t.eventAccessDesc,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppTheme.muted,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: AppTheme.muted, fontSize: 14),
           ),
           const SizedBox(height: 24),
-          
+
           // Toggle Scan QR / Kode Voucher
           Container(
             decoration: BoxDecoration(
@@ -109,7 +102,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: isScanQrMode ? AppTheme.primaryRose : Colors.transparent,
+                        color: isScanQrMode
+                            ? AppTheme.primaryRose
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Center(
@@ -130,7 +125,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: !isScanQrMode ? AppTheme.primaryRose : Colors.transparent,
+                        color: !isScanQrMode
+                            ? AppTheme.primaryRose
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Center(
@@ -211,8 +208,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
                 hintText: t.inputVoucherHint,
                 hintStyle: const TextStyle(color: AppTheme.muted),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                suffixIcon: const Icon(Icons.confirmation_number_outlined, color: AppTheme.primaryRose),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                suffixIcon: const Icon(
+                  Icons.confirmation_number_outlined,
+                  color: AppTheme.primaryRose,
+                ),
               ),
             ),
           ),
@@ -234,7 +237,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
               ),
               child: Text(
                 t.checkVoucher,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -249,11 +255,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.person_outline, size: 80, color: AppTheme.primaryRose),
+          const Icon(
+            Icons.person_outline,
+            size: 80,
+            color: AppTheme.primaryRose,
+          ),
           const SizedBox(height: 16),
           Text(
             t.personalAccessTitle,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.text),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.text,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -273,7 +287,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> with SingleTickerPr
               ),
               elevation: 0,
             ),
-            child: Text(t.startCamera, style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              t.startCamera,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
