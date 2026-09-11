@@ -135,4 +135,7 @@ class AppTranslations {
   String get redeemVoucherSetting => isEn ? 'Redeem Voucher' : 'Redeem Voucher';
   String get aboutApp => isEn ? 'About App' : 'Tentang Aplikasi';
   String get logout => isEn ? 'Logout' : 'Keluar';
+  String get logoutConfirmDesc => isEn ? 'Are you sure you want to logout?' : 'Apa Anda yakin ingin keluar?';
+  String get yes => isEn ? 'Yes' : 'Ya';
+  String get cancel => isEn ? 'Cancel' : 'Batal';
 }

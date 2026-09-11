@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/auth/auth_provider.dart';
+import 'package:smileon/core/components/smile_button.dart';
+import 'package:smileon/core/components/smile_card.dart';
+import 'package:smileon/core/components/smile_dialog.dart';
+import 'package:smileon/core/components/smile_switch.dart';
 import 'package:smileon/core/localization/app_translations.dart';
+import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/features/login/loginscreen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -32,55 +38,31 @@ class SettingsScreen extends ConsumerWidget {
             // AKUN SECTION
             _buildSectionTitle(t.sectionAccount),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.grey.shade300,
-                  child: const Icon(Icons.person, size: 40, color: Colors.grey),
-                ),
-                title: const Text('Si Gemoy', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.text, fontSize: 16)),
-                subtitle: const Text('si.gemoy@email.com', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
-                trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
-                onTap: () {},
-              ),
-            ),
+            _buildUserAccountCard(context, ref),
             const SizedBox(height: 24),
 
             // PENYIMPANAN SECTION
             _buildSectionTitle(t.sectionStorage),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
+            SmileCard(
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _buildListTile(
                     icon: Icons.insert_drive_file_outlined,
                     title: t.saveToDrive,
-                    trailing: Switch(
+                    trailing: SmileSwitch(
                       value: true,
                       onChanged: (val) {},
-                      activeColor: Colors.white,
-                      activeTrackColor: AppTheme.primaryRose,
                     ),
                   ),
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
                   _buildListTile(
                     icon: Icons.email_outlined,
                     title: t.sendToEmail,
-                    trailing: Switch(
+                    trailing: SmileSwitch(
                       value: false,
                       onChanged: (val) {},
-                      activeColor: Colors.white,
-                      activeTrackColor: AppTheme.primaryRose,
                     ),
                   ),
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF0F0F0)),
@@ -104,11 +86,8 @@ class SettingsScreen extends ConsumerWidget {
             // LAINNYA SECTION
             _buildSectionTitle(t.sectionOthers),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
+            SmileCard(
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _buildListTile(
@@ -117,7 +96,30 @@ class SettingsScreen extends ConsumerWidget {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(t.languageDesc, style: const TextStyle(color: AppTheme.muted, fontSize: 13)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.pinkCard,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                t.language == AppLanguage.id ? '🇮🇩' : '🇬🇧',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                t.language == AppLanguage.id ? 'Indonesia' : 'English',
+                                style: const TextStyle(
+                                  color: AppTheme.primaryRose,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(width: 4),
                         const Icon(Icons.chevron_right, color: AppTheme.muted),
                       ],
@@ -152,6 +154,16 @@ class SettingsScreen extends ConsumerWidget {
                     icon: Icons.info_outline,
                     title: t.aboutApp,
                     trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+                    onTap: () {
+                      SmileDialog.show(
+                        context: context,
+                        title: t.aboutApp,
+                        description: "SmileOn Photobooth App v1.0.0\nCreated with ❤️ for you.",
+                        primaryButtonText: 'OK',
+                        onPrimaryPressed: () => Navigator.pop(context),
+                        icon: Icons.info_outline,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -159,23 +171,212 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 32),
 
             // LOGOUT BUTTON
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(t.logout, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
+            SmileButton(
+              text: t.logout,
+              onPressed: () {
+                SmileDialog.show(
+                  context: context,
+                  title: t.logout,
+                  description: t.logoutConfirmDesc,
+                  primaryButtonText: t.yes,
+                  onPrimaryPressed: () async {
+                    Navigator.pop(context);
+                    await ref.read(authProvider.notifier).logout();
+                    if (context.mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  secondaryButtonText: t.cancel,
+                  onSecondaryPressed: () => Navigator.pop(context),
+                  icon: Icons.logout,
+                );
+              },
+              variant: SmileButtonVariant.outlined,
+              color: Colors.red,
+              isFullWidth: true,
             ),
             const SizedBox(height: 32),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserAccountCard(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
+    return authState.when(
+      data: (session) {
+        if (session == null || session.isGuest) {
+          return SmileCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              leading: const CircleAvatar(
+                radius: 26,
+                backgroundColor: Color(0xFFFFEEF3),
+                child: Icon(Icons.person_outline_rounded, size: 30, color: AppTheme.primaryRose),
+              ),
+              title: const Row(
+                children: [
+                  Text(
+                    'SmileOn Guest',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.text, fontSize: 16),
+                  ),
+                  SizedBox(width: 8),
+                  _RoleBadge(text: 'Mode Tamu', color: Color(0xFFF3F4F6), textColor: Color(0xFF6B7280)),
+                ],
+              ),
+              subtitle: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 2),
+                  Text('Belum terhubung ke Akun / Dompet', style: TextStyle(color: AppTheme.muted, fontSize: 12)),
+                  SizedBox(height: 2),
+                  Text('Klik untuk hubungkan Google / Wallet', style: TextStyle(color: AppTheme.primaryRose, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+            ),
+          );
+        }
+
+        if (session.isGoogle) {
+          return SmileCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              leading: CircleAvatar(
+                radius: 26,
+                backgroundColor: AppTheme.primaryRose,
+                child: Text(
+                  session.name.isNotEmpty ? session.name[0].toUpperCase() : 'G',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+              ),
+              title: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      session.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.text, fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const _RoleBadge(text: 'Google • Monad', color: Color(0xFFFFEEF2), textColor: AppTheme.primaryRose),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 2),
+                  Text(session.email, style: const TextStyle(color: AppTheme.muted, fontSize: 12.5)),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 13, color: Color(0xFF8338EC)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Monad: ${session.truncatedWalletAddress}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4B5563),
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+              onTap: () {},
+            ),
+          );
+        }
+
+        // Wallet User (MetaMask / Web3)
+        return SmileCard(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            leading: const CircleAvatar(
+              radius: 26,
+              backgroundColor: Color(0xFFFFF0EB),
+              child: Icon(Icons.account_balance_wallet_outlined, size: 28, color: Color(0xFFF97316)),
+            ),
+            title: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    session.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.text, fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const _RoleBadge(text: 'Web3 Wallet', color: Color(0xFFFFF0EB), textColor: Color(0xFFF97316)),
+              ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 2),
+                Text(session.email, style: const TextStyle(color: AppTheme.muted, fontSize: 12)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Monad: ${session.truncatedWalletAddress}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+            onTap: () {},
+          ),
+        );
+      },
+      loading: () => const SmileCard(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: CircularProgressIndicator(color: AppTheme.primaryRose)),
+        ),
+      ),
+      error: (e, stack) => const SmileCard(
+        child: ListTile(
+          title: Text('SmileOn User'),
+          subtitle: Text('Gagal memuat sesi'),
         ),
       ),
     );
@@ -252,7 +453,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primaryRose.withOpacity(0.3),
+                      color: AppTheme.primaryRose.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 6),
                     ),
@@ -324,7 +525,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: Column(
@@ -373,19 +574,10 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRose,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          elevation: 0,
-                        ),
-                        child: Text(selectedPayment == 'monad' ? t.verifyMonad : t.showQr),
-                      ),
+                    SmileButton(
+                      text: selectedPayment == 'monad' ? t.verifyMonad : t.showQr,
+                      onPressed: () {},
+                      isFullWidth: true,
                     ),
                   ],
                 ),
@@ -419,7 +611,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
           boxShadow: [
             if (isSelected)
               BoxShadow(
-                color: AppTheme.primaryRose.withOpacity(0.3),
+                color: AppTheme.primaryRose.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -452,4 +644,32 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
     );
   }
 }
+
+class _RoleBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+  final Color textColor;
+
+  const _RoleBadge({
+    required this.text,
+    required this.color,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+      ),
+    );
+  }
+}
+
 

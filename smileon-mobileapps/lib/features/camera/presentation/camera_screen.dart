@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
+import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
-  const CameraScreen({super.key});
+  final int initialTabIndex;
+  const CameraScreen({super.key, this.initialTabIndex = 0});
 
   @override
   ConsumerState<CameraScreen> createState() => _CameraScreenState();
@@ -18,7 +20,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
   }
 
   @override
@@ -277,7 +283,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
           ),
           const SizedBox(height: 32),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ActiveCameraScreen(),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryRose,
               foregroundColor: Colors.white,

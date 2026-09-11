@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/features/camera/presentation/camera_screen.dart';
+import 'package:smileon/core/components/smile_frame_item.dart';
+import 'package:smileon/core/components/smile_button.dart';
 
 class AllFramesScreen extends StatefulWidget {
   const AllFramesScreen({super.key});
@@ -11,6 +15,22 @@ class AllFramesScreen extends StatefulWidget {
 class _AllFramesScreenState extends State<AllFramesScreen> {
   int _selectedCategoryIndex = 0;
   int _selectedStripIndex = 0; // 0 for 1 Strip, 1 for 2 Strip
+  int _selectedFrameIndex = -1; // Default: tidak ada border pink sampai diklik
+
+  void _selectFrameAndNavigateToCamera(int index) {
+    setState(() => _selectedFrameIndex = index);
+    // Berikan sedikit jeda visual agar border pink terlihat sebelum berpindah ke CameraScreen
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CameraScreen(initialTabIndex: 1),
+          ),
+        );
+      }
+    });
+  }
 
   // For Landscape (Sidebar)
   final List<Map<String, dynamic>> landscapeCategories = [
@@ -33,7 +53,7 @@ class _AllFramesScreenState extends State<AllFramesScreen> {
   final List<Map<String, dynamic>> dummyFrames = [
     {'title': 'Floral Classic', 'type': 'Gratis', 'icon': Icons.auto_fix_high},
     {'title': 'The Daily Lover', 'type': 'Premium', 'icon': Icons.lock_outline},
-    {'title': 'A Love in Bloom', 'type': 'Premium', 'icon': Icons.check_circle, 'selected': true},
+    {'title': 'A Love in Bloom', 'type': 'Premium', 'icon': Icons.check_circle},
     {'title': 'Minimal', 'type': 'Gratis'},
     {'title': 'Vintage Film', 'type': 'Premium', 'icon': Icons.lock_outline},
     {'title': 'Pink Ribbon', 'type': 'Gratis'},
@@ -113,7 +133,13 @@ class _AllFramesScreenState extends State<AllFramesScreen> {
             ),
             itemCount: dummyFrames.length,
             itemBuilder: (context, index) {
-              return _buildPortraitFrameItem(dummyFrames[index]);
+              final isSelected = _selectedFrameIndex == index;
+              return SmileFrameItem(
+                item: dummyFrames[index],
+                isSelected: isSelected,
+                isLandscape: false,
+                onTap: () => _selectFrameAndNavigateToCamera(index),
+              );
             },
           ),
         ),
@@ -243,7 +269,12 @@ class _AllFramesScreenState extends State<AllFramesScreen> {
                     Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: InkWell(
-                        onTap: () {},
+                        onTap: () {
+                          setState(() {
+                            _selectedCategoryIndex = 0;
+                            _selectedFrameIndex = -1;
+                          });
+                        },
                         child: Row(
                           children: const [
                             Icon(Icons.refresh, color: AppTheme.muted, size: 20),
@@ -281,7 +312,13 @@ class _AllFramesScreenState extends State<AllFramesScreen> {
                         ),
                         itemCount: dummyFrames.length,
                         itemBuilder: (context, index) {
-                          return _buildLandscapeFrameItem(dummyFrames[index]);
+                          final isSelected = _selectedFrameIndex == index;
+                          return SmileFrameItem(
+                            item: dummyFrames[index],
+                            isSelected: isSelected,
+                            isLandscape: true,
+                            onTap: () => _selectFrameAndNavigateToCamera(index),
+                          );
                         },
                       ),
                     ),
@@ -295,39 +332,19 @@ class _AllFramesScreenState extends State<AllFramesScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          OutlinedButton(
+                          SmileButton(
+                            text: 'Batal',
                             onPressed: () => Navigator.of(context).pop(),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.text,
-                              side: const BorderSide(color: Colors.grey),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                            ),
-                            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                            variant: SmileButtonVariant.outlined,
                           ),
                           const SizedBox(width: 16),
-                          ElevatedButton(
+                          SmileButton(
+                            text: 'Terapkan',
+                            icon: Icons.check_circle_outline,
                             onPressed: () {
-                              Navigator.of(context).pop();
+                              final selectedIndex = _selectedFrameIndex != -1 ? _selectedFrameIndex : 0;
+                              _selectFrameAndNavigateToCamera(selectedIndex);
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRose,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Row(
-                              children: const [
-                                Icon(Icons.check_circle_outline, size: 20),
-                                SizedBox(width: 8),
-                                Text('Terapkan', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -366,134 +383,6 @@ class _AllFramesScreenState extends State<AllFramesScreen> {
     );
   }
 
-  Widget _buildLandscapeFrameItem(Map<String, dynamic> item) {
-    return Column(
-      children: [
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppTheme.cream,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Icon(Icons.image_outlined, size: 48, color: Colors.grey.shade400),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.favorite_border, color: AppTheme.primaryRose, size: 18),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          item['title'] as String,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.primaryRose,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
 
-  Widget _buildPortraitFrameItem(Map<String, dynamic> item) {
-    final bool isPremium = item['type'] == 'Premium';
-    final bool isSelected = item['selected'] == true;
-    
-    return Column(
-      children: [
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: isSelected ? AppTheme.lightPink : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isSelected ? AppTheme.primaryRose : Colors.grey.shade200, width: isSelected ? 2 : 1),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Image placeholder
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        isSelected ? Icons.check_circle : (item['icon'] as IconData? ?? Icons.image_outlined),
-                        size: 48,
-                        color: isSelected ? AppTheme.primaryRose : Colors.grey.shade400,
-                      ),
-                    ),
-                  ),
-                ),
-                // Top right icon (e.g. wand)
-                if (item['icon'] != null && !isSelected && item['icon'] != Icons.lock_outline)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryRose,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(item['icon'] as IconData, color: Colors.white, size: 14),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          item['title'] as String,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.text,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 4),
-        if (isPremium)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.pinkCard,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text('Premium', style: TextStyle(color: AppTheme.primaryRose, fontSize: 10, fontWeight: FontWeight.bold)),
-          )
-        else
-          const Text('Gratis', style: TextStyle(color: AppTheme.muted, fontSize: 12, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
 }
 
