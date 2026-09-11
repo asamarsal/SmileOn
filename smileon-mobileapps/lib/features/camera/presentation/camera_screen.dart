@@ -15,7 +15,6 @@ class CameraScreen extends ConsumerStatefulWidget {
 class _CameraScreenState extends ConsumerState<CameraScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool isScanQrMode = true;
 
   @override
   void initState() {
@@ -87,101 +86,35 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
           ),
           const SizedBox(height: 24),
 
-          // Toggle Scan QR / Kode Voucher
+
+
+          // QR Scanner Placeholder
           Container(
+            width: double.infinity,
+            height: 280,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.black45,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
-            child: Row(
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => isScanQrMode = true),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isScanQrMode
-                            ? AppTheme.primaryRose
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Center(
-                        child: Text(
-                          t.scanQr,
-                          style: TextStyle(
-                            color: isScanQrMode ? Colors.white : AppTheme.text,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                Icon(
+                  Icons.qr_code_scanner,
+                  size: 150,
+                  color: Colors.white.withValues(alpha: 0.8),
                 ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => isScanQrMode = false),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: !isScanQrMode
-                            ? AppTheme.primaryRose
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Center(
-                        child: Text(
-                          t.voucherCode,
-                          style: TextStyle(
-                            color: !isScanQrMode ? Colors.white : AppTheme.text,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
+                Positioned(
+                  bottom: 24,
+                  child: Text(
+                    t.pointCamera,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
-
-          // QR Scanner Placeholder
-          if (isScanQrMode) ...[
-            Container(
-              width: double.infinity,
-              height: 280,
-              decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    Icons.qr_code_scanner,
-                    size: 150,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                  Positioned(
-                    bottom: 24,
-                    child: Text(
-                      t.pointCamera,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
 
           // Divider "atau"
           Row(

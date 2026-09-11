@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/presentation/camera_screen.dart';
 import 'package:smileon/core/components/smile_frame_item.dart';
 import 'package:smileon/core/components/smile_button.dart';

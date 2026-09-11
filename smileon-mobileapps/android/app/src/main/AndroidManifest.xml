@@ -26,6 +26,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Deep linking filter for Dynamic SDK, MetaMask, OKX WalletConnect and Social Auth -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="smileon" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -42,6 +49,26 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Package visibility for Web3 Wallets -->
+        <package android:name="io.metamask" />
+        <package android:name="com.okinc.okex.gp" />
+        <!-- Query for WalletConnect & Ethereum URI schemes -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="wc" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="metamask" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="okex" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="ethereum" />
         </intent>
     </queries>
 </manifest>
