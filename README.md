@@ -2,8 +2,6 @@
 
 <img src="smileon-mobileapps/assets/icons/smileon-border.png" alt="SmileOn Logo" height="80"/>
 
-# SmileOn 📸✨
-
 ### Photobox Anywhere, Anytime.
 
 *Capture your moments, create your memories, and keep them with you.*
