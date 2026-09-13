@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="smileon-mobileapps/assets/icons/smileon-cover.png" alt="SmileOn Logo" height="80"/>
+<img src="smileon-mobileapps/assets/icons/smileon-border.png" alt="SmileOn Logo" height="80"/>
 
 # SmileOn 📸✨
 
