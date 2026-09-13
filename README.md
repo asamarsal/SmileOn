@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="smileon-mobileapps/assets/icons/smileon-line.png" alt="SmileOn Logo" height="80"/>
+<img src="smileon-mobileapps/assets/icons/smileon-cover.png" alt="SmileOn Logo" height="80"/>
 
 # SmileOn 📸✨
 
@@ -126,7 +126,7 @@ SmileOn is built natively for **Monad**, leveraging its high-throughput, EVM-com
 - [x] Event Mode — credit-based event photobox
 - [x] Google Drive integration
 - [x] Onchain payments via Monad
-- [x] Authentication (Email, Wallet)
+- [x] Authentication (Email, Wallet, Google Social Login)
 - [x] Frame selection & photostrip layouts
 
 ### 🔜 Upcoming
@@ -134,7 +134,6 @@ SmileOn is built natively for **Monad**, leveraging its high-throughput, EVM-com
 - [ ] **Frame NFTs** — Own a frame as an NFT; earn royalties when others use it
 - [ ] **Referral & Creator Rewards** — Earn MONAD by bringing creators and events onboard
 - [ ] **AI-Powered Photobox** — AI backgrounds, filters, and style transfers
-- [ ] **Google Login** — Social auth via Google (Dynamic.xyz integration)
 - [ ] **Expanded Onchain Creator Economy** — Full marketplace for frames and themes
 
 ---
@@ -182,7 +181,7 @@ SmileOn uses **Dynamic.xyz** for a seamless multi-modal auth experience:
 |---|---|
 | 📧 Email (magic link / OTP) | ✅ Available |
 | 🦊 Web3 Wallet (MetaMask, etc.) | ✅ Available |
-| 🔵 Google Social Login | 🔜 Coming Soon |
+| 🔵 Google Social Login | ✅ Available |
 
 ---
 
