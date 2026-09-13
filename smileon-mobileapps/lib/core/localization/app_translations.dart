@@ -64,9 +64,74 @@ class AppTranslations {
   String get startCamera => isEn ? 'Start Camera' : 'Mulai Kamera';
 
   // Settings Screen
-  String get settingsTitle => isEn ? 'Settings & Admin' : 'Pengaturan & Admin';
+  String get settingsTitle => isEn ? 'Settings' : 'Pengaturan';
+  String get settingsSubtitle => isEn
+      ? 'Manage your SmileOn account, storage, and preferences.'
+      : 'Kelola akun, penyimpanan, dan preferensi SmileOn kamu.';
   String get changeLanguage => isEn ? 'Change Language' : 'Ganti Bahasa';
   String get languageDesc => isEn ? 'Current: English' : 'Saat ini: Indonesia';
+
+  // Settings Menu Items
+  String get menuAccount => isEn ? 'Account' : 'Akun';
+  String get menuStorage => isEn ? 'Storage' : 'Penyimpanan';
+  String get menuEventVoucher => isEn ? 'Event & Voucher' : 'Event & Voucher';
+  String get menuPayment => isEn ? 'Payment' : 'Pembayaran';
+  String get menuSecurity => isEn ? 'Security' : 'Keamanan';
+  String get menuPrivacy => isEn ? 'Privacy' : 'Privasi';
+  String get menuLanguage => isEn ? 'Language' : 'Bahasa';
+  String get menuHelpOthers => isEn ? 'Help & Others' : 'Bantuan & Lainnya';
+
+  // Settings Sub-sheets
+  String get storageSettingsTitle =>
+      isEn ? 'Storage Settings' : 'Pengaturan Penyimpanan';
+  String get storageSettingsDesc => isEn
+      ? 'Configure where and how your photobox results are saved.'
+      : 'Atur lokasi dan cara penyimpanan hasil foto photobox kamu.';
+
+  String get paymentSettingsTitle =>
+      isEn ? 'Payment & Network' : 'Pembayaran & Jaringan';
+  String get paymentSettingsDesc => isEn
+      ? 'SmileOn is powered by Monad Testnet for fast and affordable onchain transactions.'
+      : 'SmileOn didukung jaringan Monad Testnet untuk transaksi onchain yang cepat dan terjangkau.';
+
+  String get securitySettingsTitle =>
+      isEn ? 'Account Security' : 'Keamanan Akun';
+  String get securitySettingsDesc => isEn
+      ? 'Authentication is securely managed by Dynamic.xyz embedded MPC wallet.'
+      : 'Otentikasi dikelola dengan aman oleh Dynamic.xyz embedded MPC wallet.';
+
+  String get privacySettingsTitle =>
+      isEn ? 'Privacy & Data' : 'Privasi & Data';
+  String get privacySettingsDesc => isEn
+      ? 'Your photos are strictly yours. We do not sell or share your personal pictures.'
+      : 'Foto kamu adalah milikmu sepenuhnya. Kami tidak membagikan atau menjual data fotomu.';
+
+  String get languageSettingsTitle =>
+      isEn ? 'Choose Language' : 'Pilih Bahasa';
+  String get languageSettingsDesc => isEn
+      ? 'Select your preferred display language'
+      : 'Pilih bahasa tampilan yang kamu inginkan';
+
+  String get helpSettingsTitle =>
+      isEn ? 'Help & Information' : 'Bantuan & Informasi';
+  String get helpSettingsDesc => isEn
+      ? 'Need help or have questions about SmileOn?'
+      : 'Butuh bantuan atau punya pertanyaan tentang SmileOn?';
+
+  String get close => isEn ? 'Close' : 'Tutup';
+  String get manageDynamicProfile => isEn
+      ? 'Manage Account in Dynamic Profile'
+      : 'Kelola Akun di Dynamic Profile';
+  String get connected => isEn ? 'Connected' : 'Terhubung';
+  String get monadNetworkTitle =>
+      isEn ? 'Monad Network' : 'Jaringan Monad';
+  String get walletAddressTitle => isEn
+      ? 'Wallet Address (Monad EVM):'
+      : 'Alamat Dompet (Monad EVM):';
+  String get copiedToast => isEn ? 'Copied! ✨' : 'Tersalin! ✨';
+  String get copiedWalletMsg => isEn
+      ? 'Monad wallet address copied to clipboard.'
+      : 'Alamat dompet Monad berhasil disalin ke clipboard.';
 
   String get buyVoucher => isEn ? 'Buy Event Voucher' : 'Beli Voucher Event';
   String get buyVoucherDesc => isEn
@@ -135,6 +200,12 @@ class AppTranslations {
   String get useMonadCoin => isEn ? 'Use Monad Coin' : 'Gunakan Coin Monad';
   String get redeemVoucherSetting => isEn ? 'Buy Voucher' : 'Beli Voucher';
   String get aboutApp => isEn ? 'About App' : 'Tentang Aplikasi';
+  String get accountName => isEn ? 'Name' : 'Nama';
+  String get accountEmail => isEn ? 'Email' : 'Email';
+  String get walletMonad => isEn ? 'Wallet Monad' : 'Wallet Monad';
+  String get linkedAccounts => isEn ? 'Linked Accounts' : 'Linked Accounts';
+  String get profilePhoto => isEn ? 'Profile Photo' : 'Foto Profil';
+
   String get logout => isEn ? 'Logout' : 'Keluar';
   String get logoutConfirmDesc => isEn
       ? 'Are you sure you want to logout?'

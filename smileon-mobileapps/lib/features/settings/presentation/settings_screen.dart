@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
-import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/components/smile_button.dart';
-import 'package:smileon/core/components/smile_card.dart';
-import 'package:smileon/core/components/smile_dialog.dart';
 import 'package:smileon/core/components/smile_switch.dart';
-import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/login/loginscreen.dart';
+import 'package:smileon/features/settings/presentation/account/account_setting.dart';
+import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
+import 'package:smileon/features/settings/presentation/language/language_setting.dart';
+import 'package:smileon/features/settings/presentation/security/security_setting.dart';
+
+export 'package:smileon/features/settings/presentation/account/account_setting.dart';
+export 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
+export 'package:smileon/features/settings/presentation/language/language_setting.dart';
+export 'package:smileon/features/settings/presentation/security/security_setting.dart';
+
+final saveToDriveSettingProvider = StateProvider<bool>((ref) => true);
+final sendToEmailSettingProvider = StateProvider<bool>((ref) => false);
+final photoQualitySettingProvider = StateProvider<String>((ref) => 'High');
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -21,211 +30,39 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
-      appBar: AppBar(
-        title: Text(
-          t.settingsTitle,
-          style: const TextStyle(
-            color: AppTheme.primaryRose,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
-        ),
-        centerTitle: false,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           children: [
-            // AKUN SECTION
-            _buildSectionTitle(t.sectionAccount),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+
+            // Header Title & Subtitle
+            Text(
+              t.settingsTitle,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E1E22),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              t.settingsSubtitle,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: Color(0xFF6B7280),
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // User Account Card
             _buildUserAccountCard(context, ref),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // PENYIMPANAN SECTION
-            _buildSectionTitle(t.sectionStorage),
-            const SizedBox(height: 12),
-            SmileCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _buildListTile(
-                    icon: Icons.insert_drive_file_outlined,
-                    title: t.saveToDrive,
-                    trailing: SmileSwitch(value: true, onChanged: (val) {}),
-                  ),
-                  const Divider(
-                    height: 1,
-                    indent: 56,
-                    endIndent: 16,
-                    color: Color(0xFFF0F0F0),
-                  ),
-                  _buildListTile(
-                    icon: Icons.email_outlined,
-                    title: t.sendToEmail,
-                    trailing: SmileSwitch(value: false, onChanged: (val) {}),
-                  ),
-                  const Divider(
-                    height: 1,
-                    indent: 56,
-                    endIndent: 16,
-                    color: Color(0xFFF0F0F0),
-                  ),
-                  _buildListTile(
-                    icon: Icons.photo_size_select_actual_outlined,
-                    title: t.photoQuality,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          t.photoQualityHigh,
-                          style: const TextStyle(color: AppTheme.muted),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right, color: AppTheme.muted),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // LAINNYA SECTION
-            _buildSectionTitle(t.sectionOthers),
-            const SizedBox(height: 12),
-            SmileCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _buildListTile(
-                    icon: Icons.language,
-                    title: t.changeLanguage,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.pinkCard,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                t.language == AppLanguage.id ? '🇮🇩' : '🇬🇧',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                t.language == AppLanguage.id ? 'ID' : 'EN',
-                                style: const TextStyle(
-                                  color: AppTheme.primaryRose,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right, color: AppTheme.muted),
-                      ],
-                    ),
-                    onTap: () {
-                      final current = ref.read(languageProvider);
-                      ref
-                          .read(languageProvider.notifier)
-                          .state = current == AppLanguage.en
-                          ? AppLanguage.id
-                          : AppLanguage.en;
-                    },
-                  ),
-                  const Divider(
-                    height: 1,
-                    indent: 56,
-                    endIndent: 16,
-                    color: Color(0xFFF0F0F0),
-                  ),
-                  _buildListTile(
-                    icon: Icons.confirmation_number_outlined,
-                    title: t.redeemVoucherSetting,
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: AppTheme.muted,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BuyVoucherScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(
-                    height: 1,
-                    indent: 56,
-                    endIndent: 16,
-                    color: Color(0xFFF0F0F0),
-                  ),
-                  _buildListTile(
-                    icon: Icons.info_outline,
-                    title: t.aboutApp,
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: AppTheme.muted,
-                    ),
-                    onTap: () {
-                      SmileDialog.show(
-                        context: context,
-                        title: t.aboutApp,
-                        description: "SmileOn Photobooth App v1.0.0\nCreated with ❤️ for you.",
-                        primaryButtonText: 'OK',
-                        onPrimaryPressed: () => Navigator.pop(context),
-                        icon: Icons.info_outline,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // LOGOUT BUTTON
-            SmileButton(
-              text: t.logout,
-              onPressed: () {
-                SmileDialog.show(
-                  context: context,
-                  title: t.logout,
-                  description: t.logoutConfirmDesc,
-                  primaryButtonText: t.yes,
-                  onPrimaryPressed: () async {
-                    Navigator.pop(context);
-                    await ref.read(authProvider.notifier).logout();
-                    if (context.mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    }
-                  },
-                  secondaryButtonText: t.cancel,
-                  onSecondaryPressed: () => Navigator.pop(context),
-                  icon: Icons.logout,
-                );
-              },
-              variant: SmileButtonVariant.outlined,
-              color: Colors.red,
-              isFullWidth: true,
-            ),
+            // Unified 8 Menu Items Card
+            _buildMenuGroupCard(context, ref, t),
             const SizedBox(height: 32),
           ],
         ),
@@ -239,60 +76,62 @@ class SettingsScreen extends ConsumerWidget {
     return authState.when(
       data: (session) {
         if (session == null || session.isGuest) {
-          return SmileCard(
-            padding: EdgeInsets.zero,
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFF3F4F6), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 10,
+                vertical: 8,
               ),
               leading: const CircleAvatar(
                 radius: 26,
                 backgroundColor: Color(0xFFFFEEF3),
                 child: Icon(
                   Icons.person_outline_rounded,
-                  size: 30,
+                  size: 28,
                   color: AppTheme.primaryRose,
                 ),
               ),
-              title: const Row(
-                children: [
-                  Text(
-                    'SmileOn Guest',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.text,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  _RoleBadge(
-                    text: 'Mode Tamu',
-                    color: Color(0xFFF3F4F6),
-                    textColor: Color(0xFF6B7280),
-                  ),
-                ],
+              title: const Text(
+                'SmileOn Guest',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E22),
+                  fontSize: 16,
+                ),
               ),
-              subtitle: const Column(
+              subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 2),
-                  Text(
+                  const SizedBox(height: 2),
+                  const Text(
                     'Belum terhubung ke Akun / Dompet',
-                    style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Klik untuk hubungkan Google / Wallet',
-                    style: TextStyle(
-                      color: AppTheme.primaryRose,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox(height: 6),
+                  _buildPillBadge(
+                    text: 'Mode Tamu',
+                    bgColor: const Color(0xFFF3F4F6),
+                    textColor: const Color(0xFF6B7280),
                   ),
                 ],
               ),
-              trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF9CA3AF),
+                size: 24,
+              ),
               onTap: () {
                 Navigator.push(
                   context,
@@ -303,135 +142,50 @@ class SettingsScreen extends ConsumerWidget {
           );
         }
 
-        if (session.isGoogle) {
-          return SmileCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
-              leading: CircleAvatar(
-                radius: 26,
-                backgroundColor: AppTheme.primaryRose,
-                child: Text(
-                  session.name.isNotEmpty ? session.name[0].toUpperCase() : 'G',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-              title: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      session.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.text,
-                        fontSize: 16,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const _RoleBadge(
-                    text: 'Google • Monad',
-                    color: Color(0xFFFFEEF2),
-                    textColor: AppTheme.primaryRose,
-                  ),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 2),
-                  Text(
-                    session.email,
-                    style: const TextStyle(
-                      color: AppTheme.muted,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.bolt_rounded,
-                          size: 13,
-                          color: Color(0xFF8338EC),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Monad: ${session.truncatedWalletAddress}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF4B5563),
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
-              onTap: () => _showAccountDetailBottomSheet(context, ref, session),
-            ),
-          );
-        }
+        final initial = session.name.trim().isNotEmpty
+            ? session.name.trim()[0].toUpperCase()
+            : 'S';
 
-        // Wallet User (MetaMask / Web3)
-        return SmileCard(
-          padding: EdgeInsets.zero,
+        final truncatedWallet = session.truncatedWalletAddress;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFF3F4F6), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
-              vertical: 10,
+              vertical: 8,
             ),
-            leading: const CircleAvatar(
+            leading: CircleAvatar(
               radius: 26,
-              backgroundColor: Color(0xFFFFF0EB),
-              child: Icon(
-                Icons.account_balance_wallet_outlined,
-                size: 28,
-                color: Color(0xFFF97316),
+              backgroundColor: AppTheme.primaryRose,
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
             ),
-            title: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    session.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.text,
-                      fontSize: 16,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const _RoleBadge(
-                  text: 'Web3 Wallet',
-                  color: Color(0xFFFFF0EB),
-                  textColor: Color(0xFFF97316),
-                ),
-              ],
+            title: Text(
+              session.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E1E22),
+                fontSize: 16,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,537 +193,356 @@ class SettingsScreen extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   session.email,
-                  style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 12.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Monad: ${session.truncatedWalletAddress}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151),
-                      fontFamily: 'monospace',
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPillBadge(
+                      text: session.isGoogle ? 'Google' : 'Web3',
+                      bgColor: const Color(0xFFFCE7F3),
+                      textColor: const Color(0xFFBE185D),
                     ),
-                  ),
+                    if (truncatedWallet.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      _buildPillBadge(
+                        text: truncatedWallet,
+                        bgColor: const Color(0xFFEDE9FE),
+                        textColor: const Color(0xFF6D28D9),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
-            trailing: const Icon(Icons.chevron_right, color: AppTheme.muted),
-            onTap: () => _showAccountDetailBottomSheet(context, ref, session),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF9CA3AF),
+              size: 24,
+            ),
+            onTap: () {
+              ref.read(authServiceProvider).showDynamicProfile();
+            },
           ),
         );
       },
-      loading: () => const SmileCard(
+      loading: () => const Center(
         child: Padding(
           padding: EdgeInsets.all(16.0),
-          child: Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryRose),
+          child: CircularProgressIndicator(color: AppTheme.primaryRose),
+        ),
+      ),
+      error: (e, stack) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildMenuGroupCard(
+    BuildContext context,
+    WidgetRef ref,
+    AppTranslations t,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF3F4F6), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
+        ],
       ),
-      error: (e, stack) => const SmileCard(
-        child: ListTile(
-          title: Text('SmileOn User'),
-          subtitle: Text('Gagal memuat sesi'),
-        ),
+      child: Column(
+        children: [
+          // 1. Akun
+          _buildMenuItem(
+            icon: Icons.person_outline_rounded,
+            iconColor: const Color(0xFF374151),
+            title: t.menuAccount,
+            onTap: () {
+              final auth = ref.read(authProvider).asData?.value;
+              if (auth == null || auth.isGuest) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              } else {
+                showAccountDetailBottomSheet(context, ref, auth);
+              }
+            },
+          ),
+          _buildMenuDivider(),
+
+          // 2. Penyimpanan
+          _buildMenuItem(
+            icon: Icons.inventory_2_outlined,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuStorage,
+            onTap: () => _showStorageBottomSheet(context, ref),
+          ),
+          _buildMenuDivider(),
+
+          // 3. Event & Voucher
+          _buildMenuItem(
+            icon: Icons.confirmation_number_outlined,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuEventVoucher,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BuyVoucherScreen(),
+                ),
+              );
+            },
+          ),
+          _buildMenuDivider(),
+
+          // 4. Pembayaran
+          _buildMenuItem(
+            icon: Icons.credit_card_outlined,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuPayment,
+            onTap: () => _showPaymentBottomSheet(context, ref),
+          ),
+          _buildMenuDivider(),
+
+          // 5. Keamanan
+          _buildMenuItem(
+            icon: Icons.shield_outlined,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuSecurity,
+            onTap: () => showSecurityBottomSheet(context, ref),
+          ),
+          _buildMenuDivider(),
+
+          // 6. Privasi
+          _buildMenuItem(
+            icon: Icons.lock_outline_rounded,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuPrivacy,
+            onTap: () => _showPrivacyBottomSheet(context, ref),
+          ),
+          _buildMenuDivider(),
+
+          // 7. Bahasa
+          _buildMenuItem(
+            icon: Icons.language_rounded,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuLanguage,
+            onTap: () => showLanguageBottomSheet(context, ref),
+          ),
+          _buildMenuDivider(),
+
+          // 8. Bantuan & Lainnya
+          _buildMenuItem(
+            icon: Icons.info_outline_rounded,
+            iconColor: AppTheme.primaryRose,
+            title: t.menuHelpOthers,
+            onTap: () => _showHelpBottomSheet(context, ref),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-        color: AppTheme.text,
-      ),
-    );
-  }
-
-  Widget _buildListTile({
+  Widget _buildMenuItem({
     required IconData icon,
+    required Color iconColor,
     required String title,
-    required Widget trailing,
-    VoidCallback? onTap,
-    Color? iconColor,
+    required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: iconColor ?? AppTheme.primaryRose),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+      leading: Icon(icon, color: iconColor, size: 24),
       title: Text(
         title,
         style: const TextStyle(
-          color: AppTheme.text,
-          fontWeight: FontWeight.w500,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1E1E22),
         ),
       ),
-      trailing: trailing,
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: Color(0xFF9CA3AF),
+        size: 22,
+      ),
       onTap: onTap,
     );
   }
-}
 
-class BuyVoucherScreen extends ConsumerStatefulWidget {
-  const BuyVoucherScreen({super.key});
-
-  @override
-  ConsumerState<BuyVoucherScreen> createState() => _BuyVoucherScreenState();
-}
-
-class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
-  String selectedPayment = 'monad'; // 'qr' or 'monad'
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ref.watch(tProvider);
-
-    return Scaffold(
-      backgroundColor: AppTheme.cream,
-      appBar: AppBar(
-        title: Text(
-          t.buyVoucherTitle,
-          style: const TextStyle(color: AppTheme.text),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.primaryRose),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Package Details
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.primaryRose, AppTheme.darkRose],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryRose.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          t.eventPackage,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            t.bestValue,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      t.photoCredits,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      t.unlimitedDownloads,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      t.totalPayment,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const Text(
-                      '1.00 MON',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              Text(
-                t.choosePayment,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.text,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Payment Selection
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildPaymentMethodCard(
-                      title: 'Monad',
-                      subtitle: t.monadContract,
-                      icon:
-                          Icons.currency_bitcoin, // Placeholder for crypto icon
-                      isSelected: selectedPayment == 'monad',
-                      onTap: () => setState(() => selectedPayment = 'monad'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildPaymentMethodCard(
-                      title: 'QR Code',
-                      subtitle: t.qrEwallet,
-                      icon: Icons.qr_code_2,
-                      isSelected: selectedPayment == 'qr',
-                      onTap: () => setState(() => selectedPayment = 'qr'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // Payment Info / Action Area
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      selectedPayment == 'monad'
-                          ? Icons.account_balance_wallet_outlined
-                          : Icons.qr_code_scanner,
-                      size: 64,
-                      color: AppTheme.primaryRose,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      selectedPayment == 'monad'
-                          ? t.monadInstruction
-                          : t.qrInstruction,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppTheme.text,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      selectedPayment == 'monad'
-                          ? t.monadInstructionDesc
-                          : t.qrInstructionDesc,
-                      style: const TextStyle(
-                        color: AppTheme.muted,
-                        fontSize: 13,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Expiration Info
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.timer_outlined,
-                            color: Colors.orange.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              t.paymentDeadline,
-                              style: TextStyle(
-                                color: Colors.orange.shade800,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    SmileButton(
-                      text: selectedPayment == 'monad'
-                          ? t.verifyMonad
-                          : t.showQr,
-                      onPressed: () {},
-                      isFullWidth: true,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildMenuDivider() {
+    return const Divider(
+      height: 1,
+      indent: 58,
+      endIndent: 16,
+      color: Color(0xFFF3F4F6),
     );
   }
 
-  Widget _buildPaymentMethodCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
+  Widget _buildPillBadge({
+    required String text,
+    required Color bgColor,
+    required Color textColor,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryRose : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryRose : Colors.grey.shade300,
-            width: 2,
-          ),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: AppTheme.primaryRose.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : AppTheme.primaryRose,
-              size: 32,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: isSelected ? Colors.white : AppTheme.text,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected ? Colors.white70 : AppTheme.muted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleBadge extends StatelessWidget {
-  final String text;
-  final Color color;
-  final Color textColor;
-
-  const _RoleBadge({
-    required this.text,
-    required this.color,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
           color: textColor,
         ),
       ),
     );
   }
-}
 
-void _showAccountDetailBottomSheet(
-  BuildContext context,
-  WidgetRef ref,
-  AuthSessionModel session,
-) {
-  final fullWallet = session.walletAddress ?? '';
-  final hasWallet = fullWallet.isNotEmpty;
+  void _showStorageBottomSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Consumer(
+        builder: (context, ref, _) {
+          final t = ref.watch(tProvider);
+          final saveToDrive = ref.watch(saveToDriveSettingProvider);
+          final sendToEmail = ref.watch(sendToEmailSettingProvider);
+          final photoQuality = ref.watch(photoQualitySettingProvider);
 
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (ctx) => Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 38,
-              height: 4,
+          return _buildStandardBottomSheet(
+            context: ctx,
+            icon: Icons.inventory_2_outlined,
+            title: t.storageSettingsTitle,
+            subtitle: t.storageSettingsDesc,
+            content: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(2),
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                      Icons.cloud_upload_outlined,
+                      color: AppTheme.primaryRose,
+                    ),
+                    title: Text(
+                      t.saveToDrive,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    trailing: SmileSwitch(
+                      value: saveToDrive,
+                      onChanged: (val) => ref
+                          .read(saveToDriveSettingProvider.notifier)
+                          .state = val,
+                    ),
+                  ),
+                  const Divider(
+                    height: 1,
+                    indent: 56,
+                    endIndent: 16,
+                    color: Color(0xFFE5E7EB),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.email_outlined,
+                      color: AppTheme.primaryRose,
+                    ),
+                    title: Text(
+                      t.sendToEmail,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    trailing: SmileSwitch(
+                      value: sendToEmail,
+                      onChanged: (val) => ref
+                          .read(sendToEmailSettingProvider.notifier)
+                          .state = val,
+                    ),
+                  ),
+                  const Divider(
+                    height: 1,
+                    indent: 56,
+                    endIndent: 16,
+                    color: Color(0xFFE5E7EB),
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.photo_size_select_actual_outlined,
+                      color: AppTheme.primaryRose,
+                    ),
+                    title: Text(
+                      t.photoQuality,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFEEF2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        photoQuality == 'High'
+                            ? t.photoQualityHigh
+                            : photoQuality,
+                        style: const TextStyle(
+                          color: AppTheme.primaryRose,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
+          );
+        },
+      ),
+    );
+  }
 
-          // Header Avatar & Identity
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: session.isGoogle
-                    ? AppTheme.primaryRose
-                    : const Color(0xFFF97316),
-                child: session.isGoogle
-                    ? Text(
-                        session.name.isNotEmpty
-                            ? session.name[0].toUpperCase()
-                            : 'G',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        size: 30,
-                        color: Colors.white,
-                      ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E1E22),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session.email,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.muted,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              _RoleBadge(
-                text: session.isGoogle ? 'Google' : 'Web3',
-                color: session.isGoogle
-                    ? const Color(0xFFFFEEF2)
-                    : const Color(0xFFFFF0EB),
-                textColor: session.isGoogle
-                    ? AppTheme.primaryRose
-                    : const Color(0xFFF97316),
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 24),
+  void _showPaymentBottomSheet(BuildContext context, WidgetRef ref) {
+    final t = ref.read(tProvider);
+    final auth = ref.read(authProvider).asData?.value;
 
-          // Wallet Card Details
-          if (hasWallet) ...[
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _buildStandardBottomSheet(
+        context: ctx,
+        icon: Icons.credit_card_outlined,
+        title: t.paymentSettingsTitle,
+        subtitle: t.paymentSettingsDesc,
+        content: Column(
+          children: [
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1000,10 +573,10 @@ void _showAccountDetailBottomSheet(
                           ),
                           const SizedBox(width: 8),
                           const Text(
-                            'Jaringan Monad',
+                            'Monad Testnet',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 14,
                               color: Color(0xFF1E1E22),
                             ),
                           ),
@@ -1019,9 +592,9 @@ void _showAccountDetailBottomSheet(
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: const Color(0xFFA7F3D0)),
                         ),
-                        child: const Text(
-                          'Connected',
-                          style: TextStyle(
+                        child: Text(
+                          t.connected,
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF059669),
@@ -1030,95 +603,263 @@ void _showAccountDetailBottomSheet(
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Alamat Dompet (Monad EVM):',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  if (auth?.walletAddress != null &&
+                      auth!.walletAddress!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      t.walletAddressTitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      auth.walletAddress!,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontFamily: 'monospace',
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            SmileButton(
+              text: t.buyVoucherTitle,
+              icon: Icons.confirmation_number_outlined,
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BuyVoucherScreen()),
+                );
+              },
+              isFullWidth: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  void _showPrivacyBottomSheet(BuildContext context, WidgetRef ref) {
+    final t = ref.read(tProvider);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _buildStandardBottomSheet(
+        context: ctx,
+        icon: Icons.lock_outline_rounded,
+        title: t.privacySettingsTitle,
+        subtitle: t.privacySettingsDesc,
+        content: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: const Column(
+            children: [
+              _SettingInfoRow(
+                icon: Icons.photo_library_outlined,
+                title: 'Penyimpanan Privat',
+                subtitle:
+                    'Foto hasil photobox disimpan langsung ke Google Drive pribadi kamu.',
+              ),
+              Divider(height: 20, color: Color(0xFFE5E7EB)),
+              _SettingInfoRow(
+                icon: Icons.videocam_outlined,
+                title: 'Akses Kamera',
+                subtitle:
+                    'Kamera hanya diakses saat sesi pemotretan photobox sedang berlangsung.',
+              ),
+              Divider(height: 20, color: Color(0xFFE5E7EB)),
+              _SettingInfoRow(
+                icon: Icons.no_accounts_outlined,
+                title: 'Tanpa Pelacakan Iklan',
+                subtitle:
+                    'SmileOn tidak pernah menjual data atau foto ke pihak ketiga.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showHelpBottomSheet(BuildContext context, WidgetRef ref) {
+    final t = ref.read(tProvider);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _buildStandardBottomSheet(
+        context: ctx,
+        icon: Icons.info_outline_rounded,
+        title: t.helpSettingsTitle,
+        subtitle: t.helpSettingsDesc,
+        content: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.camera_alt_outlined,
+                        color: AppTheme.primaryRose,
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'SmileOn Photobooth v1.0.0',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14.5,
+                          color: Color(0xFF1E1E22),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            fullWallet,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                              color: Color(0xFF1F2937),
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(
-                            Icons.copy_rounded,
-                            size: 18,
-                            color: AppTheme.primaryRose,
-                          ),
-                          tooltip: 'Salin Alamat',
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: fullWallet));
-                            SmileToast.showSuccess(
-                              context,
-                              title: 'Tersalin! ✨',
-                              message: 'Alamat dompet Monad berhasil disalin ke clipboard.',
-                            );
-                          },
-                        ),
-                      ],
+                  SizedBox(height: 6),
+                  Text(
+                    'Photobox Anywhere, Anytime. Dibuat dengan cinta untuk mengabadikan momen spesialmu ke Monad onchain.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF6B7280),
+                      height: 1.4,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: const Column(
+                children: [
+                  _SettingInfoRow(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Bantuan & Panduan',
+                    subtitle:
+                        'Gunakan Personal Mode untuk sesi mandiri atau Event Mode dengan kode voucher.',
+                  ),
+                  Divider(height: 20, color: Color(0xFFE5E7EB)),
+                  _SettingInfoRow(
+                    icon: Icons.favorite_outline_rounded,
+                    title: 'Monad Ecosystem',
+                    subtitle:
+                        'Mendukung transaksi super cepat dan hemat biaya di jaringan Monad.',
+                  ),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
 
-          // Tombol Buka Dynamic Profile (Kelola Wallet & Akun)
-          OutlinedButton.icon(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authServiceProvider).showDynamicProfile();
-            },
-            icon: const Icon(
-              Icons.manage_accounts_outlined,
-              size: 18,
-              color: Color(0xFF374151),
-            ),
-            label: const Text(
-              'Kelola Akun di Dynamic Profile',
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF374151),
+  Widget _buildStandardBottomSheet({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget content,
+  }) {
+    final t = ProviderScope.containerOf(context, listen: false).read(tProvider);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE5E7EB),
+                borderRadius: BorderRadius.circular(2),
               ),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              side: const BorderSide(color: Color(0xFFD1D5DB)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              backgroundColor: Colors.white,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
 
-          // Tombol Tutup
+          // Header with Icon
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEEF2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: AppTheme.primaryRose, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E1E22),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF6B7280),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Content
+          content,
+          const SizedBox(height: 20),
+
+          // Close button
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryRose,
               foregroundColor: Colors.white,
@@ -1128,13 +869,60 @@ void _showAccountDetailBottomSheet(
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text(
-              'Tutup',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            child: Text(
+              t.close,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _SettingInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SettingInfoRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppTheme.primaryRose, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E22),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

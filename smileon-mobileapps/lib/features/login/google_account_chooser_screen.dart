@@ -1,9 +1,13 @@
+import 'package:dynamic_sdk/dynamic_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
 import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/auth/saved_account_model.dart';
+import 'package:smileon/core/components/smile_dialog.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/utils/jwt_utils.dart';
 import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
 
 /// Halaman pemilih akun Google yang tersimpan di perangkat (Quick Account Chooser)
@@ -43,24 +47,50 @@ class _GoogleAccountChooserScreenState
   }
 
   Future<void> _onContinue() async {
-    if (_accounts.isEmpty) return;
+    if (_accounts.isEmpty ||
+        _selectedIndex < 0 ||
+        _selectedIndex >= _accounts.length) {
+      return;
+    }
     final selectedAccount = _accounts[_selectedIndex];
 
     setState(() => _isLoading = true);
     try {
-      await ref
-          .read(authProvider.notifier)
-          .loginWithSavedAccount(selectedAccount);
-      _onSuccessLogin();
+      final authService = ref.read(authServiceProvider);
+      final currentDynamicToken = DynamicSDK.instance.auth.token;
+      final isDynamicActive =
+          currentDynamicToken != null && !JwtUtils.isExpired(currentDynamicToken);
+
+      if (isDynamicActive) {
+        // Jika sesi Dynamic masih aktif & valid, pulihkan sesi akun tersimpan secara instan
+        await ref
+            .read(authProvider.notifier)
+            .loginWithSavedAccount(selectedAccount);
+        _onSuccessLogin();
+      } else {
+        // Sesi Dynamic belum aktif atau sudah expired:
+        // Panggil Google Social Connect langsung melalui Dynamic SDK di latar belakang
+        await ref.read(authProvider.notifier).connectGoogleSocial();
+
+        final activeSession = await authService.validateAndGetActiveSession();
+        if (activeSession != null) {
+          _onSuccessLogin();
+        }
+      }
     } catch (e) {
+      debugPrint('Gagal menghubungkan akun Google via Dynamic: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal login dengan akun ${selectedAccount.email}: $e',
+        try {
+          ref.read(authServiceProvider).showDynamicAuth();
+        } catch (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Gagal login dengan akun ${selectedAccount.email}: $e',
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -81,6 +111,40 @@ class _GoogleAccountChooserScreenState
     }
   }
 
+  Future<void> _onDeleteAccount(SavedAccountModel account) async {
+    SmileDialog.show(
+      context: context,
+      title: 'Hapus Semua Informasi Login?',
+      description: 'Semua informasi login dan akun yang tersimpan akan dihapus dari penyimpanan perangkat ini.',
+      primaryButtonText: 'Hapus',
+      icon: Icons.delete_outline_rounded,
+      onPrimaryPressed: () async {
+        Navigator.pop(context);
+        // Hapus seluruh informasi login dari secure storage & sesi auth
+        await ref.read(authProvider.notifier).clearAllLoginInfo();
+        if (mounted) {
+          setState(() {
+            _accounts.clear();
+            _selectedIndex = -1;
+          });
+          SmileToast.showSuccess(
+            context,
+            title: 'Informasi Login Dihapus',
+            message: 'Semua informasi login berhasil dihapus dari penyimpanan.',
+          );
+          // Kembali ke halaman login setelah jeda singkat
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (mounted && Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          });
+        }
+      },
+      secondaryButtonText: 'Batal',
+      onSecondaryPressed: () => Navigator.pop(context),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Dengarkan perubahan sesi secara otomatis
@@ -92,7 +156,10 @@ class _GoogleAccountChooserScreenState
       });
     });
 
-    final selectedAccount = _accounts.isNotEmpty
+    final selectedAccount =
+        (_accounts.isNotEmpty &&
+            _selectedIndex >= 0 &&
+            _selectedIndex < _accounts.length)
         ? _accounts[_selectedIndex]
         : null;
 
@@ -126,10 +193,42 @@ class _GoogleAccountChooserScreenState
 
                     if (_isLoading)
                       Container(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppTheme.primaryRose,
+                        color: Colors.black.withValues(alpha: 0.35),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 20,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(
+                                  color: AppTheme.primaryRose,
+                                  strokeWidth: 3,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Menghubungkan akun...',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E1E22),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -405,20 +504,57 @@ class _GoogleAccountChooserScreenState
       child: Column(
         children: [
           // Accounts List
-          for (int i = 0; i < _accounts.length; i++) ...[
-            _buildAccountTile(
-              account: _accounts[i],
-              isSelected: _selectedIndex == i,
-              onTap: () {
-                setState(() => _selectedIndex = i);
-              },
+          if (_accounts.isEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 20,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Tidak ada akun yang tersimpan di perangkat ini.',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const Divider(
               height: 1,
               thickness: 1,
-              indent: 64,
+              indent: 16,
+              endIndent: 16,
               color: Color(0xFFF3F4F6),
             ),
+          ] else ...[
+            for (int i = 0; i < _accounts.length; i++) ...[
+              _SlideableAccountTile(
+                key: ValueKey(_accounts[i].email),
+                onTap: () {
+                  setState(() => _selectedIndex = i);
+                  _onContinue();
+                },
+                onDelete: () => _onDeleteAccount(_accounts[i]),
+                child: _buildAccountTile(
+                  account: _accounts[i],
+                  isSelected: _selectedIndex == i,
+                ),
+              ),
+              const Divider(
+                height: 1,
+                thickness: 1,
+                indent: 64,
+                color: Color(0xFFF3F4F6),
+              ),
+            ],
           ],
 
           // Option: Use another account
@@ -469,7 +605,11 @@ class _GoogleAccountChooserScreenState
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF1E1E22)),
+          const Icon(
+            Icons.lock_outline_rounded,
+            size: 20,
+            color: Color(0xFF1E1E22),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -505,76 +645,68 @@ class _GoogleAccountChooserScreenState
   Widget _buildAccountTile({
     required SavedAccountModel account,
     required bool isSelected,
-    required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            // User Avatar
-            _buildAvatar(account),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          // User Avatar
+          _buildAvatar(account),
 
-            const SizedBox(width: 14),
+          const SizedBox(width: 14),
 
-            // User Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    account.email,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E1E22),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          // User Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  account.email,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E1E22),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    account.name,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF757575),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  account.name,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF757575),
                   ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          // Selection Radio / Checkbox
+          if (isSelected)
+            Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryRose,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, size: 16, color: Colors.white),
+            )
+          else
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFD1D5DB), width: 1.5),
               ),
             ),
-
-            const SizedBox(width: 10),
-
-            // Selection Radio / Checkbox
-            if (isSelected)
-              Container(
-                width: 24,
-                height: 24,
-                decoration: const BoxDecoration(
-                  color: AppTheme.primaryRose,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check, size: 16, color: Colors.white),
-              )
-            else
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFD1D5DB),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -712,4 +844,150 @@ class _GoogleGLogoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Widget item akun yang dapat digeser ke kiri (slide to left)
+/// untuk memunculkan tombol trash merah.
+class _SlideableAccountTile extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDelete;
+  final VoidCallback onTap;
+
+  const _SlideableAccountTile({
+    super.key,
+    required this.child,
+    required this.onDelete,
+    required this.onTap,
+  });
+
+  @override
+  State<_SlideableAccountTile> createState() => _SlideableAccountTileState();
+}
+
+class _SlideableAccountTileState extends State<_SlideableAccountTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _animation;
+  double _dragOffset = 0.0;
+  static const double _actionWidth = 80.0;
+  static const double _maxDrag = 120.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _animateTo(double target) {
+    _animation =
+        Tween<double>(begin: _dragOffset, end: target).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        )..addListener(() {
+          setState(() => _dragOffset = _animation.value);
+        });
+    _animController.forward(from: 0);
+  }
+
+  void _open() => _animateTo(-_actionWidth);
+  void _close() => _animateTo(0.0);
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          // 1. Background Merah Solid di lapisan bawah
+          Positioned.fill(child: Container(color: const Color(0xFFEF4444))),
+
+          // 2. Konten Tile Akun (berlatar putih) yang digeser ke kiri
+          Transform.translate(
+            offset: Offset(_dragOffset, 0),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (details) {
+                setState(() {
+                  _dragOffset = (_dragOffset + details.primaryDelta!).clamp(
+                    -_maxDrag,
+                    0.0,
+                  );
+                });
+              },
+              onHorizontalDragEnd: (details) {
+                if (details.primaryVelocity! < -300 ||
+                    _dragOffset < -_actionWidth / 2) {
+                  _open();
+                } else {
+                  _close();
+                }
+              },
+              child: Container(
+                color: Colors.white,
+                child: InkWell(
+                  onTap: () {
+                    if (_dragOffset < -10) {
+                      _close();
+                    } else {
+                      widget.onTap();
+                    }
+                  },
+                  child: widget.child,
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Tombol Icon Trash Merah di lapisan TERATAS (aktif saat digeser ke kiri)
+          if (_dragOffset < -5)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: _actionWidth,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    _close();
+                    widget.onDelete();
+                  },
+                  child: Center(
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.delete_rounded,
+                        color: Color(0xFFEF4444),
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

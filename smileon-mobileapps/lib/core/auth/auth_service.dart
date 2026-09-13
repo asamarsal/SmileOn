@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/auth/saved_account_model.dart';
+import 'package:smileon/core/utils/jwt_utils.dart';
 
 class AuthService {
   static const String _keyAuthSession = 'smileon_auth_session';
@@ -34,14 +35,54 @@ class AuthService {
     }
   }
 
-  /// Mengecek apakah ada sesi login tersimpan
+  /// Mengecek apakah ada sesi login tersimpan yang masih aktif dan valid
   Future<bool> hasSession() async {
+    final activeSession = await validateAndGetActiveSession();
+    return activeSession != null;
+  }
+
+  /// Memvalidasi sesi aktif dari local storage dan Dynamic SDK.
+  /// Jika sesi sudah kadaluarsa (expired) atau Dynamic SDK telah mengakhiri sesi,
+  /// fungsi ini secara aman membersihkan data lokal dan mengembalikan null.
+  Future<AuthSessionModel?> validateAndGetActiveSession() async {
     try {
-      final token = await _storage.read(key: _keyAuthToken);
-      final session = await _storage.read(key: _keyAuthSession);
-      return token != null && token.isNotEmpty && session != null && session.isNotEmpty;
-    } catch (_) {
-      return false;
+      final session = await getSession();
+      if (session == null) {
+        return null;
+      }
+
+      // 1. Mode Guest tidak terikat pada masa kadaluarsa Dynamic JWT
+      if (session.isGuest) {
+        return session;
+      }
+
+      // 2. Periksa apakah JWT token lokal sudah kadaluarsa
+      if (session.isExpired) {
+        debugPrint('AuthService: Sesi lokal telah kedaluwarsa. Membersihkan sesi.');
+        await clearSession();
+        _sessionController.add(null);
+        return null;
+      }
+
+      // 3. Periksa sinkronisasi token dengan Dynamic SDK
+      final dynamicToken = DynamicSDK.instance.auth.token;
+      if (dynamicToken != null &&
+          dynamicToken.isNotEmpty &&
+          dynamicToken != session.authToken) {
+        final newExpiresAt = JwtUtils.getExpiration(dynamicToken);
+        final updated = session.copyWith(
+          authToken: dynamicToken,
+          expiresAt: newExpiresAt,
+        );
+        await saveSession(updated);
+        _sessionController.add(updated);
+        return updated;
+      }
+
+      return session;
+    } catch (e) {
+      debugPrint('AuthService: Gagal memvalidasi sesi aktif: $e');
+      return null;
     }
   }
 
@@ -89,6 +130,16 @@ class AuthService {
   /// Menghapus seluruh riwayat akun tersimpan jika diperlukan
   Future<void> clearAllSavedAccounts() async {
     await _storage.delete(key: _keySavedAccounts);
+  }
+
+  /// Menghapus seluruh informasi login dari storage (sesi, token, dan seluruh akun tersimpan)
+  Future<void> clearAllLoginInfo() async {
+    try {
+      await DynamicSDK.instance.auth.logout();
+    } catch (_) {
+      // Abaikan jika DynamicSDK belum terinisialisasi
+    }
+    await _storage.deleteAll();
   }
 
   /// Menyimpan atau memperbarui data akun ke daftar penyimpanan lokal
@@ -155,6 +206,14 @@ class AuthService {
           _sessionController.add(currentSession);
           onSessionAuthenticated?.call(currentSession);
         }
+      } else {
+        // UserProfile bernilai null berarti sesi di Dynamic telah logout atau kadaluarsa (expired)
+        final current = await getSession();
+        if (current != null && !current.isGuest) {
+          debugPrint('AuthService: Dynamic SDK memancarkan null userProfile. Menghapus sesi lokal.');
+          await clearSession();
+          _sessionController.add(null);
+        }
       }
     });
 
@@ -178,6 +237,7 @@ class AuthService {
   /// Sinkronisasi profil user & token JWT dari Dynamic ke secure storage SmileOn
   Future<AuthSessionModel> _syncDynamicUserToSession(UserProfile userProfile) async {
     final token = DynamicSDK.instance.auth.token ?? userProfile.sessionId;
+    final expiresAt = JwtUtils.getExpiration(token);
 
     // Ambil wallet pertama jika sudah siap
     final wallets = DynamicSDK.instance.wallets.userWallets;
@@ -213,6 +273,7 @@ class AuthService {
       network: 'Monad',
       authToken: token,
       createdAt: DateTime.now(),
+      expiresAt: expiresAt,
     );
 
     await saveSession(session);
@@ -256,8 +317,16 @@ class AuthService {
   /// Membuka profil user resmi Dynamic SDK jika diperlukan
   void showDynamicProfile() {
     try {
-      DynamicSDK.instance.ui.showUserProfile();
-    } catch (_) {}
+      final user = DynamicSDK.instance.auth.authenticatedUser;
+      if (user != null) {
+        DynamicSDK.instance.ui.showUserProfile();
+      } else {
+        debugPrint('AuthService: Sesi Dynamic belum aktif, membuka auth modal.');
+        DynamicSDK.instance.ui.showAuth();
+      }
+    } catch (e) {
+      debugPrint('AuthService: Gagal membuka profil Dynamic: $e');
+    }
   }
 
   /// Login via Google (Memicu UI Dynamic Resmi atau fallback langsung)

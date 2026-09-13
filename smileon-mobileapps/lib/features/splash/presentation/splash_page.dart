@@ -13,14 +13,16 @@ class SplashPage extends ConsumerWidget {
 
   Future<void> _handleNavigation(BuildContext context, WidgetRef ref) async {
     final authService = ref.read(authServiceProvider);
-    final hasSession = await authService.hasSession();
+    final activeSession = await authService.validateAndGetActiveSession();
+    final isValid = activeSession != null;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => hasSession ? const MainScaffold() : const LoginScreen(),
+            builder: (context) =>
+                isValid ? const MainScaffold() : const LoginScreen(),
           ),
         );
       }

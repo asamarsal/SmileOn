@@ -4,6 +4,7 @@ import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/constants/app_assets.dart';
 import 'package:smileon/features/home/presentation/all_frames_screen.dart';
+import 'package:smileon/features/home/presentation/notification/notification_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -32,23 +33,37 @@ class HomeScreen extends ConsumerWidget {
                     height: 32,
                     fit: BoxFit.contain,
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.notifications_none,
-                      color: AppTheme.primaryRose,
-                      size: 28,
+                        padding: const EdgeInsets.all(8),
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: AppTheme.primaryRose,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
                 ],

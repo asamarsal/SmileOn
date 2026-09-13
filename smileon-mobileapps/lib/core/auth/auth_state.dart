@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:smileon/core/utils/jwt_utils.dart';
 
 enum AuthMethod {
   google,
@@ -18,6 +19,7 @@ class AuthSessionModel {
   final String network; // Monad, etc.
   final String? authToken;
   final DateTime createdAt;
+  final DateTime? expiresAt;
 
   const AuthSessionModel({
     required this.authMethod,
@@ -30,11 +32,25 @@ class AuthSessionModel {
     this.network = 'Monad',
     this.authToken,
     required this.createdAt,
+    this.expiresAt,
   });
 
   bool get isGuest => authMethod == AuthMethod.guest;
   bool get isGoogle => authMethod == AuthMethod.google;
   bool get isWallet => authMethod == AuthMethod.wallet;
+
+  /// Mengecek apakah sesi saat ini sudah kadaluarsa (expired).
+  /// Mode tamu (Guest) tidak memiliki masa kadaluarsa token.
+  bool get isExpired {
+    if (isGuest) return false;
+    if (expiresAt != null) {
+      return DateTime.now().isAfter(expiresAt!);
+    }
+    if (authToken != null && authToken!.isNotEmpty) {
+      return JwtUtils.isExpired(authToken!);
+    }
+    return false;
+  }
 
   String get truncatedWalletAddress {
     if (walletAddress == null || walletAddress!.isEmpty) return '';
@@ -54,6 +70,7 @@ class AuthSessionModel {
       'network': network,
       'auth_token': authToken,
       'created_at': createdAt.toIso8601String(),
+      'expires_at': expiresAt?.toIso8601String(),
     };
   }
 
@@ -73,19 +90,31 @@ class AuthSessionModel {
         break;
     }
 
+    final token = map['auth_token'] as String?;
+    DateTime? expiresAt = map['expires_at'] != null
+        ? DateTime.tryParse(map['expires_at'] as String)
+        : null;
+
+    // Jika expiresAt belum tersimpan tetapi ada token JWT, ekstrak langsung dari payload JWT
+    if (expiresAt == null && token != null && token.isNotEmpty) {
+      expiresAt = JwtUtils.getExpiration(token);
+    }
+
     return AuthSessionModel(
       authMethod: method,
-      userId: map['user_id'] as String? ?? 'guest_${DateTime.now().millisecondsSinceEpoch}',
+      userId: map['user_id'] as String? ??
+          'guest_${DateTime.now().millisecondsSinceEpoch}',
       name: map['user_name'] as String? ?? 'SmileOn Guest',
       email: map['user_email'] as String? ?? 'Guest Mode',
       avatarUrl: map['user_avatar'] as String?,
       walletAddress: map['wallet_address'] as String?,
       walletType: map['wallet_type'] as String?,
       network: map['network'] as String? ?? 'Monad',
-      authToken: map['auth_token'] as String?,
+      authToken: token,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
+      expiresAt: expiresAt,
     );
   }
 
@@ -105,6 +134,7 @@ class AuthSessionModel {
     String? network,
     String? authToken,
     DateTime? createdAt,
+    DateTime? expiresAt,
   }) {
     return AuthSessionModel(
       authMethod: authMethod ?? this.authMethod,
@@ -117,6 +147,7 @@ class AuthSessionModel {
       network: network ?? this.network,
       authToken: authToken ?? this.authToken,
       createdAt: createdAt ?? this.createdAt,
+      expiresAt: expiresAt ?? this.expiresAt,
     );
   }
 }

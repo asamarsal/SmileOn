@@ -21,19 +21,17 @@ class AuthNotifier extends AsyncNotifier<AuthSessionModel?> {
     final authService = ref.read(authServiceProvider);
     _sub?.cancel();
     _sub = authService.sessionStream.listen((session) {
-      if (session != null) {
-        state = AsyncValue.data(session);
-      }
+      state = AsyncValue.data(session);
     });
     authService.initDynamicListeners();
-    return authService.getSession();
+    return authService.validateAndGetActiveSession();
   }
 
   Future<void> checkSession() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() {
       final authService = ref.read(authServiceProvider);
-      return authService.getSession();
+      return authService.validateAndGetActiveSession();
     });
   }
 
@@ -87,6 +85,13 @@ class AuthNotifier extends AsyncNotifier<AuthSessionModel?> {
     final authService = ref.read(authServiceProvider);
     await authService.removeSavedAccount(email);
     ref.invalidate(savedAccountsProvider);
+  }
+
+  Future<void> clearAllLoginInfo() async {
+    final authService = ref.read(authServiceProvider);
+    await authService.clearAllLoginInfo();
+    ref.invalidate(savedAccountsProvider);
+    state = const AsyncValue.data(null);
   }
 
   Future<AuthSessionModel> loginAsGuest() async {
