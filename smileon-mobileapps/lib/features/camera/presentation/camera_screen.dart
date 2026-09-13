@@ -1,35 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/components/smile_glassmorphism_tabs.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
+import 'package:smileon/features/camera/presentation/qrscan/qrscan_screen.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
-  const CameraScreen({super.key, this.initialTabIndex = 0});
+  const CameraScreen({super.key, this.initialTabIndex = 1}); // Default ke 1 (Personal) atau 0 (Event)
 
   @override
   ConsumerState<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends ConsumerState<CameraScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CameraScreenState extends ConsumerState<CameraScreen> {
+  int _selectedTabIndex = 1;
+  final TextEditingController _voucherController = TextEditingController();
+  final TextEditingController _personalVoucherController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-      initialIndex: widget.initialTabIndex,
-    );
+    _selectedTabIndex = widget.initialTabIndex;
+  }
+
+  @override
+  void didUpdateWidget(CameraScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTabIndex != oldWidget.initialTabIndex) {
+      _selectedTabIndex = widget.initialTabIndex;
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _voucherController.dispose();
+    _personalVoucherController.dispose();
     super.dispose();
+  }
+
+  void _onCheckVoucher() {
+    final code = _voucherController.text.trim();
+    if (code.isEmpty) {
+      SmileToast.showError(
+        context,
+        title: 'Kode Voucher',
+        message: 'Silakan masukkan kode voucher terlebih dahulu.',
+      );
+      return;
+    }
+
+    SmileToast.showSuccess(
+      context,
+      title: 'Voucher Dikonfirmasi',
+      message: 'Voucher "$code" berhasil digunakan. Memulai kamera...',
+    );
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ActiveCameraScreen(),
+          ),
+        );
+      }
+    });
+  }
+
+  void _onCheckPersonalVoucher() {
+    final code = _personalVoucherController.text.trim();
+    if (code.isEmpty) {
+      SmileToast.showError(
+        context,
+        title: 'Kode Voucher',
+        message: 'Silakan masukkan kode voucher terlebih dahulu.',
+      );
+      return;
+    }
+
+    SmileToast.showSuccess(
+      context,
+      title: 'Voucher Dikonfirmasi',
+      message: 'Voucher "$code" berhasil digunakan. Memulai kamera...',
+    );
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ActiveCameraScreen(),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -37,208 +103,537 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     final t = ref.watch(tProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.cream,
-      body: SafeArea(
-        child: Column(
-          children: [
-            TabBar(
-              controller: _tabController,
-              labelColor: AppTheme.primaryRose,
-              unselectedLabelColor: AppTheme.muted,
-              indicatorColor: AppTheme.primaryRose,
-              tabs: [
-                Tab(text: t.tabEvent),
-                Tab(text: t.tabPersonal),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [_buildEventAccessTab(t), _buildPersonalAccessTab(t)],
+      backgroundColor: Colors.white,
+      body: _selectedTabIndex == 0
+          ? _buildEventModeLayout(t)
+          : _buildPersonalModeLayout(t),
+    );
+  }
+
+  // ==========================================
+  // 1. TAMPILAN MODE EVENT (WEDDING / EVENT)
+  // ==========================================
+  Widget _buildEventModeLayout(AppTranslations t) {
+    return Stack(
+      children: [
+        // 1. Gambar latar belakang Mode Event (Pernikahan) yang memenuhi bagian atas layar
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/eventmode/event_illustration.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+
+        // 2. Gradient vignette gelap halus di atas agar tabs & status bar kontras
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 160,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.45),
+                  Colors.transparent,
+                ],
               ),
             ),
+          ),
+        ),
+
+        // 3. Konten Utama: Floating Glassmorphism Tabs di atas & Card Putih di bawah
+        Column(
+          children: [
+            // Floating Glassmorphism Tabs
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: SmileGlassmorphismTabs(
+                  selectedIndex: _selectedTabIndex,
+                  onTabSelected: (index) {
+                    setState(() {
+                      _selectedTabIndex = index;
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Bottom Card Putih Akses Event
+            _buildEventBottomCard(t),
           ],
+        ),
+      ],
+    );
+  }
+
+  /// Kartu Informasi & Form Input Akses Event di bagian bawah
+  Widget _buildEventBottomCard(AppTranslations t) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Judul "Akses Event"
+              const Text(
+                'Akses Event',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E22),
+                  letterSpacing: -0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 8),
+
+              // Subtitle deskripsi
+              const Text(
+                'Masukkan kode voucher atau scan QR\ndari event Anda.',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: Color(0xFF6B7280),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 12),
+
+              // Garis aksen kecil di tengah
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Tombol "Scan QR Code" (Pink Pastel)
+              Material(
+                color: const Color(0xFFFFEEF3),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const QrScanScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    height: 58,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    alignment: Alignment.center,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.qr_code_scanner_rounded,
+                          color: Color(0xFFFF2D78),
+                          size: 26,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Scan QR Code',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFFF2D78),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Teks "atau"
+              const Text(
+                'atau',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 14),
+
+              // Input Kode Voucher
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFFE5E7EB),
+                    width: 1.2,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _voucherController,
+                        decoration: const InputDecoration(
+                          hintText: 'Masukkan kode voucher',
+                          hintStyle: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          color: Color(0xFF1E1E22),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.confirmation_number_outlined,
+                      color: Color(0xFFFF2D78),
+                      size: 22,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Tombol "Cek Voucher" (Pink Cerah)
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _onCheckVoucher,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF2D78), // Vibrant pink sesuai desain
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cek Voucher',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEventAccessTab(AppTranslations t) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 16),
-          Text(
-            t.eventAccessTitle,
-            style: const TextStyle(
-              color: AppTheme.text,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+  // ==========================================
+  // 2. TAMPILAN MODE PERSONAL (FRIENDS / HANGOUT)
+  // ==========================================
+  Widget _buildPersonalModeLayout(AppTranslations t) {
+    return Stack(
+      children: [
+        // 1. Gambar latar belakang Mode Personal yang memenuhi bagian atas layar
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/personalmode/personal_illustration.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
           ),
-          const SizedBox(height: 12),
-          Text(
-            t.eventAccessDesc,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppTheme.muted, fontSize: 14),
-          ),
-          const SizedBox(height: 24),
+        ),
 
-
-
-          // QR Scanner Placeholder
-          Container(
-            width: double.infinity,
-            height: 280,
+        // 2. Gradient vignette gelap halus di atas agar tabs & status bar kontras
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 160,
+          child: Container(
             decoration: BoxDecoration(
-              color: Colors.black45,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.qr_code_scanner,
-                  size: 150,
-                  color: Colors.white.withValues(alpha: 0.8),
-                ),
-                Positioned(
-                  bottom: 24,
-                  child: Text(
-                    t.pointCamera,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ),
-              ],
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.45),
+                  Colors.transparent,
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 24),
+        ),
 
-          // Divider "atau"
-          Row(
-            children: [
-              Expanded(child: Divider(color: AppTheme.muted.withOpacity(0.3))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(t.or, style: const TextStyle(color: AppTheme.text)),
+        // 3. Konten Utama: Floating Glassmorphism Tabs di atas & Card Putih di bawah
+        Column(
+          children: [
+            // Floating Glassmorphism Tabs
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: SmileGlassmorphismTabs(
+                  selectedIndex: _selectedTabIndex,
+                  onTabSelected: (index) {
+                    setState(() {
+                      _selectedTabIndex = index;
+                    });
+                  },
+                ),
               ),
-              Expanded(child: Divider(color: AppTheme.muted.withOpacity(0.3))),
-            ],
-          ),
-          const SizedBox(height: 24),
+            ),
 
-          // Voucher Input
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: t.inputVoucherHint,
-                hintStyle: const TextStyle(color: AppTheme.muted),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                suffixIcon: const Icon(
-                  Icons.confirmation_number_outlined,
-                  color: AppTheme.primaryRose,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+            const Spacer(),
 
-          // Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryRose,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                t.checkVoucher,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
+            // Bottom Card Putih dengan sudut melengkung 32px
+            _buildPersonalBottomCard(t),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildPersonalAccessTab(AppTranslations t) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.person_outline,
-            size: 80,
-            color: AppTheme.primaryRose,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            t.personalAccessTitle,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.text,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            t.personalAccessDesc,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppTheme.muted),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ActiveCameraScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRose,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              elevation: 0,
-            ),
-            child: Text(
-              t.startCamera,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+  /// Kartu Informasi & Form Input Akses Mode Personal di bagian bawah
+  Widget _buildPersonalBottomCard(AppTranslations t) {
+    final isEn = t.isEn;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Judul "Mode Personal"
+              Text(
+                isEn ? 'Personal Mode' : 'Mode Personal',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E22),
+                  letterSpacing: -0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 8),
+
+              // Subtitle deskripsi
+              Text(
+                isEn
+                    ? 'Capture special moments,\nanywhere.'
+                    : 'Abadikan momen spesial,\ndi mana saja.',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: Color(0xFF6B7280),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 12),
+
+              // Garis aksen kecil di tengah
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Tombol "Mulai Kamera" (Soft Lavender / Pastel Indigo, bukan pink)
+              Material(
+                color: const Color(0xFFEEEDF8),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ActiveCameraScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    height: 58,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.camera_alt_rounded,
+                          color: Color(0xFF3F3765),
+                          size: 26,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          isEn ? 'Start Camera' : 'Mulai Kamera',
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF3F3765),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Teks "atau"
+              Text(
+                isEn ? 'or' : 'atau',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF9CA3AF),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 14),
+
+              // Input Kode Voucher (dengan ikon voucher warna Dark Indigo/Navy, BUKAN pink)
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0xFFE5E7EB),
+                    width: 1.2,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _personalVoucherController,
+                        decoration: InputDecoration(
+                          hintText: isEn
+                              ? 'Enter voucher code'
+                              : 'Masukkan kode voucher',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          color: Color(0xFF1E1E22),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.confirmation_number_outlined,
+                      color: Color(0xFF3F3765), // Dark indigo / navy purple, NOT pink!
+                      size: 22,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Tombol "Cek Voucher" (Warna Dark Indigo / Navy Purple, BUKAN pink)
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _onCheckPersonalVoucher,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3F3765), // Dark indigo sesuai personal theme, BUKAN pink
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                  ),
+                  child: Text(
+                    isEn ? 'Check Voucher' : 'Cek Voucher',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
