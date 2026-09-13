@@ -2,9 +2,15 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/auth/auth_service.dart';
 import 'package:smileon/core/auth/auth_state.dart';
+import 'package:smileon/core/auth/saved_account_model.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
+});
+
+final savedAccountsProvider = FutureProvider<List<SavedAccountModel>>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  return authService.getSavedAccounts();
 });
 
 class AuthNotifier extends AsyncNotifier<AuthSessionModel?> {
@@ -61,6 +67,26 @@ class AuthNotifier extends AsyncNotifier<AuthSessionModel?> {
     );
     state = AsyncValue.data(session);
     return session;
+  }
+
+  Future<void> connectGoogleSocial() async {
+    final authService = ref.read(authServiceProvider);
+    await authService.connectGoogleSocial();
+  }
+
+  Future<AuthSessionModel> loginWithSavedAccount(SavedAccountModel account) async {
+    state = const AsyncValue.loading();
+    final authService = ref.read(authServiceProvider);
+    final session = await authService.loginWithSavedAccount(account);
+    ref.invalidate(savedAccountsProvider);
+    state = AsyncValue.data(session);
+    return session;
+  }
+
+  Future<void> removeSavedAccount(String email) async {
+    final authService = ref.read(authServiceProvider);
+    await authService.removeSavedAccount(email);
+    ref.invalidate(savedAccountsProvider);
   }
 
   Future<AuthSessionModel> loginAsGuest() async {

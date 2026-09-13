@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
+import 'package:smileon/core/constants/app_assets.dart';
 import 'package:smileon/features/home/presentation/all_frames_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -10,6 +11,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
+    final isHorizontal =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
@@ -24,14 +27,10 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'SmileOn',
-                    style: TextStyle(
-                      color: AppTheme.primaryRose,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1,
-                    ),
+                  Image.asset(
+                    'assets/icons/smileon-line.png',
+                    height: 32,
+                    fit: BoxFit.contain,
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -39,7 +38,7 @@ class HomeScreen extends ConsumerWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -51,10 +50,10 @@ class HomeScreen extends ConsumerWidget {
                       color: AppTheme.primaryRose,
                       size: 28,
                     ),
-                  )
+                  ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Hero Banner
               Container(
@@ -64,7 +63,7 @@ class HomeScreen extends ConsumerWidget {
                   gradient: LinearGradient(
                     colors: [
                       AppTheme.pinkCard,
-                      AppTheme.lightPink.withOpacity(0.5),
+                      AppTheme.lightPink.withValues(alpha: 0.5),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -82,7 +81,7 @@ class HomeScreen extends ConsumerWidget {
                             t.homeHeroTitle,
                             style: const TextStyle(
                               color: AppTheme.text,
-                              fontSize: 28,
+                              fontSize: 24,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
                             ),
@@ -95,7 +94,7 @@ class HomeScreen extends ConsumerWidget {
                               fontSize: 14,
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: () {},
                             style: ElevatedButton.styleFrom(
@@ -115,7 +114,9 @@ class HomeScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   t.startPhoto,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 const Icon(Icons.arrow_forward, size: 18),
@@ -130,15 +131,21 @@ class HomeScreen extends ConsumerWidget {
                       child: Container(
                         height: 180,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.photo_library_outlined,
-                            size: 48,
-                            color: AppTheme.primaryRose,
-                          ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          isHorizontal
+                              ? 'assets/images/hero/couple_photos_horizontal_1.png'
+                              : 'assets/images/hero/couple_photos_1.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
@@ -147,30 +154,39 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Mode Cards
+              // Mode Cards (Personal & Event dalam 1 Row)
               Row(
                 children: [
                   Expanded(
-                    child: _ModeCard(
-                      icon: Icons.person_outline,
+                    child: _ModeBannerCard(
+                      icon: const Icon(
+                        Icons.person,
+                        color: AppTheme.primaryRose,
+                        size: 22,
+                      ),
                       title: t.personalMode,
                       subtitle: t.personalModeDesc,
+                      imagePath: AppImages.flower,
                       onTap: () {},
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: _ModeCard(
-                      icon: Icons.people_outline,
+                    child: _ModeBannerCard(
+                      icon: const Icon(
+                        Icons.people_alt_rounded,
+                        color: AppTheme.primaryRose,
+                        size: 22,
+                      ),
                       title: t.eventMode,
                       subtitle: t.eventModeDesc,
+                      imagePath: AppImages.baloon,
                       onTap: () {},
-                      iconColor: AppTheme.primaryRose,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 12),
 
               // Frame Populer
               Row(
@@ -188,7 +204,9 @@ class HomeScreen extends ConsumerWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const AllFramesScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const AllFramesScreen(),
+                        ),
                       );
                     },
                     style: TextButton.styleFrom(
@@ -198,13 +216,14 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               SizedBox(
-                height: 180,
+                height: 260,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: 4,
-                  separatorBuilder: (context, index) => const SizedBox(width: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 16),
                   itemBuilder: (context, index) {
                     return Container(
                       width: 120,
@@ -213,7 +232,7 @@ class HomeScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
+                            color: Colors.black.withValues(alpha: 0.03),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -231,7 +250,9 @@ class HomeScreen extends ConsumerWidget {
                               child: Center(
                                 child: Icon(
                                   Icons.image_outlined,
-                                  color: AppTheme.primaryRose.withOpacity(0.5),
+                                  color: AppTheme.primaryRose.withValues(
+                                    alpha: 0.5,
+                                  ),
                                 ),
                               ),
                             ),
@@ -251,64 +272,124 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _ModeCard extends StatelessWidget {
-  final IconData icon;
+class _ModeBannerCard extends StatelessWidget {
+  final Widget icon;
   final String title;
   final String subtitle;
+  final String imagePath;
   final VoidCallback onTap;
-  final Color iconColor;
 
-  const _ModeCard({
+  const _ModeBannerCard({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.imagePath,
     required this.onTap,
-    this.iconColor = AppTheme.primaryRose,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 240;
+        final cardHeight = isCompact ? 122.0 : 185.0;
+
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            height: cardHeight,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF4F6),
+              borderRadius: BorderRadius.circular(isCompact ? 18 : 24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: isCompact ? 8 : 14,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: iconColor, size: 36),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppTheme.text,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                height: 1.2,
-              ),
+            clipBehavior: Clip.antiAlias,
+            child: Row(
+              children: [
+                // === SISI KIRI (Icon, Title, Subtitle) ===
+                Expanded(
+                  flex: 5,
+                  child: Stack(
+                    children: [
+                      // Blob dekorasi lembut di background
+                      Positioned(
+                        right: isCompact ? -15 : -25,
+                        bottom: isCompact ? -20 : -35,
+                        child: Container(
+                          width: isCompact ? 80 : 140,
+                          height: isCompact ? 80 : 140,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFFDEE7)
+                                .withValues(alpha: 0.45),
+                          ),
+                        ),
+                      ),
+
+                      // Konten teks & icon
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          isCompact ? 10 : 18,
+                          isCompact ? 8 : 18,
+                          isCompact ? 6 : 10,
+                          isCompact ? 8 : 16,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            icon,
+                            SizedBox(height: isCompact ? 4 : 10),
+                            Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: const Color(0xFF1E1E22),
+                                fontSize: isCompact ? 12.5 : 21,
+                                fontWeight: FontWeight.w800,
+                                height: 1.15,
+                              ),
+                            ),
+                            SizedBox(height: isCompact ? 3 : 6),
+                            Text(
+                              subtitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: const Color(0xFF757575),
+                                fontSize: isCompact ? 9.5 : 12.5,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // === SISI KANAN (Foto Bunga/Balon Jernih & Bersih) ===
+                Expanded(
+                  flex: 5,
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: AppTheme.muted,
-                fontSize: 12,
-                height: 1.3,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

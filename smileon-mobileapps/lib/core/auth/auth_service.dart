@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:dynamic_sdk/dynamic_sdk.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:smileon/core/auth/auth_state.dart';
+import 'package:smileon/core/auth/saved_account_model.dart';
 
 class AuthService {
   static const String _keyAuthSession = 'smileon_auth_session';
   static const String _keyAuthToken = 'smileon_auth_token';
+  static const String _keySavedAccounts = 'smileon_saved_accounts';
 
   final FlutterSecureStorage _storage;
 
@@ -57,6 +61,83 @@ class AuthService {
     }
     await _storage.delete(key: _keyAuthToken);
     await _storage.delete(key: _keyAuthSession);
+  }
+
+  /// Mengambil daftar akun yang pernah login dari secure storage
+  Future<List<SavedAccountModel>> getSavedAccounts() async {
+    try {
+      final jsonStr = await _storage.read(key: _keySavedAccounts);
+      if (jsonStr == null || jsonStr.isEmpty) {
+        return [];
+      }
+      final List<dynamic> decoded = json.decode(jsonStr) as List<dynamic>;
+      final list = decoded
+          .map((item) => SavedAccountModel.fromMap(item as Map<String, dynamic>))
+          .where((a) =>
+              !a.userId.startsWith('google_sarah_') &&
+              !a.userId.startsWith('google_andhika_') &&
+              a.email.toLowerCase() != 'sarahputri@gmail.com' &&
+              a.email.toLowerCase() != 'andhika.work@gmail.com')
+          .toList();
+      list.sort((a, b) => b.lastLoginAt.compareTo(a.lastLoginAt));
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Menghapus seluruh riwayat akun tersimpan jika diperlukan
+  Future<void> clearAllSavedAccounts() async {
+    await _storage.delete(key: _keySavedAccounts);
+  }
+
+  /// Menyimpan atau memperbarui data akun ke daftar penyimpanan lokal
+  Future<void> saveOrUpdateAccount(SavedAccountModel account) async {
+    try {
+      final currentList = await getSavedAccounts();
+      final updatedList = currentList
+          .where((a) => a.email.toLowerCase() != account.email.toLowerCase())
+          .toList();
+      updatedList.insert(0, account);
+      final cappedList = updatedList.take(10).toList();
+      final encoded = json.encode(cappedList.map((a) => a.toMap()).toList());
+      await _storage.write(key: _keySavedAccounts, value: encoded);
+    } catch (e) {
+      debugPrint('Error saving account to local storage: $e');
+    }
+  }
+
+  /// Menghapus akun tertentu dari daftar penyimpanan perangkat
+  Future<void> removeSavedAccount(String email) async {
+    try {
+      final currentList = await getSavedAccounts();
+      final updatedList = currentList
+          .where((a) => a.email.toLowerCase() != email.toLowerCase())
+          .toList();
+      final encoded = json.encode(updatedList.map((a) => a.toMap()).toList());
+      await _storage.write(key: _keySavedAccounts, value: encoded);
+    } catch (_) {}
+  }
+
+  /// Login cepat menggunakan akun yang dipilih dari daftar akun tersimpan
+  Future<AuthSessionModel> loginWithSavedAccount(SavedAccountModel account) async {
+    final session = AuthSessionModel(
+      authMethod: AuthMethod.google,
+      userId: account.userId.isNotEmpty ? account.userId : 'dynamic_google_${account.email.hashCode.abs()}',
+      name: account.name,
+      email: account.email,
+      avatarUrl: account.avatarUrl,
+      walletAddress: account.walletAddress ?? _generateMonadAddress(account.email),
+      walletType: account.walletType ?? 'dynamic_embedded',
+      network: 'Monad',
+      authToken: account.authToken ?? 'jwt_saved_${DateTime.now().millisecondsSinceEpoch}',
+      createdAt: DateTime.now(),
+    );
+
+    await saveSession(session);
+    await saveOrUpdateAccount(account.copyWith(lastLoginAt: DateTime.now()));
+    _sessionController.add(session);
+    return session;
   }
 
   /// Stream controller untuk memancarkan sesi ketika Dynamic SDK mengautentikasi user secara dinamis
@@ -135,6 +216,20 @@ class AuthService {
     );
 
     await saveSession(session);
+
+    if (session.email.isNotEmpty && !session.isGuest) {
+      await saveOrUpdateAccount(SavedAccountModel(
+        email: session.email,
+        name: session.name,
+        avatarUrl: session.avatarUrl,
+        userId: session.userId,
+        lastLoginAt: DateTime.now(),
+        walletAddress: session.walletAddress,
+        walletType: session.walletType,
+        authToken: session.authToken,
+      ));
+    }
+
     return session;
   }
 
@@ -143,6 +238,19 @@ class AuthService {
     try {
       DynamicSDK.instance.ui.showAuth();
     } catch (_) {}
+  }
+
+  /// Memicu login Google Social Authentication langsung melalui Dynamic SDK
+  Future<void> connectGoogleSocial() async {
+    try {
+      await DynamicSDK.instance.auth.social.connect(
+        provider: SocialProvider.google,
+      );
+    } catch (e) {
+      debugPrint("Error connecting with Google via Dynamic: $e");
+      showDynamicAuth();
+      rethrow;
+    }
   }
 
   /// Membuka profil user resmi Dynamic SDK jika diperlukan
@@ -172,6 +280,18 @@ class AuthService {
     );
 
     await saveSession(session);
+
+    await saveOrUpdateAccount(SavedAccountModel(
+      email: session.email,
+      name: session.name,
+      avatarUrl: session.avatarUrl,
+      userId: session.userId,
+      lastLoginAt: DateTime.now(),
+      walletAddress: session.walletAddress,
+      walletType: session.walletType,
+      authToken: session.authToken,
+    ));
+
     return session;
   }
 

@@ -153,22 +153,7 @@ class SettingsScreen extends ConsumerWidget {
                     color: Color(0xFFF0F0F0),
                   ),
                   _buildListTile(
-                    icon: Icons.currency_bitcoin, // Using bitcoin icon as placeholder for monad
-                    title: t.useMonadCoin,
-                    iconColor: Colors.indigo,
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: AppTheme.muted,
-                    ),
-                  ),
-                  const Divider(
-                    height: 1,
-                    indent: 56,
-                    endIndent: 16,
-                    color: Color(0xFFF0F0F0),
-                  ),
-                  _buildListTile(
-                    icon: Icons.card_giftcard,
+                    icon: Icons.confirmation_number_outlined,
                     title: t.redeemVoucherSetting,
                     trailing: const Icon(
                       Icons.chevron_right,

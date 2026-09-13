@@ -24,10 +24,10 @@ class AppTranslations {
 
   // Home Screen
   String get homeHeroTitle =>
-      isEn ? 'Capture\nthe Special\nMoment' : 'Abadikan\nMomen\nSpesial';
+      isEn ? 'Capture your\nSpecial\nMoment' : 'Abadikan\nMomen\nSpesialmu';
   String get homeHeroSubtitle => isEn
       ? 'Photobox for Your\nBeautiful Story'
-      : 'Photobox untuk Cerita\nIndahmu';
+      : 'Photobox untuk\nCerita Indahmu';
   String get startPhoto => isEn ? 'Start Photo' : 'Mulai Foto';
   String get personalMode => isEn ? 'Personal\nMode' : 'Mode\nPersonal';
   String get personalModeDesc =>
@@ -125,17 +125,20 @@ class AppTranslations {
   String get sectionAccount => isEn ? 'Account' : 'Akun';
   String get sectionStorage => isEn ? 'Storage' : 'Penyimpanan';
   String get sectionOthers => isEn ? 'Others' : 'Lainnya';
-  
-  String get saveToDrive => isEn ? 'Save to Google Drive' : 'Simpan ke Google Drive';
+
+  String get saveToDrive =>
+      isEn ? 'Save to Google Drive' : 'Simpan ke Google Drive';
   String get sendToEmail => isEn ? 'Send to Email' : 'Kirim ke Email';
   String get photoQuality => isEn ? 'Photo Quality' : 'Kualitas Foto';
   String get photoQualityHigh => isEn ? 'High' : 'Tinggi';
-  
+
   String get useMonadCoin => isEn ? 'Use Monad Coin' : 'Gunakan Coin Monad';
-  String get redeemVoucherSetting => isEn ? 'Redeem Voucher' : 'Redeem Voucher';
+  String get redeemVoucherSetting => isEn ? 'Buy Voucher' : 'Beli Voucher';
   String get aboutApp => isEn ? 'About App' : 'Tentang Aplikasi';
   String get logout => isEn ? 'Logout' : 'Keluar';
-  String get logoutConfirmDesc => isEn ? 'Are you sure you want to logout?' : 'Apa Anda yakin ingin keluar?';
+  String get logoutConfirmDesc => isEn
+      ? 'Are you sure you want to logout?'
+      : 'Apa Anda yakin ingin keluar?';
   String get yes => isEn ? 'Yes' : 'Ya';
   String get cancel => isEn ? 'Cancel' : 'Batal';
 }

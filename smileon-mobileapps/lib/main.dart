@@ -12,6 +12,7 @@ void main() {
       appName: 'SmileOn',
       appLogoUrl: 'https://demo.dynamic.xyz/favicon-32x32.png',
       appOrigin: 'https://smileon.app',
+      redirectUrl: 'smileon://',
     ),
   );
   runApp(const ProviderScope(child: MyApp()));
@@ -34,21 +35,7 @@ class MyApp extends StatelessWidget {
           ],
         );
       },
-      home: StreamBuilder<bool?>(
-        stream: DynamicSDK.instance.sdk.readyChanges,
-        builder: (context, snapshot) {
-          final sdkReady = snapshot.data ?? false;
-          return sdkReady
-              ? const SplashPage()
-              : const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryRose,
-                    ),
-                  ),
-                );
-        },
-      ),
+      home: const SplashPage(),
     );
   }
 }
