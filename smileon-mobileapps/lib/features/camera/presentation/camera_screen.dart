@@ -15,7 +15,8 @@ class CameraScreen extends ConsumerStatefulWidget {
 }
 
 class _CameraScreenState extends ConsumerState<CameraScreen> {
-  int _selectedTabIndex = 1;
+  late int _selectedTabIndex;
+  late final PageController _pageController;
   final TextEditingController _voucherController = TextEditingController();
   final TextEditingController _personalVoucherController = TextEditingController();
 
@@ -23,6 +24,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   void initState() {
     super.initState();
     _selectedTabIndex = widget.initialTabIndex;
+    _pageController = PageController(initialPage: _selectedTabIndex);
   }
 
   @override
@@ -30,11 +32,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     super.didUpdateWidget(oldWidget);
     if (widget.initialTabIndex != oldWidget.initialTabIndex) {
       _selectedTabIndex = widget.initialTabIndex;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(widget.initialTabIndex);
+      }
     }
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _voucherController.dispose();
     _personalVoucherController.dispose();
     super.dispose();
@@ -104,9 +110,55 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: _selectedTabIndex == 0
-          ? _buildEventModeLayout(t)
-          : _buildPersonalModeLayout(t),
+      body: Stack(
+        children: [
+          // 1. PageView untuk transisi geser horizontal antara Event dan Personal
+          // Menggunakan ClampingScrollPhysics & overscroll: false agar tidak ada rongga kosong (space putih)
+          // saat digeser melebihi batas ujung kiri (Event) maupun batas ujung kanan (Personal).
+          ScrollConfiguration(
+            behavior: const ScrollBehavior().copyWith(overscroll: false),
+            child: PageView(
+              controller: _pageController,
+              physics: const ClampingScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() {
+                  _selectedTabIndex = index;
+                });
+              },
+              children: [
+                _buildEventModeLayout(t),
+                _buildPersonalModeLayout(t),
+              ],
+            ),
+          ),
+
+          // 2. Floating Glassmorphism Tabs di lapisan atas (tetap melayang jernih)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: SmileGlassmorphismTabs(
+                  selectedIndex: _selectedTabIndex,
+                  onTabSelected: (index) {
+                    setState(() {
+                      _selectedTabIndex = index;
+                    });
+                    _pageController.animateToPage(
+                      index,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeInOutCubic,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -117,9 +169,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     return Stack(
       children: [
         // 1. Gambar latar belakang Mode Event (Pernikahan) yang memenuhi bagian atas layar
-        Positioned.fill(
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: MediaQuery.of(context).size.height * 0.58,
           child: Image.asset(
-            'assets/images/eventmode/event_illustration.png',
+            'assets/images/eventmode/event_illustration_high.png',
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
           ),
@@ -145,25 +201,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           ),
         ),
 
-        // 3. Konten Utama: Floating Glassmorphism Tabs di atas & Card Putih di bawah
+        // 3. Konten Utama: Card Putih Akses Event di bagian bawah
         Column(
           children: [
-            // Floating Glassmorphism Tabs
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                child: SmileGlassmorphismTabs(
-                  selectedIndex: _selectedTabIndex,
-                  onTabSelected: (index) {
-                    setState(() {
-                      _selectedTabIndex = index;
-                    });
-                  },
-                ),
-              ),
-            ),
-
             const Spacer(),
 
             // Bottom Card Putih Akses Event
@@ -378,9 +418,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     return Stack(
       children: [
         // 1. Gambar latar belakang Mode Personal yang memenuhi bagian atas layar
-        Positioned.fill(
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: MediaQuery.of(context).size.height * 0.58,
           child: Image.asset(
-            'assets/images/personalmode/personal_illustration.png',
+            'assets/images/personalmode/personal_illustration_high.png',
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
           ),
@@ -406,25 +450,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           ),
         ),
 
-        // 3. Konten Utama: Floating Glassmorphism Tabs di atas & Card Putih di bawah
+        // 3. Konten Utama: Card Putih Akses Personal di bagian bawah
         Column(
           children: [
-            // Floating Glassmorphism Tabs
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                child: SmileGlassmorphismTabs(
-                  selectedIndex: _selectedTabIndex,
-                  onTabSelected: (index) {
-                    setState(() {
-                      _selectedTabIndex = index;
-                    });
-                  },
-                ),
-              ),
-            ),
-
             const Spacer(),
 
             // Bottom Card Putih dengan sudut melengkung 32px

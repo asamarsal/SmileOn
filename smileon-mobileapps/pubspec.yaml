@@ -41,6 +41,7 @@ dependencies:
   flutter_secure_storage: ^10.3.2
   dynamic_sdk: ^1.17.0
   dynamic_sdk_web3dart: ^1.17.0
+  dio: ^5.11.1
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +77,8 @@ flutter:
     - assets/images/hero/
     - assets/images/personalmode/
     - assets/images/eventmode/
+    - assets/images/frame-example/
+    - assets/images/voucher/
     - assets/splash/
 
   # An image asset can refer to one or more resolution-specific "variants", see

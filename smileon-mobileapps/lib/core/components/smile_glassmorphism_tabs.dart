@@ -41,36 +41,49 @@ class SmileGlassmorphismTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.28),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.25),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity;
+        if (velocity != null) {
+          if (velocity < -120 && selectedIndex < tabs.length - 1) {
+            onTabSelected(selectedIndex + 1);
+          } else if (velocity > 120 && selectedIndex > 0) {
+            onTabSelected(selectedIndex - 1);
+          }
+        }
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            height: height,
+            padding: padding,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.2,
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              for (int i = 0; i < tabs.length; i++) ...[
-                Expanded(
-                  child: _buildTabItem(i),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
               ],
-            ],
+            ),
+            child: Row(
+              children: [
+                for (int i = 0; i < tabs.length; i++) ...[
+                  Expanded(
+                    child: _buildTabItem(i),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),

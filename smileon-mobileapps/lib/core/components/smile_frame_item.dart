@@ -122,21 +122,36 @@ class SmileFrameItem extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                // Image placeholder
+                // Image / Photostrip display
                 Padding(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(8.0),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.white : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Center(
-                      child: Icon(
-                        isSelected ? Icons.check_circle : (item['icon'] as IconData? ?? Icons.image_outlined),
-                        size: 48,
-                        color: isSelected ? AppTheme.primaryRose : Colors.grey.shade400,
-                      ),
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: (item['image'] != null || item['imageUrl'] != null || item['imageAsset'] != null)
+                        ? Image.asset(
+                            (item['image'] ?? item['imageUrl'] ?? item['imageAsset']) as String,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (context, error, stackTrace) => Center(
+                              child: Icon(
+                                isSelected ? Icons.check_circle : Icons.broken_image_rounded,
+                                size: 40,
+                                color: isSelected ? AppTheme.primaryRose : Colors.grey.shade400,
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Icon(
+                              isSelected ? Icons.check_circle : (item['icon'] as IconData? ?? Icons.image_outlined),
+                              size: 48,
+                              color: isSelected ? AppTheme.primaryRose : Colors.grey.shade400,
+                            ),
+                          ),
                   ),
                 ),
                 // Top right icon

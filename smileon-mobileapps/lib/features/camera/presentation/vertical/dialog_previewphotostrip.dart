@@ -5,7 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/features/camera/presentation/preview_photos.dart';
+import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 
 /// Dialog fullscreen untuk menampilkan preview photostrip strip foto 16:9
 /// dengan margin luar 4px, template frame switcher, dan preview 3 1/2 frame foto.
@@ -13,12 +13,14 @@ class DialogPreviewPhotostrip extends StatefulWidget {
   final int initialFrameIndex;
   final List<String> capturedPhotos;
   final Function(int selectedIndex) onFrameSelected;
+  final VoidCallback? onRetake;
 
   const DialogPreviewPhotostrip({
     super.key,
     required this.initialFrameIndex,
     required this.capturedPhotos,
     required this.onFrameSelected,
+    this.onRetake,
   });
 
   /// Menampilkan dialog preview photostrip
@@ -27,6 +29,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     required int initialFrameIndex,
     required List<String> capturedPhotos,
     required Function(int selectedIndex) onFrameSelected,
+    VoidCallback? onRetake,
   }) {
     HapticFeedback.lightImpact();
     return showDialog<void>(
@@ -37,6 +40,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
           initialFrameIndex: initialFrameIndex,
           capturedPhotos: capturedPhotos,
           onFrameSelected: onFrameSelected,
+          onRetake: onRetake,
         );
       },
     );
@@ -49,6 +53,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
 
 class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip> {
   late int _activeFrameIndex;
+  bool _isRoundedBorder = true; // true: border circle / bulat, false: border biasa 90 derajat
 
   @override
   void initState() {
@@ -355,12 +360,15 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip> {
     final double effectiveWidth = width ?? 290;
     final double effectiveHeight = height ?? 870;
 
+    final double cardRadius = _isRoundedBorder ? 16.0 : 0.0;
+    final double innerRadius = _isRoundedBorder ? 14.0 : 0.0;
+
     return Container(
       width: effectiveWidth,
       height: effectiveHeight,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(cardRadius),
         border: Border.all(color: borderColor, width: 2.0),
         boxShadow: [
           BoxShadow(
@@ -371,7 +379,7 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(innerRadius),
         child: frameIndex == 2
             ? Row(
                 children: [
@@ -552,11 +560,15 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip> {
         break;
     }
 
+    final double slotRadius = _isRoundedBorder ? 8.0 : 0.0;
+    final double slotInnerRadius =
+        _isRoundedBorder ? (8 - slotBorderWidth).clamp(0.0, 8.0) : 0.0;
+
     return AspectRatio(
       aspectRatio: 16 / 9, // Rasio kamera utama 16:9
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(slotRadius),
           border: Border.all(color: slotBorderColor, width: slotBorderWidth),
           boxShadow: [
             BoxShadow(
@@ -567,7 +579,7 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip> {
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8 - slotBorderWidth),
+          borderRadius: BorderRadius.circular(slotInnerRadius),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -973,39 +985,191 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip> {
       return const SizedBox(height: 8);
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: SizedBox(
-        width: double.infinity,
-        height: 46,
-        child: ElevatedButton.icon(
-          onPressed: () {
-            Navigator.pop(dialogContext);
-            Navigator.push(
-              dialogContext,
-              MaterialPageRoute(
-                builder: (context) =>
-                    PreviewPhotosScreen(capturedPhotos: widget.capturedPhotos),
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+      child: Row(
+        children: [
+          // 1. Button Ulangi (Kiri)
+          GestureDetector(
+            onTap: () => _confirmRetake(dialogContext),
+            child: Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  width: 1.2,
+                ),
               ),
-            );
-          },
-          icon: const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
-          label: const Text(
-            'Buka Galeri & Edit',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.refresh_rounded, size: 18, color: Colors.white),
+                  SizedBox(width: 5),
+                  Text(
+                    'Ulangi',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryRose,
-            foregroundColor: Colors.white,
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(23),
+
+          const SizedBox(width: 8),
+
+          // 2. Button Lanjutkan (Tengah)
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.push(
+                    dialogContext,
+                    MaterialPageRoute(
+                      builder: (context) => Step1PreviewVertical(
+                        capturedPhotos: widget.capturedPhotos,
+                        selectedFrameIndex: _activeFrameIndex,
+                        isRoundedBorder: _isRoundedBorder,
+                        onClose: () => Navigator.pop(context),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 17,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Lanjutkan',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRose,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(23),
+                  ),
+                ),
+              ),
             ),
           ),
+
+          const SizedBox(width: 8),
+
+          // 3. Button Border (Kanan)
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() {
+                _isRoundedBorder = !_isRoundedBorder;
+              });
+            },
+            child: Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: _isRoundedBorder
+                    ? AppTheme.primaryRose.withValues(alpha: 0.20)
+                    : Colors.white.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(
+                  color: _isRoundedBorder
+                      ? AppTheme.primaryRose.withValues(alpha: 0.75)
+                      : Colors.white.withValues(alpha: 0.22),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isRoundedBorder
+                        ? Icons.rounded_corner_rounded
+                        : Icons.crop_square_rounded,
+                    size: 18,
+                    color: _isRoundedBorder
+                        ? const Color(0xFFFF8DA1)
+                        : Colors.white,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    _isRoundedBorder ? 'Bulat' : '90°',
+                    style: TextStyle(
+                      color: _isRoundedBorder
+                          ? const Color(0xFFFF8DA1)
+                          : Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRetake(BuildContext dialogContext) {
+    showDialog(
+      context: dialogContext,
+      builder: (confirmCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.refresh_rounded, color: AppTheme.primaryRose),
+            SizedBox(width: 8),
+            Text(
+              'Ulang Foto?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
+        content: const Text(
+          'Semua foto yang telah diambil akan dihapus dan kamu bisa mengambil sesi foto baru. Apakah kamu yakin?',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmCtx),
+            child: const Text('Batal', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(confirmCtx);
+              Navigator.pop(dialogContext);
+              widget.onRetake?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRose,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('Ya, Ambil Ulang'),
+          ),
+        ],
       ),
     );
   }

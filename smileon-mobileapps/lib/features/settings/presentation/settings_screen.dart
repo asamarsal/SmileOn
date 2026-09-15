@@ -10,12 +10,13 @@ import 'package:smileon/features/login/loginscreen.dart';
 import 'package:smileon/features/settings/presentation/account/account_setting.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 import 'package:smileon/features/settings/presentation/language/language_setting.dart';
-import 'package:smileon/features/settings/presentation/security/security_setting.dart';
+import 'package:smileon/features/settings/presentation/security-privacy/securityprivacy_setting.dart';
 
 export 'package:smileon/features/settings/presentation/account/account_setting.dart';
 export 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 export 'package:smileon/features/settings/presentation/language/language_setting.dart';
 export 'package:smileon/features/settings/presentation/security/security_setting.dart';
+export 'package:smileon/features/settings/presentation/security-privacy/securityprivacy_setting.dart';
 
 final saveToDriveSettingProvider = StateProvider<bool>((ref) => true);
 final sendToEmailSettingProvider = StateProvider<bool>((ref) => false);
@@ -226,7 +227,7 @@ class SettingsScreen extends ConsumerWidget {
               size: 24,
             ),
             onTap: () {
-              ref.read(authServiceProvider).showDynamicProfile();
+              showAccountDetailBottomSheet(context, ref, session);
             },
           ),
         );
@@ -261,26 +262,7 @@ class SettingsScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          // 1. Akun
-          _buildMenuItem(
-            icon: Icons.person_outline_rounded,
-            iconColor: const Color(0xFF374151),
-            title: t.menuAccount,
-            onTap: () {
-              final auth = ref.read(authProvider).asData?.value;
-              if (auth == null || auth.isGuest) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              } else {
-                showAccountDetailBottomSheet(context, ref, auth);
-              }
-            },
-          ),
-          _buildMenuDivider(),
-
-          // 2. Penyimpanan
+          // 1. Penyimpanan
           _buildMenuItem(
             icon: Icons.inventory_2_outlined,
             iconColor: AppTheme.primaryRose,
@@ -314,21 +296,19 @@ class SettingsScreen extends ConsumerWidget {
           ),
           _buildMenuDivider(),
 
-          // 5. Keamanan
+          // 5. Keamanan & Privasi
           _buildMenuItem(
             icon: Icons.shield_outlined,
             iconColor: AppTheme.primaryRose,
-            title: t.menuSecurity,
-            onTap: () => showSecurityBottomSheet(context, ref),
-          ),
-          _buildMenuDivider(),
-
-          // 6. Privasi
-          _buildMenuItem(
-            icon: Icons.lock_outline_rounded,
-            iconColor: AppTheme.primaryRose,
-            title: t.menuPrivacy,
-            onTap: () => _showPrivacyBottomSheet(context, ref),
+            title: t.menuSecurityPrivacy,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SecurityPrivacyScreen(),
+                ),
+              );
+            },
           ),
           _buildMenuDivider(),
 
@@ -646,53 +626,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 
 
-  void _showPrivacyBottomSheet(BuildContext context, WidgetRef ref) {
-    final t = ref.read(tProvider);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildStandardBottomSheet(
-        context: ctx,
-        icon: Icons.lock_outline_rounded,
-        title: t.privacySettingsTitle,
-        subtitle: t.privacySettingsDesc,
-        content: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: const Column(
-            children: [
-              _SettingInfoRow(
-                icon: Icons.photo_library_outlined,
-                title: 'Penyimpanan Privat',
-                subtitle:
-                    'Foto hasil photobox disimpan langsung ke Google Drive pribadi kamu.',
-              ),
-              Divider(height: 20, color: Color(0xFFE5E7EB)),
-              _SettingInfoRow(
-                icon: Icons.videocam_outlined,
-                title: 'Akses Kamera',
-                subtitle:
-                    'Kamera hanya diakses saat sesi pemotretan photobox sedang berlangsung.',
-              ),
-              Divider(height: 20, color: Color(0xFFE5E7EB)),
-              _SettingInfoRow(
-                icon: Icons.no_accounts_outlined,
-                title: 'Tanpa Pelacakan Iklan',
-                subtitle:
-                    'SmileOn tidak pernah menjual data atau foto ke pihak ketiga.',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showHelpBottomSheet(BuildContext context, WidgetRef ref) {
     final t = ref.read(tProvider);

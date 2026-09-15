@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/constants/app_assets.dart';
+import 'package:smileon/core/components/smile_ctacard.dart';
+import 'package:smileon/core/components/smile_promo_card.dart';
+import 'package:smileon/core/components/smile_sliderview_frame.dart';
 import 'package:smileon/features/home/presentation/all_frames_screen.dart';
 import 'package:smileon/features/home/presentation/notification/notification_screen.dart';
+import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -70,102 +74,38 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
 
-              // Hero Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.pinkCard,
-                      AppTheme.lightPink.withValues(alpha: 0.5),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              // Hero Banner (Auto-sliding CTA Card: Normal & Event Mode)
+              SmileCtaCard(
+                autoSlide: true,
+                autoSlideInterval: const Duration(seconds: 5),
+                cards: [
+                  SmileCtaCardNormal(
+                    title: t.homeHeroTitle,
+                    subtitle: t.homeHeroSubtitle,
+                    buttonText: t.startPhoto,
+                    onButtonPressed: () {},
+                    imagePath: isHorizontal
+                        ? 'assets/images/hero/couple_photos_horizontal_1.png'
+                        : 'assets/images/hero/couple_photos_1.png',
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 6,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t.homeHeroTitle,
-                            style: const TextStyle(
-                              color: AppTheme.text,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            t.homeHeroSubtitle,
-                            style: const TextStyle(
-                              color: AppTheme.muted,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRose,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  t.startPhoto,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.arrow_forward, size: 18),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      flex: 4,
-                      child: Container(
-                        height: 180,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.asset(
-                          isHorizontal
-                              ? 'assets/images/hero/couple_photos_horizontal_1.png'
-                              : 'assets/images/hero/couple_photos_1.png',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  SmileCtaCardEvent(
+                    eventTitle: 'Wedding\nAldi & Sesa',
+                    eventDate: '14 Des 2024',
+                    remainingSessions: 238,
+                    totalSessions: 300,
+                    badgeText: 'Event Mode Aktif',
+                    onTap: () {},
+                  ),
+                  SmileCtaCardLastActivity(
+                    activityLabel: 'Lanjutkan Foto',
+                    frameTitle: 'Romantic\nFrame',
+                    categoryBadge: 'Romance',
+                    statusText: 'Terakhir digunakan',
+                    buttonText: t.startPhoto,
+                    onButtonPressed: () {},
+                    onTap: () {},
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -232,51 +172,30 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              SizedBox(
-                height: 260,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 4,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    return Container(
-                      width: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.pinkCard,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  Icons.image_outlined,
-                                  color: AppTheme.primaryRose.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+              const SmileSliderviewFrame(),
+              const SizedBox(height: 24),
+
+              // Promo Spesial
+              Text(
+                t.specialPromo,
+                style: const TextStyle(
+                  color: AppTheme.text,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
+              const SizedBox(height: 12),
+              SmilePromoCard(
+                title: t.getVoucher,
+                subtitle: t.discountForEvent,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BuyVoucherScreen(),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 32),
             ],

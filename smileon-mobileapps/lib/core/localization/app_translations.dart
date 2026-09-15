@@ -37,6 +37,10 @@ class AppTranslations {
       isEn ? 'Use event\nvoucher' : 'Gunakan voucher\nevent';
   String get popularFrames => isEn ? 'Popular Frames' : 'Frame Populer';
   String get seeAll => isEn ? 'See All' : 'Lihat Semua';
+  String get specialPromo => isEn ? 'Special Promo' : 'Promo Spesial';
+  String get getVoucher => isEn ? 'Get voucher' : 'Dapatkan voucher';
+  String get discountForEvent =>
+      isEn ? 'discount for your event!' : 'diskon untuk event kamu!';
 
   // Camera Screen - Tabs
   String get tabEvent => isEn ? 'Event Mode' : 'Mode Event';
@@ -78,6 +82,34 @@ class AppTranslations {
   String get menuPayment => isEn ? 'Payment' : 'Pembayaran';
   String get menuSecurity => isEn ? 'Security' : 'Keamanan';
   String get menuPrivacy => isEn ? 'Privacy' : 'Privasi';
+  String get menuSecurityPrivacy =>
+      isEn ? 'Security & Privacy' : 'Keamanan & Privasi';
+  String get securityPrivacySubtitle => isEn
+      ? 'Small steps for big protection'
+      : 'Langkah kecil untuk perlindungan besar';
+  String get accountSafeTitle =>
+      isEn ? 'Your account is secure! 🎉' : 'Akun kamu aman! 🎉';
+  String get accountSafeSubtitle =>
+      isEn ? 'No security issues found' : 'Tidak ada masalah keamanan';
+  String get settingsSection => isEn ? 'Settings' : 'Pengaturan';
+  String get accountLoginTitle => isEn ? 'Account & Login' : 'Akun & Login';
+  String get accountLoginSubtitle =>
+      isEn ? 'Passkey, password, devices' : 'Passkey, kata sandi, perangkat';
+  String get photoPrivacyTitle =>
+      isEn ? 'Photo & Album Privacy' : 'Privasi Foto & Album';
+  String get photoPrivacySubtitle =>
+      isEn ? 'Who can see your photos' : 'Siapa yang bisa melihat fotomu';
+  String get dataStorageTitle => isEn ? 'Data & Storage' : 'Data & Penyimpanan';
+  String get dataStorageSubtitle =>
+      isEn ? 'Manage data and downloads' : 'Kelola data dan unduhan';
+  String get permissionsAccessTitle =>
+      isEn ? 'Permissions & Access' : 'Izin & Akses';
+  String get permissionsAccessSubtitle =>
+      isEn ? 'Manage app permissions' : 'Kelola izin aplikasi';
+  String get activitySecurityTitle =>
+      isEn ? 'Activity & Security' : 'Aktivitas & Keamanan';
+  String get activitySecuritySubtitle =>
+      isEn ? 'Login history, alerts' : 'Riwayat login, notifikasi';
   String get menuLanguage => isEn ? 'Language' : 'Bahasa';
   String get menuHelpOthers => isEn ? 'Help & Others' : 'Bantuan & Lainnya';
 
@@ -100,14 +132,12 @@ class AppTranslations {
       ? 'Authentication is securely managed by Dynamic.xyz embedded MPC wallet.'
       : 'Otentikasi dikelola dengan aman oleh Dynamic.xyz embedded MPC wallet.';
 
-  String get privacySettingsTitle =>
-      isEn ? 'Privacy & Data' : 'Privasi & Data';
+  String get privacySettingsTitle => isEn ? 'Privacy & Data' : 'Privasi & Data';
   String get privacySettingsDesc => isEn
       ? 'Your photos are strictly yours. We do not sell or share your personal pictures.'
       : 'Foto kamu adalah milikmu sepenuhnya. Kami tidak membagikan atau menjual data fotomu.';
 
-  String get languageSettingsTitle =>
-      isEn ? 'Choose Language' : 'Pilih Bahasa';
+  String get languageSettingsTitle => isEn ? 'Choose Language' : 'Pilih Bahasa';
   String get languageSettingsDesc => isEn
       ? 'Select your preferred display language'
       : 'Pilih bahasa tampilan yang kamu inginkan';
@@ -123,11 +153,9 @@ class AppTranslations {
       ? 'Manage Account in Dynamic Profile'
       : 'Kelola Akun di Dynamic Profile';
   String get connected => isEn ? 'Connected' : 'Terhubung';
-  String get monadNetworkTitle =>
-      isEn ? 'Monad Network' : 'Jaringan Monad';
-  String get walletAddressTitle => isEn
-      ? 'Wallet Address (Monad EVM):'
-      : 'Alamat Dompet (Monad EVM):';
+  String get monadNetworkTitle => isEn ? 'Monad Network' : 'Jaringan Monad';
+  String get walletAddressTitle =>
+      isEn ? 'Wallet Address (Monad EVM):' : 'Alamat Dompet (Monad EVM):';
   String get copiedToast => isEn ? 'Copied! ✨' : 'Tersalin! ✨';
   String get copiedWalletMsg => isEn
       ? 'Monad wallet address copied to clipboard.'
@@ -152,9 +180,27 @@ class AppTranslations {
       ? 'Manage frames, sessions, and galleries'
       : 'Kelola frame, sesi, dan galeri';
 
-  // Buy Voucher Screen
-  String get buyVoucherTitle =>
-      isEn ? 'Buy Event Voucher' : 'Beli Voucher Event';
+  // Buy Voucher & Promo Screen
+  String get voucherPromoTitle => isEn ? 'Voucher & Promo' : 'Voucher & Promo';
+  String get categoryTitle => isEn ? 'Category' : 'Kategori';
+  String get choosePhotoCount =>
+      isEn ? 'Choose Photo Amount' : 'Pilih Kredit Foto';
+  String get creditNoExpiry =>
+      isEn ? 'Credits never expire' : 'Kredit tidak kadaluarsa';
+  String get creditUsableAllEvents =>
+      isEn ? 'Can be used for all events' : 'Bisa digunakan untuk semua event';
+  String get choosePhotoCreditPackage =>
+      isEn ? 'Choose Photo Credit Package' : 'Pilih Paket Kredit Foto';
+  String get continueBtn => isEn ? 'Continue' : 'Lanjutkan';
+  String get recommendedForYou =>
+      isEn ? 'Recommended For You' : 'Rekomendasi Untukmu';
+  String get tabAll => isEn ? 'All' : 'Semua';
+  String get mostPopularBadge => isEn ? 'Most Popular' : 'Paling Populer';
+  String get photoCreditsCategory => isEn ? 'Photo Credit' : 'Kredit Foto';
+  String get eventCategory => isEn ? 'Event' : 'Event';
+  String get specialCategory => isEn ? 'Special' : 'Spesial';
+  String get memberCategory => isEn ? 'Member' : 'Member';
+  String get buyVoucherTitle => isEn ? 'Voucher & Promo' : 'Voucher & Promo';
   String get eventPackage => isEn ? 'Event Package' : 'Paket Event';
   String get bestValue => isEn ? 'Best Value' : 'Paling Untung';
   String get photoCredits => isEn ? '300 Photo Credits' : '300 Kredit Foto';

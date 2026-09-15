@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/features/camera/presentation/preview_photos.dart';
 import 'package:smileon/features/camera/presentation/vertical/chooseframe_dialog.dart';
 import 'package:smileon/features/camera/presentation/vertical/dialog_previewphotostrip.dart';
 import 'package:smileon/features/camera/presentation/vertical/maincamera_frame.dart';
+import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 
 class VerticalActiveCamScreen extends StatefulWidget {
   const VerticalActiveCamScreen({super.key});
@@ -248,13 +248,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
         if (_capturedPhotos.length == 4) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PreviewPhotosScreen(capturedPhotos: _capturedPhotos),
-                ),
-              );
+              _showPhotostripPreviewDialog();
             }
           });
         }
@@ -374,13 +368,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       if (mounted && _capturedPhotos.length == 4) {
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  PreviewPhotosScreen(capturedPhotos: _capturedPhotos),
-            ),
-          );
+          _showPhotostripPreviewDialog();
         }
       }
     } catch (e) {
@@ -405,6 +393,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       capturedPhotos: _capturedPhotos,
       onFrameSelected: (newIndex) {
         setState(() => _selectedFrameIndex = newIndex);
+      },
+      onRetake: () {
+        setState(() {
+          _capturedPhotos.clear();
+        });
       },
     );
   }
@@ -575,37 +568,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
           ),
 
           // 2. Logo SmileOn Khas di Posisi Tengah
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'smile',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF1E1E22),
-                  letterSpacing: -0.5,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryRose,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Text(
-                  'on',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 3),
-              const Text('✨', style: TextStyle(fontSize: 16)),
-            ],
+          Image.asset(
+            'assets/icons/smileon-line.png',
+            height: 32,
+            fit: BoxFit.contain,
           ),
 
           // 3. Tombol Galeri di Paling Kanan
@@ -665,8 +631,16 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => PreviewPhotosScreen(
+                        builder: (context) => Step1PreviewVertical(
                           capturedPhotos: _capturedPhotos,
+                          selectedFrameIndex: _selectedFrameIndex,
+                          onRetake: () {
+                            setState(() {
+                              _capturedPhotos.clear();
+                            });
+                            Navigator.pop(context);
+                          },
+                          onClose: () => Navigator.pop(context),
                         ),
                       ),
                     );

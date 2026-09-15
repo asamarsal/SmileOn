@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/features/camera/presentation/preview_photos.dart';
+import 'package:smileon/features/camera/presentation/horizontal/step/step1_preview.dart';
+import 'package:smileon/features/camera/presentation/horizontal/step/step2_editphoto.dart';
+import 'package:smileon/features/camera/presentation/horizontal/step/step3_download.dart';
 
 class HorizontalActiveCamScreen extends StatefulWidget {
   const HorizontalActiveCamScreen({super.key});
@@ -25,6 +27,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   int _timerSeconds = 3;
   bool _isMirrored = false;
   final List<String> _capturedPhotos = [];
+  int _activeStep = 0; // 0: Camera, 1: Step 1 (Preview), 2: Step 2 (Edit), 3: Step 3 (Download)
 
   @override
   void initState() {
@@ -317,6 +320,111 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_activeStep == 1) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFFCEDF2),
+        body: Step1Preview(
+          capturedPhotos: _capturedPhotos,
+          selectedThemeColor: _selectedSidebarColor,
+          frameTitle: 'Classic Pink',
+          onProceedToEdit: () {
+            setState(() {
+              _activeStep = 2;
+            });
+          },
+          onProceedToDownload: () {
+            setState(() {
+              _activeStep = 3;
+            });
+          },
+          onStepChanged: (stepIndex) {
+            setState(() {
+              _activeStep = stepIndex + 1;
+            });
+          },
+          onRetake: () {
+            setState(() {
+              _capturedPhotos.clear();
+              _activeStep = 0;
+            });
+          },
+          onClose: () {
+            setState(() {
+              _activeStep = 0;
+            });
+          },
+        ),
+      );
+    }
+
+    if (_activeStep == 2) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFFCEDF2),
+        body: Step2EditPhoto(
+          capturedPhotos: _capturedPhotos,
+          selectedThemeColor: _selectedSidebarColor,
+          frameTitle: 'Classic Pink',
+          onBackToPreview: () {
+            setState(() {
+              _activeStep = 1;
+            });
+          },
+          onProceedToDownload: () {
+            setState(() {
+              _activeStep = 3;
+            });
+          },
+          onStepChanged: (stepIndex) {
+            setState(() {
+              _activeStep = stepIndex + 1;
+            });
+          },
+          onClose: () {
+            setState(() {
+              _activeStep = 0;
+            });
+          },
+        ),
+      );
+    }
+
+    if (_activeStep == 3) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFFCEDF2),
+        body: Step3Download(
+          capturedPhotos: _capturedPhotos,
+          selectedThemeColor: _selectedSidebarColor,
+          frameTitle: 'Classic Pink',
+          onBackToPreview: () {
+            setState(() {
+              _activeStep = 1;
+            });
+          },
+          onBackToEdit: () {
+            setState(() {
+              _activeStep = 2;
+            });
+          },
+          onStepChanged: (stepIndex) {
+            setState(() {
+              _activeStep = stepIndex + 1;
+            });
+          },
+          onFinishSession: () {
+            setState(() {
+              _capturedPhotos.clear();
+              _activeStep = 0;
+            });
+          },
+          onClose: () {
+            setState(() {
+              _activeStep = 0;
+            });
+          },
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFDF2F5),
       body: SafeArea(
@@ -328,13 +436,23 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
             children: [
               // KIRI: Area Kamera Utama & Aksi
               Expanded(
-                child: Column(
+                child: Stack(
                   children: [
-                    // Kotak Preview Kamera (Rasio 16:9 presisi di layar mana pun)
-                    Expanded(child: Center(child: _buildCameraPreview())),
-                    const SizedBox(height: 12),
-                    // Deretan Tombol Aksi Bawah (dibatasi tingginya)
-                    _buildBottomActionRow(),
+                    Column(
+                      children: [
+                        // Kotak Preview Kamera (Rasio 16:9 presisi di layar mana pun)
+                        Expanded(child: Center(child: _buildCameraPreview())),
+                        const SizedBox(height: 12),
+                        // Deretan Tombol Aksi Bawah (dibatasi tingginya)
+                        _buildBottomActionRow(),
+                      ],
+                    ),
+                    // Tombol Back di Kiri Atas
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: _buildBackButton(),
+                    ),
                   ],
                 ),
               ),
@@ -343,6 +461,38 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
               _buildSidebar(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackButton() {
+    return InkWell(
+      onTap: () {
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFFFD1DC), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.arrow_back_rounded,
+          color: AppTheme.primaryRose,
+          size: 20,
         ),
       ),
     );
@@ -571,6 +721,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                         onTap: () {
                           // Aksi ambil foto/record
                           HapticFeedback.mediumImpact();
+                          _takePicture();
                         },
                       ),
                       const SizedBox(width: 16),
@@ -686,15 +837,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
             flex: 1,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PreviewPhotosScreen(
-                      capturedPhotos: _capturedPhotos,
-                      selectedThemeColor: _selectedSidebarColor,
-                    ),
-                  ),
-                );
+                setState(() {
+                  _activeStep = 1;
+                });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryRose,
