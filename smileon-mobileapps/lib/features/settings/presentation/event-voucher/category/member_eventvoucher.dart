@@ -341,6 +341,8 @@ class _MemberCategoryEventVoucherScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
@@ -367,6 +369,7 @@ class _MemberCategoryEventVoucherScreenState
                 const SizedBox(height: 18),
 
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: 54,
@@ -406,6 +409,23 @@ class _MemberCategoryEventVoucherScreenState
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                    // Tombol X di sudut kanan atas
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Color(0xFF4A4A4A),
+                        ),
                       ),
                     ),
                   ],

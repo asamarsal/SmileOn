@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 
@@ -112,6 +113,11 @@ void showLanguageBottomSheet(BuildContext context, WidgetRef ref) {
                         ref.read(languageProvider.notifier).state =
                             AppLanguage.id;
                         Navigator.pop(ctx);
+                        SmileToast.showSuccess(
+                          context,
+                          title: 'Bahasa Diubah',
+                          message: 'Bahasa Indonesia berhasil dipilih',
+                        );
                       },
                     ),
                     const Divider(
@@ -142,6 +148,11 @@ void showLanguageBottomSheet(BuildContext context, WidgetRef ref) {
                         ref.read(languageProvider.notifier).state =
                             AppLanguage.en;
                         Navigator.pop(ctx);
+                        SmileToast.showSuccess(
+                          context,
+                          title: 'Language Changed',
+                          message: 'English has been successfully selected',
+                        );
                       },
                     ),
                   ],

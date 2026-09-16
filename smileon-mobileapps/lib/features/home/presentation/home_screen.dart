@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smileon/core/components/smile_circularprogressbar.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/constants/app_assets.dart';
@@ -8,13 +9,41 @@ import 'package:smileon/core/components/smile_promo_card.dart';
 import 'package:smileon/core/components/smile_sliderview_frame.dart';
 import 'package:smileon/features/home/presentation/all_frames_screen.dart';
 import 'package:smileon/features/home/presentation/notification/notification_screen.dart';
+import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Status loading data dari API (dapat dipicu dari function pemanggilan API)
+  bool _isLoadingApi = false;
+
+  /// Function pemuatan data dari API (Programmatic Trigger)
+  Future<void> fetchHomeDataFromApi() async {
+    setState(() => _isLoadingApi = true);
+    // Simulasi request API
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (mounted) {
+      setState(() => _isLoadingApi = false);
+    }
+  }
+
+  /// Fungsi refresh data saat layar ditarik dari atas ke bawah (Pull-To-Refresh Trigger)
+  Future<void> _handlePullRefresh() async {
+    // Simulasi refresh data
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
     final isHorizontal =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -22,9 +51,15 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.cream,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
+        child: SmileRefreshIndicator(
+          isLoading: _isLoadingApi,
+          onRefresh: _handlePullRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
@@ -122,7 +157,10 @@ class HomeScreen extends ConsumerWidget {
                       title: t.personalMode,
                       subtitle: t.personalModeDesc,
                       imagePath: AppImages.flower,
-                      onTap: () {},
+                      onTap: () {
+                        ref.read(cameraTabProvider.notifier).state = 1;
+                        changeTab(ref, 1);
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -136,7 +174,10 @@ class HomeScreen extends ConsumerWidget {
                       title: t.eventMode,
                       subtitle: t.eventModeDesc,
                       imagePath: AppImages.baloon,
-                      onTap: () {},
+                      onTap: () {
+                        ref.read(cameraTabProvider.notifier).state = 0;
+                        changeTab(ref, 1);
+                      },
                     ),
                   ),
                 ],
@@ -200,6 +241,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 32),
             ],
           ),
+        ),
         ),
       ),
     );

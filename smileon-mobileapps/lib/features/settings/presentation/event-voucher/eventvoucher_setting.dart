@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_button.dart';
 import 'package:smileon/core/components/smile_sliderview_promo.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/category/creditphoto_eventvoucher.dart';
@@ -57,6 +58,13 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
   int _selectedCategoryIndex = 0;
   int _selectedTabIndex = 0;
   String _selectedPayment = 'monad'; // 'qr' or 'monad'
+  final TextEditingController _voucherCodeController = TextEditingController();
+
+  @override
+  void dispose() {
+    _voucherCodeController.dispose();
+    super.dispose();
+  }
 
   final List<VoucherPackageItem> _packages = const [
     VoucherPackageItem(
@@ -203,8 +211,16 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
               const SmileSliderviewPromo(
                 height: 190.0,
                 autoSlide: true,
+                dotsDisabled: true,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // UI Input Voucher Code with Arrow Right (Redeem Voucher)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: _buildVoucherRedeemInput(context, t),
+              ),
+              const SizedBox(height: 18),
 
               // 2. Section: Kategori
               Padding(
@@ -243,16 +259,16 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                         } else if (index == 1) {
                           destination = const EventCategoryEventVoucherScreen();
                         } else if (index == 2) {
-                          destination = const SpecialCategoryEventVoucherScreen();
+                          destination =
+                              const SpecialCategoryEventVoucherScreen();
                         } else {
-                          destination = const MemberCategoryEventVoucherScreen();
+                          destination =
+                              const MemberCategoryEventVoucherScreen();
                         }
 
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => destination,
-                          ),
+                          MaterialPageRoute(builder: (context) => destination),
                         );
                       },
                     );
@@ -309,7 +325,8 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color: isSelected
-                                    ? const Color(0xFFFF2E7E).withValues(alpha: 0.35)
+                                    ? const Color(0xFFFF2E7E)
+                                          .withValues(alpha: 0.35)
                                     : Colors.black.withValues(alpha: 0.04),
                                 blurRadius: isSelected ? 8 : 6,
                                 offset: const Offset(0, 2),
@@ -375,11 +392,11 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 14,
-                      childAspectRatio: 1.85,
-                    ),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                          childAspectRatio: 1.85,
+                        ),
                     itemCount: _creditOptions.length,
                     itemBuilder: (context, index) {
                       final opt = _creditOptions[index];
@@ -466,6 +483,141 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
     );
   }
 
+  /// UI Input Kode Voucher dengan tombol scan & panah redeem
+  Widget _buildVoucherRedeemInput(BuildContext context, AppTranslations t) {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.only(
+        left: 18.0,
+        right: 6.0,
+        top: 4.0,
+        bottom: 4.0,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: const Color(0xFFF1F2F6), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _voucherCodeController,
+              textCapitalization: TextCapitalization.characters,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E1E22),
+              ),
+              decoration: InputDecoration(
+                hintText: t.enterVoucherCode,
+                hintStyle: const TextStyle(
+                  color: Color(0xFF9E9E9E),
+                  fontSize: 13.0,
+                  fontWeight: FontWeight.normal,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onSubmitted: (_) => _handleRedeemVoucher(context, t),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Tombol Pindai Barcode / QR (Kotak rounded soft pink)
+          GestureDetector(
+            onTap: () => _handleScanVoucher(context, t),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF0F5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: Color(0xFF6E2838),
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Tombol Arrow Right Submit (Lingkaran Pink Cerah)
+          GestureDetector(
+            onTap: () => _handleRedeemVoucher(context, t),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF2E7E),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF2E7E).withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleRedeemVoucher(BuildContext context, AppTranslations t) {
+    final code = _voucherCodeController.text.trim();
+    if (code.isEmpty) {
+      SmileToast.showWarning(
+        context,
+        message: t.isEn
+            ? 'Please enter a voucher code'
+            : 'Silakan masukkan kode voucher terlebih dahulu',
+        title: t.isEn ? 'Empty Code' : 'Kode Kosong',
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    SmileToast.showSuccess(
+      context,
+      message: t.isEn
+          ? 'Voucher code "$code" applied successfully!'
+          : 'Kode voucher "$code" berhasil diterapkan!',
+      title: t.isEn ? 'Voucher Claimed' : 'Voucher Berhasil Diklaim',
+    );
+  }
+
+  void _handleScanVoucher(BuildContext context, AppTranslations t) {
+    SmileToast.showInfo(
+      context,
+      message: t.isEn
+          ? 'Barcode/QR scanner feature will be available soon'
+          : 'Fitur pemindai barcode/QR voucher akan segera hadir',
+      title: t.isEn ? 'Scan Voucher' : 'Pindai Voucher',
+    );
+  }
+
   /// Kartu Pilihan Kredit Foto (Grid)
   Widget _buildCreditOptionCard(
     BuildContext context,
@@ -535,6 +687,8 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
@@ -729,10 +883,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFFF3F4F6),
-                width: 1.2,
-              ),
+              border: Border.all(color: const Color(0xFFF3F4F6), width: 1.2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.03),
@@ -742,11 +893,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
               ],
             ),
             child: Center(
-              child: Icon(
-                icon,
-                color: AppTheme.primaryRose,
-                size: 28,
-              ),
+              child: Icon(icon, color: AppTheme.primaryRose, size: 28),
             ),
           ),
           const SizedBox(height: 8),
@@ -819,12 +966,12 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               const Center(
-                            child: Icon(
-                              Icons.camera_alt_outlined,
-                              color: AppTheme.primaryRose,
-                              size: 24,
-                            ),
-                          ),
+                                child: Icon(
+                                  Icons.camera_alt_outlined,
+                                  color: AppTheme.primaryRose,
+                                  size: 24,
+                                ),
+                              ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -880,10 +1027,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                 ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFFF2D75),
-                      Color(0xFFFF488A),
-                    ],
+                    colors: [Color(0xFFFF2D75), Color(0xFFFF488A)],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
@@ -918,6 +1062,8 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
@@ -944,8 +1090,9 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Header Info Paket
+                // Header Info Paket & Tombol X
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: 56,
@@ -954,10 +1101,7 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: Image.asset(
-                        pkg.imagePath,
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.asset(pkg.imagePath, fit: BoxFit.cover),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -981,6 +1125,23 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                    // Tombol X di sudut kanan atas
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: Color(0xFF4A4A4A),
+                        ),
                       ),
                     ),
                   ],
@@ -1040,7 +1201,8 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                         subtitle: pkg.cryptoPrice,
                         icon: Icons.currency_bitcoin,
                         isSelected: _selectedPayment == 'monad',
-                        onTap: () => setSheetState(() => _selectedPayment = 'monad'),
+                        onTap: () =>
+                            setSheetState(() => _selectedPayment = 'monad'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1050,7 +1212,8 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                         subtitle: pkg.priceFormatted,
                         icon: Icons.qr_code_2_rounded,
                         isSelected: _selectedPayment == 'qr',
-                        onTap: () => setSheetState(() => _selectedPayment = 'qr'),
+                        onTap: () =>
+                            setSheetState(() => _selectedPayment = 'qr'),
                       ),
                     ),
                   ],
@@ -1103,7 +1266,9 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primaryRose : const Color(0xFF6B7280),
+              color: isSelected
+                  ? AppTheme.primaryRose
+                  : const Color(0xFF6B7280),
               size: 26,
             ),
             const SizedBox(height: 8),
@@ -1112,16 +1277,15 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? AppTheme.primaryRose : const Color(0xFF1E1E22),
+                color: isSelected
+                    ? AppTheme.primaryRose
+                    : const Color(0xFF1E1E22),
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7280)),
             ),
           ],
         ),

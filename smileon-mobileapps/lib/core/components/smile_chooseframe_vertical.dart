@@ -30,9 +30,9 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
   @override
   void initState() {
     super.initState();
-    _categories = widget.categories ??
-        ['Semua', 'Gratis', 'Premium', 'Custom'];
-    _frames = widget.frames ??
+    _categories = widget.categories ?? ['Semua', 'Gratis', 'Premium', 'Custom'];
+    _frames =
+        widget.frames ??
         [
           {
             'title': 'Floral Classic',
@@ -109,36 +109,53 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category Capsules
-        SizedBox(
-          height: 48,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
+        // Category Tabs (Matching eventvoucher_setting style)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: List.generate(_categories.length, (index) {
               final isSelected = _selectedCategoryIndex == index;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedCategoryIndex = index),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primaryRose : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: isSelected ? null : Border.all(color: Colors.grey.shade200),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _categories[index],
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : AppTheme.muted,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              return Padding(
+                padding: const EdgeInsets.only(right: 10.0),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedCategoryIndex = index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 8.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFFF2E7E)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isSelected
+                              ? const Color(0xFFFF2E7E).withValues(alpha: 0.35)
+                              : Colors.black.withValues(alpha: 0.04),
+                          blurRadius: isSelected ? 8 : 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _categories[index],
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF2E2E33),
+                      ),
                     ),
                   ),
                 ),
               );
-            },
+            }),
           ),
         ),
         const SizedBox(height: 16),
@@ -150,7 +167,8 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
               // Menghitung lebar card photostrip 1:3 di dalam grid 2 kolom
               const crossAxisSpacing = 20.0;
               const horizontalPadding = 40.0; // 20 kiri + 20 kanan
-              final availableWidth = constraints.maxWidth - horizontalPadding - crossAxisSpacing;
+              final availableWidth =
+                  constraints.maxWidth - horizontalPadding - crossAxisSpacing;
               final itemWidth = (availableWidth / 2).clamp(120.0, 220.0);
               // photostripHeight = itemWidth * 3 (rasio 1:3 atau 600 : 1800)
               final photostripHeight = itemWidth * 3.0;
@@ -159,7 +177,10 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
               final childAspectRatio = itemWidth / totalItemHeight;
 
               return GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 physics: const BouncingScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -185,7 +206,7 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(0),
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.primaryRose
@@ -195,7 +216,9 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
                               boxShadow: [
                                 BoxShadow(
                                   color: isSelected
-                                      ? AppTheme.primaryRose.withValues(alpha: 0.2)
+                                      ? AppTheme.primaryRose.withValues(
+                                          alpha: 0.2,
+                                        )
                                       : Colors.black.withValues(alpha: 0.05),
                                   blurRadius: isSelected ? 12 : 8,
                                   offset: const Offset(0, 4),
@@ -209,14 +232,15 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
                                 Image.asset(
                                   imageAsset,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    color: const Color(0xFFFFDEE8),
-                                    child: const Icon(
-                                      Icons.broken_image_rounded,
-                                      color: AppTheme.primaryRose,
-                                      size: 36,
-                                    ),
-                                  ),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                        color: const Color(0xFFFFDEE8),
+                                        child: const Icon(
+                                          Icons.broken_image_rounded,
+                                          color: AppTheme.primaryRose,
+                                          size: 36,
+                                        ),
+                                      ),
                                 ),
                                 // Badge centang saat dipilih
                                 if (isSelected)
@@ -247,7 +271,9 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
                           frame['title'] as String,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: isSelected ? AppTheme.primaryRose : AppTheme.text,
+                            color: isSelected
+                                ? AppTheme.primaryRose
+                                : AppTheme.text,
                             fontWeight: FontWeight.bold,
                             fontSize: 13.5,
                           ),
@@ -259,7 +285,10 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
                         // Badge Tipe (Gratis / Premium)
                         if (isPremium)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppTheme.pinkCard,
                               borderRadius: BorderRadius.circular(10),

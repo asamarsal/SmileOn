@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/components/smile_dialog_shareframe.dart';
+import 'package:smileon/core/components/smile_dialog_fullscreen_previewphotostrip.dart';
 import 'package:smileon/features/camera/presentation/camera_screen.dart';
 
 /// Dialog Detail & Preview Photostrip saat salah satu frame diklik pada SmileSliderviewFrame
@@ -61,6 +63,8 @@ class _SmileDialogPreviewPhotostripState
   late final PageController _pageController;
   int _currentPage = 0;
   bool _isBookmarked = false;
+  bool _isLoved = false;
+  bool _isMoreMenuOpen = false;
 
   late final List<String> _effectiveAssets;
 
@@ -128,23 +132,53 @@ class _SmileDialogPreviewPhotostripState
               ),
             ),
 
-            // Tombol Close (X) di pojok kanan atas
+            // Tombol Kembali (Chevron Left) di pojok kiri atas
+            Positioned(
+              top: 14,
+              left: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.chevron_left_rounded,
+                    size: 24,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+              ),
+            ),
+
+            // Tombol Kanan Atas: Three Dots Vertical
             Positioned(
               top: 14,
               right: 16,
               child: GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  setState(() {
+                    _isMoreMenuOpen = !_isMoreMenuOpen;
+                  });
+                },
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: _isMoreMenuOpen
+                        ? const Color(0xFFFF2E7E).withValues(alpha: 0.12)
+                        : Colors.black.withValues(alpha: 0.06),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    size: 18,
-                    color: Color(0xFF4A4A4A),
+                  child: Icon(
+                    Icons.more_vert_rounded,
+                    size: 20,
+                    color: _isMoreMenuOpen
+                        ? const Color(0xFFFF2E7E)
+                        : const Color(0xFF4A4A4A),
                   ),
                 ),
               ),
@@ -365,7 +399,14 @@ class _SmileDialogPreviewPhotostripState
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () {
-                                  Navigator.pop(context);
+                                  SmileDialogFullscreenPreviewPhotostrip.show(
+                                    context: context,
+                                    title: widget.title,
+                                    creatorName: widget.creatorName,
+                                    price: widget.price,
+                                    initialIndex: _currentPage,
+                                    previewAssets: _effectiveAssets,
+                                  );
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(
@@ -436,9 +477,315 @@ class _SmileDialogPreviewPhotostripState
                 ],
               ),
             ),
+
+            // Overlay Barrier saat dropdown menu terbuka
+            if (_isMoreMenuOpen)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(() => _isMoreMenuOpen = false);
+                  },
+                  child: Container(
+                    color: Colors.transparent,
+                  ),
+                ),
+              ),
+
+            // Dropdown Menu Card yang terbuka dari Three Dots Vertical
+            if (_isMoreMenuOpen)
+              Positioned(
+                top: 56,
+                right: 16,
+                width: 232,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.85, end: 1.0),
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutBack,
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.topRight,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.16),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 4.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDropdownItem(
+                          icon: _isLoved
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          label: 'Simpan ke Favorit',
+                          onTap: () {
+                            setState(() {
+                              _isLoved = !_isLoved;
+                              _isMoreMenuOpen = false;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(_isLoved
+                                    ? 'Ditambahkan ke Favorit ❤️'
+                                    : 'Dihapus dari Favorit'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildDropdownItem(
+                          icon: Icons.share_outlined,
+                          label: 'Bagikan',
+                          onTap: () {
+                            setState(() => _isMoreMenuOpen = false);
+                            SmileDialogShareframe.show(
+                              context: context,
+                              title: widget.title,
+                              creatorName: widget.creatorName,
+                              price: widget.price,
+                              assetPath: widget.initialAssetPath,
+                              shareUrl:
+                                  'https://smileon.app/frame/${widget.title.toLowerCase().replaceAll(' ', '-')}',
+                            );
+                          },
+                        ),
+                        _buildDropdownItem(
+                          icon: Icons.card_giftcard_rounded,
+                          label: 'Gunakan di Event',
+                          onTap: () {
+                            setState(() => _isMoreMenuOpen = false);
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const CameraScreen(initialTabIndex: 0),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildDropdownItem(
+                          icon: Icons.person_rounded,
+                          label: 'Gunakan di Personal',
+                          onTap: () {
+                            setState(() => _isMoreMenuOpen = false);
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const CameraScreen(initialTabIndex: 1),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildDropdownItem(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Lihat Profil Pembuat',
+                          onTap: () {
+                            setState(() => _isMoreMenuOpen = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('Membuka profil ${widget.creatorName}'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildDropdownItem(
+                          icon: Icons.flag_outlined,
+                          label: 'Laporkan',
+                          onTap: () {
+                            setState(() => _isMoreMenuOpen = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Terima kasih. Laporan telah dikirim.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildDropdownItem(
+                          icon: Icons.info_outline_rounded,
+                          label: 'Detail Frame',
+                          onTap: () {
+                            setState(() => _isMoreMenuOpen = false);
+                            _showFrameDetailDialog(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Item dalam dropdown menu
+  Widget _buildDropdownItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      splashColor: const Color(0xFFFF2E7E).withValues(alpha: 0.1),
+      highlightColor: const Color(0xFFFF2E7E).withValues(alpha: 0.05),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: const Color(0xFFFF2E7E),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E1E22),
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFrameDetailDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Detail Frame',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E1E22),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close,
+                            size: 18, color: Color(0xFF6B7280)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow('Nama Frame', widget.title),
+                const SizedBox(height: 10),
+                _buildDetailRow('Kreator', widget.creatorName),
+                const SizedBox(height: 10),
+                _buildDetailRow('Harga', widget.price),
+                const SizedBox(height: 10),
+                _buildDetailRow('Penggunaan', widget.usageCount),
+                const SizedBox(height: 10),
+                _buildDetailRow('Rasio & Ukuran', '1:3 (600 × 1800 px)'),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF2E7E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Tutup',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E1E22),
+          ),
+        ),
+      ],
     );
   }
 }

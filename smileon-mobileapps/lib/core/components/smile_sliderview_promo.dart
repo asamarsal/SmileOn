@@ -85,6 +85,7 @@ class SmileSliderviewPromo extends StatefulWidget {
   final bool autoSlide;
   final Duration autoSlideInterval;
   final ValueChanged<int>? onPageChanged;
+  final bool dotsDisabled;
 
   const SmileSliderviewPromo({
     super.key,
@@ -93,6 +94,7 @@ class SmileSliderviewPromo extends StatefulWidget {
     this.autoSlide = true,
     this.autoSlideInterval = const Duration(seconds: 4),
     this.onPageChanged,
+    this.dotsDisabled = false,
   });
 
   @override
@@ -163,28 +165,30 @@ class _SmileSliderviewPromoState extends State<SmileSliderviewPromo> {
             },
           ),
         ),
-        const SizedBox(height: 14),
 
         // 2. Animated Dot Indicators
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(items.length, (index) {
-            final bool isActive = index == _currentPage;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              margin: const EdgeInsets.symmetric(horizontal: 3.0),
-              width: isActive ? 22.0 : 6.0,
-              height: 6.0,
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppTheme.primaryRose
-                    : const Color(0xFFE2D6DC),
-                borderRadius: BorderRadius.circular(3.0),
-              ),
-            );
-          }),
-        ),
+        if (!widget.dotsDisabled) ...[
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(items.length, (index) {
+              final bool isActive = index == _currentPage;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+                margin: const EdgeInsets.symmetric(horizontal: 3.0),
+                width: isActive ? 22.0 : 6.0,
+                height: 6.0,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? AppTheme.primaryRose
+                      : const Color(0xFFE2D6DC),
+                  borderRadius: BorderRadius.circular(3.0),
+                ),
+              );
+            }),
+          ),
+        ],
       ],
     );
   }

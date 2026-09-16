@@ -17,7 +17,6 @@ class AppTheme {
         seedColor: primaryRose,
         primary: primaryRose,
         secondary: darkRose,
-        background: cream,
         surface: Colors.white,
       ),
       scaffoldBackgroundColor: cream,
@@ -28,6 +27,7 @@ class AppTheme {
         elevation: 0,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: primaryRose,
         unselectedItemColor: muted,

@@ -20,7 +20,21 @@ class AppTranslations {
   // Bottom Navigation
   String get navHome => isEn ? 'Home' : 'Beranda';
   String get navCamera => isEn ? 'Camera' : 'Kamera';
+  String get navActivity => isEn ? 'Activity' : 'Aktivitas';
   String get navSettings => isEn ? 'Settings' : 'Pengaturan';
+
+  // Activity Screen
+  String get activityTitle => isEn ? 'Activity' : 'Aktivitas';
+  String get filterAll => isEn ? 'All' : 'Semua';
+  String get filterPhoto => isEn ? 'Photo' : 'Foto';
+  String get filterFrame => isEn ? 'Frame' : 'Frame';
+  String get filterEvent => isEn ? 'Event' : 'Event';
+  String get filterTransaction => isEn ? 'Transaction' : 'Transaksi';
+  String get recentPhotos => isEn ? 'Recent Photos' : 'Foto Terakhir';
+  String get savedFrames => isEn ? 'Saved Frames' : 'Frame Disimpan';
+  String get joinedEvents => isEn ? 'Joined Events' : 'Event Diikuti';
+  String get recentTransactions =>
+      isEn ? 'Recent Transactions' : 'Transaksi Terakhir';
 
   // Home Screen
   String get homeHeroTitle =>
@@ -245,6 +259,8 @@ class AppTranslations {
 
   String get useMonadCoin => isEn ? 'Use Monad Coin' : 'Gunakan Coin Monad';
   String get redeemVoucherSetting => isEn ? 'Buy Voucher' : 'Beli Voucher';
+  String get enterVoucherCode =>
+      isEn ? 'Enter voucher code' : 'Masukkan kode voucher';
   String get aboutApp => isEn ? 'About App' : 'Tentang Aplikasi';
   String get accountName => isEn ? 'Name' : 'Nama';
   String get accountEmail => isEn ? 'Email' : 'Email';

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 import 'package:smileon/features/settings/presentation/account/account_setting.dart';
 import 'package:smileon/features/settings/presentation/settings_screen.dart';
 
@@ -135,30 +134,6 @@ class SecurityPrivacyScreen extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        onTap: (index) {
-          ref.read(navigationIndexProvider.notifier).state = index;
-          Navigator.pop(context);
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home_outlined),
-            activeIcon: const Icon(Icons.home),
-            label: t.navHome,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.camera_alt_outlined),
-            activeIcon: const Icon(Icons.camera_alt),
-            label: t.navCamera,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.settings_outlined),
-            activeIcon: const Icon(Icons.settings),
-            label: t.navSettings,
-          ),
-        ],
       ),
     );
   }
