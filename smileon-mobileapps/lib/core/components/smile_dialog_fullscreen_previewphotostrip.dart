@@ -73,8 +73,8 @@ class _SmileDialogFullscreenPreviewPhotostripState
   late final List<String> _effectiveAssets;
   late int _currentIndex;
 
-  // Mode gelap/terang (default dark mode)
-  bool _isDarkMode = true;
+  // Mode gelap/terang (default light mode)
+  bool _isDarkMode = false;
 
   // Controller transformasi untuk zoom & pan
   late final TransformationController _transformationController;

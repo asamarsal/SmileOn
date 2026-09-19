@@ -90,6 +90,33 @@ Photos saved to Google Drive
 
 ---
 
+### 📱 Event Mode — Detailed Mobile Flow (4 Steps)
+
+When a guest starts a photo session, the **mobile screen** guides them through 4 sequential steps:
+
+```
+Step 1 — Menunggu Sesi
+   Waiting view: event info, frame preview, 4-dot session stepper.
+   Auto-navigates to Step 2 after a brief standby.
+    ↓
+Step 2 — Mulai Foto (Countdown)
+   Animated circular countdown (3 → 2 → 1).
+   Ring sweeps 0° → 360° per number with sparkle particles.
+   Auto-navigates to Step 3 when countdown finishes.
+    ↓
+Step 3 — Sedang Mengambil Foto
+   Shows 4 photo slots in a 9:16 photostrip ratio.
+   Captured slots display the photo; pending slots show a ghost overlay with dashed spinner.
+   4-segment horizontal progress bar reflects current session progress.
+    ↓
+Step 4 — Sesi Selesai (All Done)
+   Session complete confirmation. [In Progress]
+```
+
+> **Two-device setup**: The camera runs on a **tablet/PC** (`HorizontalActiveCamScreen`), while the guest's **mobile phone** displays the step-by-step flow above.
+
+---
+
 ## 🏗️ Architecture & Tech Stack
 
 | Layer | Technology |
@@ -100,6 +127,40 @@ Photos saved to Google Drive
 | **Storage** | Google Drive API |
 | **State Management** | flutter_riverpod |
 | **Wallet Integration** | Dynamic SDK for Flutter |
+
+### 📐 Two-Device Architecture
+
+SmileOn uses a **dual-screen design** where the camera device and guest's phone work in tandem:
+
+```
+┌────────────────────────┐     ┌─────────────────────────┐
+│   Tablet / Computer    │     │     Guest's Mobile       │
+│  HorizontalActiveCam   │     │   Vertical Event Steps   │
+│  ────────────────────  │     │  ─────────────────────── │
+│  • Live camera preview │     │  • Step 1: Waiting view  │
+│  • 4-shot capture      │ ←── │  • Step 2: Countdown     │
+│  • Photostrip render   │     │  • Step 3: Taking photos │
+│  • Frame overlay       │     │  • Step 4: All done      │
+└────────────────────────┘     └─────────────────────────┘
+```
+
+### 🧩 Reusable UI Component Library
+
+SmileOn ships a dedicated design system under `lib/core/components/` with 21+ shared widgets:
+
+| Component | Description |
+|---|---|
+| `SmileButton` | Primary CTA button with pink gradient |
+| `SmileToast` | Success / warning / error toast notifications |
+| `SmileDialog` | Confirmation & info modal dialogs |
+| `SmileCard` | General-purpose content card |
+| `SmileCircularProgressBar` | Animated loading indicator |
+| `SmileChooseFrame` | Frame picker (horizontal & vertical variants) |
+| `SmileSliderViewFrame` | Horizontal frame carousel |
+| `SmileDialogPreviewPhotostrip` | In-app photostrip preview dialog |
+| `SmileGlassmorphismTabs` | Frosted-glass tab switcher |
+| `SmilePromoCard` | Promotional banner card |
+| `SmileCtaCard` | Event & activity call-to-action cards |
 
 ---
 
@@ -180,6 +241,19 @@ SmileOn uses **Dynamic.xyz** for a seamless multi-modal auth experience:
 | 📧 Email (magic link / OTP) | ✅ Available |
 | 🦊 Web3 Wallet (MetaMask, etc.) | ✅ Available |
 | 🔵 Google Social Login | ✅ Available |
+
+---
+
+## 🌍 Multi-Language Support
+
+SmileOn supports **Bahasa Indonesia** and **English** out of the box, managed through a lightweight in-app translation system (`lib/core/localization/app_translations.dart`).
+
+| Language | Code | Status |
+|---|---|---|
+| 🇮🇩 Bahasa Indonesia | `id` | ✅ Default |
+| 🇬🇧 English | `en` | ✅ Available |
+
+Language can be switched from **Settings → Language** within the app at any time without restarting.
 
 ---
 

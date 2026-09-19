@@ -4,11 +4,16 @@ import 'package:smileon/core/components/smile_glassmorphism_tabs.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
+import 'package:smileon/features/camera/presentation/newsession_event_screen.dart';
+import 'package:smileon/features/camera/presentation/newsession_personal_screen.dart';
 import 'package:smileon/features/camera/presentation/qrscan/qrscan_screen.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
-  const CameraScreen({super.key, this.initialTabIndex = 1}); // Default ke 1 (Personal) atau 0 (Event)
+  const CameraScreen({
+    super.key,
+    this.initialTabIndex = 1,
+  }); // Default ke 1 (Personal) atau 0 (Event)
 
   @override
   ConsumerState<CameraScreen> createState() => _CameraScreenState();
@@ -18,7 +23,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   late int _selectedTabIndex;
   late final PageController _pageController;
   final TextEditingController _voucherController = TextEditingController();
-  final TextEditingController _personalVoucherController = TextEditingController();
+  final TextEditingController _personalVoucherController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -47,6 +53,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   }
 
   void _onCheckVoucher() {
+    FocusScope.of(context).unfocus();
     final code = _voucherController.text.trim();
     if (code.isEmpty) {
       SmileToast.showError(
@@ -57,31 +64,24 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       return;
     }
 
-    SmileToast.showSuccess(
-      context,
-      title: 'Voucher Dikonfirmasi',
-      message: 'Voucher "$code" berhasil digunakan. Memulai kamera...',
-    );
+    final normalized = code.toUpperCase().replaceAll(RegExp(r'\s+'), '');
+    debugPrint('>>> _onCheckVoucher: code="$code", normalized="$normalized"');
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ActiveCameraScreen(),
-          ),
-        );
-      }
-    });
-  }
-
-  void _onCheckPersonalVoucher() {
-    final code = _personalVoucherController.text.trim();
-    if (code.isEmpty) {
-      SmileToast.showError(
+    // Navigasi khusus untuk voucher TESTVIEWEVENT ke NewSessionEventScreen
+    if (normalized == 'TESTVIEWEVENT') {
+      Navigator.push(
         context,
-        title: 'Kode Voucher',
-        message: 'Silakan masukkan kode voucher terlebih dahulu.',
+        MaterialPageRoute(
+          builder: (context) => const NewSessionEventScreen(
+            eventName: 'Engagement Asa & Aulia',
+            eventDate: '27 Juni 2026',
+            eventLocation: 'Boros Bomboe, Bekasi',
+            eventOrganizer: 'Asa & Aulia',
+            totalCredits: 300,
+            remainingCredits: 280,
+            userCredits: 20,
+          ),
+        ),
       );
       return;
     }
@@ -96,9 +96,59 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       if (mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const ActiveCameraScreen(),
+          MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
+        );
+      }
+    });
+  }
+
+  void _onCheckPersonalVoucher() {
+    FocusScope.of(context).unfocus();
+    final code = _personalVoucherController.text.trim();
+    if (code.isEmpty) {
+      SmileToast.showError(
+        context,
+        title: 'Kode Voucher',
+        message: 'Silakan masukkan kode voucher terlebih dahulu.',
+      );
+      return;
+    }
+
+    final normalized = code.toUpperCase().replaceAll(RegExp(r'\s+'), '');
+    debugPrint(
+      '>>> _onCheckPersonalVoucher: code="$code", normalized="$normalized"',
+    );
+
+    // Navigasi jika voucher TESTVIEWEVENT juga diinput pada tab Personal
+    if (normalized == 'TESTVIEWEVENT') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const NewSessionEventScreen(
+            eventName: 'Wedding Asa & Aulia',
+            eventDate: '27 Juni 2027',
+            eventLocation: 'Boros Bomboe, Bekasi',
+            eventOrganizer: 'Asa & Aulia',
+            totalCredits: 300,
+            remainingCredits: 280,
+            userCredits: 20,
           ),
+        ),
+      );
+      return;
+    }
+
+    SmileToast.showSuccess(
+      context,
+      title: 'Voucher Dikonfirmasi',
+      message: 'Voucher "$code" berhasil digunakan. Memulai kamera...',
+    );
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
         );
       }
     });
@@ -125,10 +175,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   _selectedTabIndex = index;
                 });
               },
-              children: [
-                _buildEventModeLayout(t),
-                _buildPersonalModeLayout(t),
-              ],
+              children: [_buildEventModeLayout(t), _buildPersonalModeLayout(t)],
             ),
           ),
 
@@ -140,7 +187,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 12.0,
+                ),
                 child: SmileGlassmorphismTabs(
                   selectedIndex: _selectedTabIndex,
                   onTabSelected: (index) {
@@ -353,6 +403,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     Expanded(
                       child: TextField(
                         controller: _voucherController,
+                        textCapitalization: TextCapitalization.characters,
+                        onSubmitted: (_) => _onCheckVoucher(),
                         decoration: const InputDecoration(
                           hintText: 'Masukkan kode voucher',
                           hintStyle: TextStyle(
@@ -387,7 +439,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                 child: ElevatedButton(
                   onPressed: _onCheckVoucher,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF2D78), // Vibrant pink sesuai desain
+                    backgroundColor: const Color(
+                      0xFFFF2D78,
+                    ), // Vibrant pink sesuai desain
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -532,7 +586,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
               const SizedBox(height: 16),
 
-              // Tombol "Mulai Kamera" (Soft Lavender / Pastel Indigo, bukan pink)
+              // Tombol "Mulai Sekarang" (Soft Lavender / Pastel Indigo, bukan pink)
               Material(
                 color: const Color(0xFFEEEDF8),
                 borderRadius: BorderRadius.circular(20),
@@ -541,7 +595,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ActiveCameraScreen(),
+                        builder: (context) => const NewSessionPersonalScreen(),
                       ),
                     );
                   },
@@ -560,7 +614,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          isEn ? 'Start Camera' : 'Mulai Kamera',
+                          isEn ? 'Start Now' : 'Mulai Sekarang',
                           style: const TextStyle(
                             fontSize: 15.5,
                             fontWeight: FontWeight.bold,
@@ -627,7 +681,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     ),
                     const Icon(
                       Icons.confirmation_number_outlined,
-                      color: Color(0xFF3F3765), // Dark indigo / navy purple, NOT pink!
+                      color: Color(
+                        0xFF3F3765,
+                      ), // Dark indigo / navy purple, NOT pink!
                       size: 22,
                     ),
                   ],
@@ -642,7 +698,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                 child: ElevatedButton(
                   onPressed: _onCheckPersonalVoucher,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3F3765), // Dark indigo sesuai personal theme, BUKAN pink
+                    backgroundColor: const Color(
+                      0xFF3F3765,
+                    ), // Dark indigo sesuai personal theme, BUKAN pink
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(

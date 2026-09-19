@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/components/smile_dialog_shareframe.dart';
 import 'package:smileon/core/components/smile_dialog_fullscreen_previewphotostrip.dart';
-import 'package:smileon/features/camera/presentation/camera_screen.dart';
+import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 
 /// Dialog Detail & Preview Photostrip saat salah satu frame diklik pada SmileSliderviewFrame
-class SmileDialogPreviewPhotostrip extends StatefulWidget {
+class SmileDialogPreviewPhotostrip extends ConsumerStatefulWidget {
   final String title;
   final String price;
   final String creatorName;
@@ -54,12 +55,12 @@ class SmileDialogPreviewPhotostrip extends StatefulWidget {
   }
 
   @override
-  State<SmileDialogPreviewPhotostrip> createState() =>
+  ConsumerState<SmileDialogPreviewPhotostrip> createState() =>
       _SmileDialogPreviewPhotostripState();
 }
 
 class _SmileDialogPreviewPhotostripState
-    extends State<SmileDialogPreviewPhotostrip> {
+    extends ConsumerState<SmileDialogPreviewPhotostrip> {
   late final PageController _pageController;
   int _currentPage = 0;
   bool _isBookmarked = false;
@@ -433,50 +434,47 @@ class _SmileDialogPreviewPhotostripState
                             ),
                             const SizedBox(width: 12),
 
-                            // Tombol Gunakan
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  if (widget.onUse != null) {
-                                    widget.onUse!();
-                                  } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const CameraScreen(
-                                          initialTabIndex: 1,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFF2E7E),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
+                              // Tombol Gunakan
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.of(context)
+                                        .popUntil((route) => route.isFirst);
+                                    if (widget.onUse != null) {
+                                      widget.onUse!();
+                                    } else {
+                                      ref
+                                          .read(cameraTabProvider.notifier)
+                                          .state = 1;
+                                      changeTab(ref, 1);
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFF2E7E),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 13),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    elevation: 0,
                                   ),
-                                  elevation: 0,
-                                ),
-                                child: const Text(
-                                  'Gunakan',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
+                                  child: const Text(
+                                    'Gunakan',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
             // Overlay Barrier saat dropdown menu terbuka
             if (_isMoreMenuOpen)
@@ -569,14 +567,10 @@ class _SmileDialogPreviewPhotostripState
                           label: 'Gunakan di Event',
                           onTap: () {
                             setState(() => _isMoreMenuOpen = false);
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const CameraScreen(initialTabIndex: 0),
-                              ),
-                            );
+                            Navigator.of(context)
+                                .popUntil((route) => route.isFirst);
+                            ref.read(cameraTabProvider.notifier).state = 0;
+                            changeTab(ref, 1);
                           },
                         ),
                         _buildDropdownItem(
@@ -584,14 +578,10 @@ class _SmileDialogPreviewPhotostripState
                           label: 'Gunakan di Personal',
                           onTap: () {
                             setState(() => _isMoreMenuOpen = false);
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const CameraScreen(initialTabIndex: 1),
-                              ),
-                            );
+                            Navigator.of(context)
+                                .popUntil((route) => route.isFirst);
+                            ref.read(cameraTabProvider.notifier).state = 1;
+                            changeTab(ref, 1);
                           },
                         ),
                         _buildDropdownItem(
