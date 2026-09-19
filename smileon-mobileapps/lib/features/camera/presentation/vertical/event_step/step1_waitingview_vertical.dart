@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/features/camera/presentation/vertical/event_step/step2_mulaifotoview_vertical.dart';
@@ -40,9 +41,10 @@ class Step1WaitingViewVertical extends StatefulWidget {
 }
 
 class _Step1WaitingViewVerticalState extends State<Step1WaitingViewVertical>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  AnimationController? _spinnerController;
   Timer? _autoNavigateTimer;
 
   @override
@@ -56,6 +58,11 @@ class _Step1WaitingViewVerticalState extends State<Step1WaitingViewVertical>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _spinnerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    )..repeat();
 
     // Auto-navigate ke Step2MulaiFotoViewVertical setelah 7 detik untuk percobaan
     _autoNavigateTimer = Timer(const Duration(seconds: 7), () {
@@ -86,11 +93,18 @@ class _Step1WaitingViewVerticalState extends State<Step1WaitingViewVertical>
   void dispose() {
     _autoNavigateTimer?.cancel();
     _pulseController.dispose();
+    _spinnerController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Memastikan controller terinisialisasi bahkan saat dilakukan Hot Reload tanpa Hot Restart
+    final spinnerController = _spinnerController ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    )..repeat();
+
     // Parse category dan nama pasangan dari eventName
     String category = 'Engagement';
     String coupleTitle = widget.eventName ?? 'Asa & Aulia';
@@ -259,14 +273,21 @@ class _Step1WaitingViewVerticalState extends State<Step1WaitingViewVertical>
 
                                 SizedBox(height: isCompactScreen ? 14 : 20),
 
-                                // Ilustrasi Booth 3 Monitor & Kamera Tripod
+                                // Ilustrasi Booth 3 Monitor & Kamera Tripod dengan Spinner Berputar
                                 Center(
-                                  child: CustomPaint(
-                                    size: Size(
-                                      isCompactScreen ? 210 : 230,
-                                      isCompactScreen ? 92 : 104,
-                                    ),
-                                    painter: _BoothIllustrationPainter(),
+                                  child: AnimatedBuilder(
+                                    animation: spinnerController,
+                                    builder: (context, child) {
+                                      return CustomPaint(
+                                        size: Size(
+                                          isCompactScreen ? 210 : 230,
+                                          isCompactScreen ? 92 : 104,
+                                        ),
+                                        painter: _BoothIllustrationPainter(
+                                          rotation: spinnerController.value,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
 
@@ -601,6 +622,10 @@ class _SparklePainter extends CustomPainter {
 
 /// Custom painter untuk ilustrasi 3-Monitor Booth & Kamera Tripod
 class _BoothIllustrationPainter extends CustomPainter {
+  final double rotation;
+
+  _BoothIllustrationPainter({this.rotation = 0.0});
+
   @override
   void paint(Canvas canvas, Size size) {
     final scaleX = size.width / 230.0;
@@ -706,17 +731,45 @@ class _BoothIllustrationPainter extends CustomPainter {
     );
     canvas.drawRRect(centerInnerRect, screenPaint);
 
-    // Lingkaran Kamera / Ring Light di tengah layar
-    final circleOuterPaint = Paint()
-      ..color = const Color(0xFFCBD5E1)
+    // Lingkaran Kamera / Ring Light di tengah layar - Berputar seperti CircularProgressBar
+    const circleCenter = Offset(115, 47);
+    const circleRadius = 13.0;
+
+    // Track lingkaran belakang
+    final circleTrackPaint = Paint()
+      ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.65)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.4;
-    canvas.drawCircle(const Offset(115, 47), 13, circleOuterPaint);
+    canvas.drawCircle(circleCenter, circleRadius, circleTrackPaint);
 
+    // Layar putih monitor di dalam lingkaran
     final circleInnerPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.96)
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(const Offset(115, 47), 10.5, circleInnerPaint);
+    canvas.drawCircle(circleCenter, 10.5, circleInnerPaint);
+
+    // Busur berputar Circular Progress Bar
+    final circleProgressPaint = Paint()
+      ..color = const Color(0xFFFF2D78)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round;
+
+    final startAngle = rotation * 2 * math.pi;
+    const sweepAngle = 1.35 * math.pi; // ~240 derajat busur aktif
+    canvas.drawArc(
+      Rect.fromCircle(center: circleCenter, radius: circleRadius),
+      startAngle,
+      sweepAngle,
+      false,
+      circleProgressPaint,
+    );
+
+    // Titik kamera aperture kecil di tengah
+    final lensDotPaint = Paint()
+      ..color = const Color(0xFF64748B)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(circleCenter, 3.2, lensDotPaint);
 
     // Kaki Monitor Tengah
     canvas.drawRRect(
@@ -769,5 +822,6 @@ class _BoothIllustrationPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BoothIllustrationPainter oldDelegate) =>
+      oldDelegate.rotation != rotation;
 }

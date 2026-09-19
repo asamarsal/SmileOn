@@ -43,6 +43,7 @@ dependencies:
   dynamic_sdk_web3dart: ^1.17.0
   dio: ^5.11.1
   font_awesome_flutter: ^11.0.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
