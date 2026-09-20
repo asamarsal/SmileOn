@@ -86,6 +86,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       return;
     }
 
+    // Navigasi khusus untuk voucher TESTMAKEEVENT ke NewSessionEventScreen (mode input event baru)
+    if (normalized == 'TESTMAKEEVENT') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const NewSessionEventScreen(
+            isMakeEvent: true,
+          ),
+        ),
+      );
+      return;
+    }
+
     SmileToast.showSuccess(
       context,
       title: 'Voucher Dikonfirmasi',
@@ -132,6 +145,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             totalCredits: 300,
             remainingCredits: 280,
             userCredits: 20,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Navigasi jika voucher TESTMAKEEVENT juga diinput pada tab Personal
+    if (normalized == 'TESTMAKEEVENT') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const NewSessionEventScreen(
+            isMakeEvent: true,
           ),
         ),
       );
