@@ -7,6 +7,7 @@ import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
 import 'package:smileon/features/camera/presentation/newsession_event_screen.dart';
 import 'package:smileon/features/camera/presentation/newsession_personal_screen.dart';
 import 'package:smileon/features/camera/presentation/qrscan/qrscan_screen.dart';
+import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -99,20 +100,12 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       return;
     }
 
-    SmileToast.showSuccess(
+    // Selain TESTVIEWEVENT dan TESTMAKEEVENT, munculkan toast kode voucher tidak ditemukan
+    SmileToast.showError(
       context,
-      title: 'Voucher Dikonfirmasi',
-      message: 'Voucher "$code" berhasil digunakan. Memulai kamera...',
+      title: 'Kode Voucher',
+      message: 'Kode voucher tidak ditemukan',
     );
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
-        );
-      }
-    });
   }
 
   void _onCheckPersonalVoucher() {
@@ -183,6 +176,43 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
+
+    // Dengarkan event toast yang dikirim dari alur sesi kamera
+    ref.listen<Map<String, String>?>(cameraScreenToastProvider, (previous, next) {
+      if (next != null) {
+        // Hapus/kosongkan isi input di kode voucher
+        _voucherController.clear();
+        _personalVoucherController.clear();
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          SmileToast.showSuccess(
+            context,
+            title: next['title'],
+            message: next['message'] ?? 'Sesi foto event berhasil diselesaikan',
+          );
+          ref.read(cameraScreenToastProvider.notifier).state = null;
+        });
+      }
+    });
+
+    // Cek juga jika ada pending toast saat CameraScreen di-mount/rebuild
+    final pendingToast = ref.read(cameraScreenToastProvider);
+    if (pendingToast != null) {
+      // Hapus/kosongkan isi input di kode voucher
+      _voucherController.clear();
+      _personalVoucherController.clear();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        SmileToast.showSuccess(
+          context,
+          title: pendingToast['title'],
+          message: pendingToast['message'] ?? 'Sesi foto event berhasil diselesaikan',
+        );
+        ref.read(cameraScreenToastProvider.notifier).state = null;
+      });
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,

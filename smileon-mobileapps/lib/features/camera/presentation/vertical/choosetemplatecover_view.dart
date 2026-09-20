@@ -21,10 +21,18 @@ class TemplateCoverItem {
 /// Screen "Pilih Template" untuk Foto Cover Header
 class ChooseTemplateCoverView extends StatefulWidget {
   final String? currentCoverAsset;
+  final String? initialTitlePrefix;
+  final String? initialEventName;
+  final String? initialEventDate;
+  final String? initialEventLocation;
 
   const ChooseTemplateCoverView({
     super.key,
     this.currentCoverAsset,
+    this.initialTitlePrefix,
+    this.initialEventName,
+    this.initialEventDate,
+    this.initialEventLocation,
   });
 
   @override
@@ -147,16 +155,17 @@ class _ChooseTemplateCoverViewState extends State<ChooseTemplateCoverView> {
       MaterialPageRoute(
         builder: (context) => ChooseTemplateConfirmationView(
           coverAsset: item.asset,
+          titlePrefix: widget.initialTitlePrefix ?? 'The Wedding of',
+          eventName: widget.initialEventName ?? 'Asa & Aulia',
+          eventDate: widget.initialEventDate ?? '20 September 2026',
+          eventLocation:
+              widget.initialEventLocation ?? 'The Ritz-Carlton, Jakarta',
         ),
       ),
     );
 
     if (result != null && mounted) {
-      if (result is Map && result['coverAsset'] != null) {
-        Navigator.pop(context, result['coverAsset'] as String);
-      } else if (result is String) {
-        Navigator.pop(context, result);
-      }
+      Navigator.pop(context, result);
     }
   }
 

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
+import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:smileon/features/camera/presentation/vertical/event_step/frame_preview_strip_step3.dart';
 
@@ -12,7 +15,7 @@ import 'package:smileon/features/camera/presentation/vertical/event_step/frame_p
 /// - Efek konfeti perayaan berwarna-warni melayang di sisi kiri dan kanan photostrip.
 /// - Tombol "Lihat Satu per Satu" (membuka fullscreen preview slide 16:9).
 /// - Tombol "Simpan Foto" (menyimpan hasil foto).
-class Step4AllDoneViewVertical extends StatefulWidget {
+class Step4AllDoneViewVertical extends ConsumerStatefulWidget {
   final String? eventName;
   final String? sessionName;
   final String? eventDate;
@@ -43,11 +46,12 @@ class Step4AllDoneViewVertical extends StatefulWidget {
   });
 
   @override
-  State<Step4AllDoneViewVertical> createState() =>
+  ConsumerState<Step4AllDoneViewVertical> createState() =>
       _Step4AllDoneViewVerticalState();
 }
 
-class _Step4AllDoneViewVerticalState extends State<Step4AllDoneViewVertical> {
+class _Step4AllDoneViewVerticalState
+    extends ConsumerState<Step4AllDoneViewVertical> {
   late final List<String> _effectivePhotos;
 
   @override
@@ -295,6 +299,165 @@ class _Step4AllDoneViewVerticalState extends State<Step4AllDoneViewVertical> {
     );
   }
 
+  /// Keluar dari alur sesi event dan kembali ke CameraScreen dengan SmileToast
+  void _exitToCameraScreen() {
+    // 1. Simpan payload toast untuk ditampilkan langsung oleh CameraScreen
+    ref.read(cameraScreenToastProvider.notifier).state = {
+      'title': 'Sesi Selesai',
+      'message': 'Sesi foto event berhasil diselesaikan',
+    };
+
+    // 2. Set tab kamera dan mode Event
+    ref.read(cameraTabProvider.notifier).state = 0; // Mode Event di CameraScreen
+    changeTab(ref, 1); // Tab Kamera di MainScaffold
+
+    // 3. Kembali ke root (CameraScreen di MainScaffold)
+    try {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => const MainScaffold(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  /// Menampilkan dialog konfirmasi di tengah sebelum keluar
+  void _showExitConfirmationDialog() {
+    HapticFeedback.lightImpact();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 28,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon Bulat Pink
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEEF3),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFFFD4E2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.help_outline_rounded,
+                      color: Color(0xFFFF2E7E),
+                      size: 34,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Sudah Selesai Semua?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Pastikan kamu sudah menyimpan atau membagikan fotomu sebelum keluar dari sesi ini.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: Color(0xFF64748B),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    // Tombol Belum
+                    Expanded(
+                      child: SizedBox(
+                        height: 46,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: Color(0xFFE2E8F0),
+                              width: 1.4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'Belum',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Tombol Ya, Selesai
+                    Expanded(
+                      child: SizedBox(
+                        height: 46,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            _exitToCameraScreen();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF2E7E),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'Ya, Selesai',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -320,12 +483,12 @@ class _Step4AllDoneViewVerticalState extends State<Step4AllDoneViewVertical> {
           child: SafeArea(
             child: Stack(
               children: [
-                // 1. Tombol Back Melayang di Kiri Atas
+                // 1. Tombol Close (X) Melayang di Kanan Atas
                 Positioned(
                   top: 8,
-                  left: 16,
+                  right: 16,
                   child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: _showExitConfirmationDialog,
                     child: Container(
                       width: 42,
                       height: 42,
@@ -341,9 +504,9 @@ class _Step4AllDoneViewVerticalState extends State<Step4AllDoneViewVertical> {
                         ],
                       ),
                       child: const Icon(
-                        Icons.chevron_left_rounded,
+                        Icons.close_rounded,
                         color: Color(0xFF1E293B),
-                        size: 28,
+                        size: 24,
                       ),
                     ),
                   ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_view.dart';
 import 'package:smileon/features/camera/presentation/vertical/event_step/step1_waitingview_vertical.dart';
 
 /// Screen "Siapkan Sesi Foto" (Mode Event - Langkah Kedua)
@@ -261,140 +262,307 @@ class _NewSessionEventScreenTwoState
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Tambah Orang di Foto',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1E28),
+              const SizedBox(height: 16),
+              const Text(
+                'Tambah Orang di Foto',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E28),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    decoration: InputDecoration(
-                      hintText: 'Nama teman...',
-                      prefixIcon: const Icon(
-                        Icons.person_add_alt_1_rounded,
-                        color: Color(0xFFFF2E7E),
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFFF9FAFB),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFE5E7EB),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      decoration: InputDecoration(
+                        hintText: 'Nama teman...',
+                        prefixIcon: const Icon(
+                          Icons.person_add_alt_1_rounded,
                           color: Color(0xFFFF2E7E),
-                          width: 1.5,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF9FAFB),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFFF2E7E),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final name = controller.text.trim();
+                      if (name.isNotEmpty && !_friends.contains(name)) {
+                        setState(() => _friends.add(name));
+                        setModalState(() {});
+                        controller.clear();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF2E7E),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text('Tambah'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (_friends.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _friends.map((friend) {
+                    return Chip(
+                      label: Text(friend),
+                      backgroundColor: const Color(0xFFFFEDF3),
+                      deleteIconColor: const Color(0xFFFF2E7E),
+                      labelStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF2E7E),
+                      ),
+                      onDeleted: () {
+                        setState(() => _friends.remove(friend));
+                        setModalState(() {});
+                      },
+                    );
+                  }).toList(),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'Belum ada teman ditambahkan.',
+                    style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () {
-                    final name = controller.text.trim();
-                    if (name.isNotEmpty && !_friends.contains(name)) {
-                      setState(() => _friends.add(name));
-                      setModalState(() {});
-                      controller.clear();
-                    }
-                  },
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFF2E7E),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 15,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  child: const Text('Tambah'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (_friends.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _friends.map((friend) {
-                  return Chip(
-                    label: Text(friend),
-                    backgroundColor: const Color(0xFFFFEDF3),
-                    deleteIconColor: const Color(0xFFFF2E7E),
-                    labelStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFF2E7E),
-                    ),
-                    onDeleted: () {
-                      setState(() => _friends.remove(friend));
-                      setModalState(() {});
-                    },
-                  );
-                }).toList(),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  'Belum ada teman ditambahkan.',
-                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                ),
-              ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF2E7E),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                  child: const Text(
+                    'Selesai',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                child: const Text(
-                  'Selesai',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _showFrameSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: Stack(
+            children: [
+              // Ornamen watercolor blush / floral lembut di pojok kanan bawah
+              Positioned(
+                bottom: -35,
+                right: -35,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 170,
+                    height: 170,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          const Color(0xFFFF2E7E).withValues(alpha: 0.12),
+                          const Color(0xFFFFB4D0).withValues(alpha: 0.05),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Konten Modal Bottom Sheet
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 26),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. Drag Handle
+                      Center(
+                        child: Container(
+                          width: 38,
+                          height: 4.5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD1D5DB),
+                            borderRadius: BorderRadius.circular(2.5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // 2. Header: Judul & Tombol Close
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Pilih Opsi Frame',
+                            style: TextStyle(
+                              fontSize: 18.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E2448),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(ctx),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 22,
+                                color: Color(0xFF1E2448),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // 3. Subtitle
+                      const Text(
+                        'Buat kenangan lebih spesial\ndengan frame pilihanmu.',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF64748B),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+
+                      // 4. Opsi 1: Buat Template
+                      _buildFrameOptionCard(
+                        iconWidget: _buildMagicWandIcon(),
+                        title: 'Buat Template',
+                        subtitle: 'Kreasikan frame sesuai gayamu sendiri',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _openCreateTemplate();
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      // 5. Opsi 2: Pilih Template
+                      _buildFrameOptionCard(
+                        iconWidget: _buildGalleryIcon(),
+                        title: 'Pilih Template',
+                        subtitle: 'Pilih dari koleksi template yang tersedia',
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _showFrameListSelector();
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Membuka layar penyesuaian/kustomisasi template frame baru
+  void _openCreateTemplate() async {
+    final result = await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChooseTemplateConfirmationView(
+          coverAsset:
+              widget.bannerAsset ??
+              'assets/images/eventmode/wedding_event_banner.jpg',
+          titlePrefix: 'The Wedding of',
+          eventName:
+              widget.eventName ??
+              (_sessionNameController.text.isNotEmpty
+                  ? _sessionNameController.text
+                  : 'Asa & Aulia'),
+          eventDate: widget.eventDate ?? '20 September 2026',
+          eventLocation: _selectedLocation.isNotEmpty
+              ? _selectedLocation
+              : 'The Ritz-Carlton, Jakarta',
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        if (result is Map && result['coverAsset'] != null) {
+          _selectedFrameAsset = result['coverAsset'] as String;
+          _selectedFrameName = 'Custom Template';
+        }
+      });
+    }
+  }
+
+  /// Membuka bottom sheet pemilih koleksi template frame yang sudah tersedia
+  void _showFrameListSelector() {
     final availableFrames = [
       {
         'title': 'Hanfleur Florist',
@@ -404,99 +572,222 @@ class _NewSessionEventScreenTwoState
         'title': 'Tulip Love',
         'asset': 'assets/images/frame-example/frame-example-1.png',
       },
+      {
+        'title': 'Good Times 35mm',
+        'asset': 'assets/images/frame-example/frame-example-2.png',
+      },
+      {
+        'title': 'Black SmileOn',
+        'asset': 'assets/images/frame-example/frame-example-1.png',
+      },
     ];
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 26),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Pilih Frame',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1E28),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: availableFrames.map((f) {
-                final isSelected = _selectedFrameName == f['title'];
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedFrameName = f['title']!;
-                        _selectedFrameAsset = f['asset']!;
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFFFF2E7E)
-                              : const Color(0xFFE5E7EB),
-                          width: isSelected ? 2.2 : 1.2,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.asset(
-                              f['asset']!,
-                              height: 110,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            f['title']!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? const Color(0xFFFF2E7E)
-                                  : const Color(0xFF1E1E28),
-                            ),
-                          ),
-                        ],
-                      ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Pilih Template',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E2448),
                     ),
                   ),
-                );
-              }).toList(),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: Color(0xFF64748B),
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: availableFrames.map((f) {
+                    final isSelected = _selectedFrameName == f['title'];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedFrameName = f['title']!;
+                          _selectedFrameAsset = f['asset']!;
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFFFF0F5)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFFFF2E7E)
+                                : const Color(0xFFE5E7EB),
+                            width: isSelected ? 2.0 : 1.2,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.asset(
+                                f['asset']!,
+                                height: 110,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      width: 80,
+                                      height: 110,
+                                      color: const Color(0xFFF3F4F6),
+                                      child: const Icon(
+                                        Icons.photo_outlined,
+                                        color: Color(0xFF9CA3AF),
+                                      ),
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              f['title']!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected
+                                    ? const Color(0xFFFF2E7E)
+                                    : const Color(0xFF1E2448),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Kartu Opsi Frame sesuai desain referensi
+  Widget _buildFrameOptionCard({
+    required Widget iconWidget,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF5F8),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFFFD4E2), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF2E7E).withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(height: 12),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Icon Widget
+            SizedBox(width: 38, height: 38, child: Center(child: iconWidget)),
+            const SizedBox(width: 14),
+
+            // Teks Title & Subtitle
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E2448),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Chevron Right
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 24,
+              color: Color(0xFF1E2448),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// Icon Tongkat Sihir Berbintang (Magic Wand)
+  Widget _buildMagicWandIcon() {
+    return const Icon(
+      Icons.auto_fix_high_rounded,
+      color: Color(0xFFFF1E75),
+      size: 30,
+    );
+  }
+
+  /// Icon Galeri / Gambar (Photo / Image)
+  Widget _buildGalleryIcon() {
+    return const Icon(Icons.image_rounded, color: Color(0xFFFF1E75), size: 32);
   }
 
   @override

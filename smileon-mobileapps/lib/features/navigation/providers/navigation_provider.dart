@@ -10,6 +10,9 @@ final navigationHistoryProvider = StateProvider<List<int>>((ref) => [0]);
 /// Provider to manage the active sub-tab on CameraScreen (0 = Event, 1 = Personal)
 final cameraTabProvider = StateProvider<int>((ref) => 1);
 
+/// Provider to pass pending toast notification to CameraScreen upon navigation exit
+final cameraScreenToastProvider = StateProvider<Map<String, String>?>((ref) => null);
+
 /// Helper to navigate to a tab and keep history
 void changeTab(WidgetRef ref, int newIndex) {
   final currentIndex = ref.read(navigationIndexProvider);

@@ -1,7 +1,10 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/features/camera/presentation/vertical/choosetemplate_guest_preview_dialog.dart';
+import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_canvas.dart';
 
 /// Model konfigurasi styling teks (besar font, warna, gaya, nama font)
 class CustomTextStyleConfig {
@@ -52,6 +55,21 @@ class CustomTextStyleConfig {
   }
 }
 
+/// Model untuk sticker di atas canvas yang dapat dipindahkan dan diskalakan
+class CanvasStickerItem {
+  final String id;
+  final String emoji;
+  Offset position;
+  double scale;
+
+  CanvasStickerItem({
+    required this.id,
+    required this.emoji,
+    required this.position,
+    this.scale = 1.0,
+  });
+}
+
 /// Layar "Sesuaikan Template" untuk kustomisasi foto cover header & tipografi event
 class ChooseTemplateConfirmationView extends StatefulWidget {
   final String coverAsset;
@@ -99,20 +117,85 @@ class _ChooseTemplateConfirmationViewState
   // Sticker yang ditambahkan
   final List<String> _activeStickers = [];
 
+  // Model & State untuk elemen interaktif canvas (posisi, skala, seleksi)
+  bool _canvasInitialized = false;
+  double _canvasWidth = 310;
+  double _canvasHeight = 455;
+  bool _showCanvasHintBanner = true;
+
+  // Transformasi cover latar belakang (zoom & offset pan)
+  double _coverScale = 1.0;
+  Offset _coverOffset = Offset.zero;
+
+  Offset _prefixPos = const Offset(155, 60);
+  double _prefixScale = 1.0;
+
+  Offset _namePos = const Offset(155, 102);
+  double _nameScale = 1.0;
+
+  Offset _datePos = const Offset(155, 140);
+  double _dateScale = 1.0;
+
+  Offset _locPos = const Offset(155, 168);
+  double _locScale = 1.0;
+
+  Offset _dividerPos = const Offset(155, 196);
+  double _dividerScale = 1.0;
+  bool _showHeartDivider = true;
+
+  final List<Offset> _extraPositions = [];
+  final List<double> _extraScales = [];
+
+  final List<CanvasStickerItem> _canvasStickers = [];
+
+  // ID item yang sedang aktif dipilih di canvas
+  String? _selectedItemId;
+
+  // Garis bantu tengah kanvas (Canva-style smart guidelines)
+  bool _showVerticalCenterGuide = false;
+  bool _showHorizontalCenterGuide = false;
+
+  void _updateCenterGuides(bool showVertical, bool showHorizontal) {
+    if (_showVerticalCenterGuide != showVertical ||
+        _showHorizontalCenterGuide != showHorizontal) {
+      setState(() {
+        _showVerticalCenterGuide = showVertical;
+        _showHorizontalCenterGuide = showHorizontal;
+      });
+    }
+  }
+
   // Tool yang sedang aktif (Teks, Sticker, Foto, Warna, Filter)
   String _activeTool = 'Teks';
 
-  // Daftar warna elegan yang dapat dipilih
-  final List<Color> _colorOptions = const [
+  // Daftar 6 warna preset utama + 1 warna custom dinamis di paling ujung (total 7 warna)
+  final List<Color> _presetColorOptions = const [
     Color(0xFF7A1C2E), // Wine Red / Maroon (default)
     Color(0xFFFF007A), // SmileOn Hot Pink
     Color(0xFF8C3A56), // Dusty Rose
     Color(0xFF1E293B), // Navy Charcoal
     Color(0xFFB45309), // Warm Amber / Bronze
     Color(0xFF166534), // Forest Emerald
-    Color(0xFF581C87), // Royal Purple
-    Color(0xFF0F172A), // Dark Slate
   ];
+
+  // Warna custom dinamis (warna ke-7 di ujung kanan)
+  Color _customTextColor = const Color(0xFF581C87);
+
+  // Helper konversi Warna <-> Kode Hex
+  String _colorToHex(Color color) {
+    final hex = color.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${hex.substring(2).toUpperCase()}';
+  }
+
+  Color? _hexToColor(String hexString) {
+    final cleaned = hexString.replaceAll('#', '').trim();
+    if (cleaned.length != 6) return null;
+    try {
+      return Color(int.parse('FF$cleaned', radix: 16));
+    } catch (_) {
+      return null;
+    }
+  }
 
   // Daftar filter foto
   final List<Map<String, dynamic>> _filterOptions = const [
@@ -141,6 +224,11 @@ class _ChooseTemplateConfirmationViewState
     _eventName = widget.eventName;
     _eventDate = widget.eventDate;
     _eventLocation = widget.eventLocation;
+
+    for (int i = 0; i < _additionalTexts.length; i++) {
+      _extraPositions.add(Offset(155, 220.0 + (i * 26.0)));
+      _extraScales.add(1.0);
+    }
 
     _titlePrefixStyle = CustomTextStyleConfig(
       fontSize: 14.5,
@@ -179,20 +267,116 @@ class _ChooseTemplateConfirmationViewState
       message: 'Kustomisasi template berhasil disimpan.',
     );
 
+    final activeFilterColor = _filterOptions.firstWhere(
+      (f) => f['name'] == _activeFilter,
+      orElse: () => {'color': null},
+    )['color'] as Color?;
+
     Navigator.pop(context, {
+      'hasCustomTemplate': true,
+      'canvasWidth': _canvasWidth > 0 ? _canvasWidth : 310.0,
+      'canvasHeight': _canvasHeight > 0 ? _canvasHeight : 455.0,
       'coverAsset': _currentCoverAsset,
-      'titlePrefix': _titlePrefix,
-      'eventName': _eventName,
-      'eventDate': _eventDate,
-      'eventLocation': _eventLocation,
-      'additionalTexts': _additionalTexts,
+      'coverScale': _coverScale,
+      'coverOffset': _coverOffset,
+      'activeFilterColor': activeFilterColor,
+      'activeFilter': _activeFilter,
       'textColor': _textColor,
+      'titlePrefix': _titlePrefix,
+      'prefixPos': _prefixPos,
+      'prefixScale': _prefixScale,
       'titlePrefixStyle': _titlePrefixStyle,
+      'eventName': _eventName,
+      'namePos': _namePos,
+      'nameScale': _nameScale,
       'eventNameStyle': _eventNameStyle,
+      'eventDate': _eventDate,
+      'datePos': _datePos,
+      'dateScale': _dateScale,
       'eventDateStyle': _eventDateStyle,
+      'eventLocation': _eventLocation,
+      'locPos': _locPos,
+      'locScale': _locScale,
       'eventLocationStyle': _eventLocationStyle,
+      'additionalTexts': _additionalTexts,
+      'extraPositions': _extraPositions,
+      'extraScales': _extraScales,
       'additionalTextStyles': _additionalTextStyles,
+      'showHeartDivider': _showHeartDivider,
+      'dividerPos': _dividerPos,
+      'dividerScale': _dividerScale,
+      'canvasStickers': _canvasStickers,
+      'activeStickers': _canvasStickers.map((s) => s.emoji).toList(),
     });
+  }
+
+  /// Membuka dialog preview real layar smartphone tamu/undangan
+  /// Mensimulasikan bagaimana tampilan cover terpotong oleh kartu dialog "Event Ditemukan!"
+  void _openGuestRealPreview() {
+    FocusScope.of(context).unfocus();
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'GuestRealPreview',
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (dialogContext, anim1, anim2) {
+        final activeFilterColor =
+            _filterOptions.firstWhere(
+                  (f) => f['name'] == _activeFilter,
+                  orElse: () => {'color': null},
+                )['color']
+                as Color?;
+
+        return GuestRealPreviewDialog(
+          coverAsset: _currentCoverAsset,
+          activeFilterColor: activeFilterColor,
+          textColor: _textColor,
+          canvasWidth: _canvasWidth > 0 ? _canvasWidth : 310,
+          canvasHeight: _canvasHeight > 0 ? _canvasHeight : 455,
+          coverScale: _coverScale,
+          coverOffset: _coverOffset,
+          titlePrefix: _titlePrefix,
+          prefixPos: _prefixPos,
+          prefixScale: _prefixScale,
+          titlePrefixStyle: _titlePrefixStyle,
+          eventName: _eventName,
+          namePos: _namePos,
+          nameScale: _nameScale,
+          eventNameStyle: _eventNameStyle,
+          eventDate: _eventDate,
+          datePos: _datePos,
+          dateScale: _dateScale,
+          eventDateStyle: _eventDateStyle,
+          eventLocation: _eventLocation,
+          locPos: _locPos,
+          locScale: _locScale,
+          eventLocationStyle: _eventLocationStyle,
+          additionalTexts: _additionalTexts,
+          extraPositions: _extraPositions,
+          extraScales: _extraScales,
+          additionalTextStyles: _additionalTextStyles,
+          showHeartDivider: _showHeartDivider,
+          dividerPos: _dividerPos,
+          dividerScale: _dividerScale,
+          canvasStickers: _canvasStickers,
+        );
+      },
+      transitionBuilder: (dialogContext, anim, secondaryAnim, child) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
+    );
   }
 
   void _openTextEditor() {
@@ -231,12 +415,7 @@ class _ChooseTemplateConfirmationViewState
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(ctx).size.height * 0.88,
               ),
-              padding: EdgeInsets.fromLTRB(
-                20,
-                16,
-                20,
-                bottomInset + 20,
-              ),
+              padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -424,13 +603,15 @@ class _ChooseTemplateConfirmationViewState
                       onTap: () {
                         setModalState(() {
                           extraCtrls.add(TextEditingController(text: ''));
-                          tempExtraStyles.add(CustomTextStyleConfig(
-                            fontSize: 12.0,
-                            isBold: false,
-                            isItalic: false,
-                            isUnderline: false,
-                            fontFamily: 'serif',
-                          ));
+                          tempExtraStyles.add(
+                            CustomTextStyleConfig(
+                              fontSize: 12.0,
+                              isBold: false,
+                              isItalic: false,
+                              isUnderline: false,
+                              fontFamily: 'serif',
+                            ),
+                          );
                         });
                       },
                       borderRadius: BorderRadius.circular(14),
@@ -506,6 +687,23 @@ class _ChooseTemplateConfirmationViewState
                                 .toList();
                             _additionalTextStyles.clear();
                             _additionalTextStyles.addAll(tempExtraStyles);
+
+                            while (_extraPositions.length <
+                                _additionalTexts.length) {
+                              final idx = _extraPositions.length;
+                              _extraPositions.add(
+                                Offset(
+                                  _namePos.dx,
+                                  _locPos.dy + 30.0 + (idx * 26.0),
+                                ),
+                              );
+                              _extraScales.add(1.0);
+                            }
+                            if (_extraPositions.length >
+                                _additionalTexts.length) {
+                              _extraPositions.length = _additionalTexts.length;
+                              _extraScales.length = _additionalTexts.length;
+                            }
                           });
                           Navigator.pop(ctx);
                         },
@@ -707,8 +905,7 @@ class _ChooseTemplateConfirmationViewState
                           children: [
                             // 1. BESAR FONT (Font Size)
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
                                   'Besar Font',
@@ -770,27 +967,33 @@ class _ChooseTemplateConfirmationViewState
                                   child: SliderTheme(
                                     data: SliderTheme.of(dialogContext)
                                         .copyWith(
-                                      activeTrackColor:
-                                          const Color(0xFFFF007A),
-                                      inactiveTrackColor:
-                                          const Color(0xFFFFD6E4),
-                                      thumbColor: const Color(0xFFFF007A),
-                                      overlayColor: const Color(0x22FF007A),
-                                      trackHeight: 3.5,
-                                      thumbShape:
-                                          const RoundSliderThumbShape(
-                                        enabledThumbRadius: 8,
-                                      ),
-                                    ),
+                                          activeTrackColor: const Color(
+                                            0xFFFF007A,
+                                          ),
+                                          inactiveTrackColor: const Color(
+                                            0xFFFFD6E4,
+                                          ),
+                                          thumbColor: const Color(0xFFFF007A),
+                                          overlayColor: const Color(0x22FF007A),
+                                          trackHeight: 3.5,
+                                          thumbShape:
+                                              const RoundSliderThumbShape(
+                                                enabledThumbRadius: 8,
+                                              ),
+                                        ),
                                     child: Slider(
-                                      value: tempStyle.fontSize.clamp(8.0, 60.0),
+                                      value: tempStyle.fontSize.clamp(
+                                        8.0,
+                                        60.0,
+                                      ),
                                       min: 8.0,
                                       max: 60.0,
                                       divisions: 52,
                                       onChanged: (val) {
                                         setDialogState(() {
-                                          tempStyle.fontSize =
-                                              double.parse(val.toStringAsFixed(1));
+                                          tempStyle.fontSize = double.parse(
+                                            val.toStringAsFixed(1),
+                                          );
                                         });
                                       },
                                     ),
@@ -958,8 +1161,7 @@ class _ChooseTemplateConfirmationViewState
 
                             // 4. WARNA FONT (Color Palette)
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
                                   'Warna Font',
@@ -973,7 +1175,8 @@ class _ChooseTemplateConfirmationViewState
                                   GestureDetector(
                                     onTap: () {
                                       setDialogState(() {
-                                        tempStyle.color = null; // Reset ke warna tema
+                                        tempStyle.color =
+                                            null; // Reset ke warna tema
                                       });
                                     },
                                     child: const Text(
@@ -992,7 +1195,8 @@ class _ChooseTemplateConfirmationViewState
                               spacing: 10,
                               runSpacing: 10,
                               children: paletteColors.map((col) {
-                                final isSelected = (tempStyle.color != null &&
+                                final isSelected =
+                                    (tempStyle.color != null &&
                                         tempStyle.color == col) ||
                                     (tempStyle.color == null &&
                                         col == _textColor);
@@ -1012,7 +1216,9 @@ class _ChooseTemplateConfirmationViewState
                                       border: Border.all(
                                         color: isSelected
                                             ? const Color(0xFFFF007A)
-                                            : Colors.black.withValues(alpha: 0.12),
+                                            : Colors.black.withValues(
+                                                alpha: 0.12,
+                                              ),
                                         width: isSelected ? 2.5 : 1.2,
                                       ),
                                       boxShadow: isSelected
@@ -1054,15 +1260,11 @@ class _ChooseTemplateConfirmationViewState
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF64748B),
-                              side: const BorderSide(
-                                color: Color(0xFFCBD5E1),
-                              ),
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             onPressed: () => Navigator.pop(dialogContext),
                             child: const Text(
@@ -1084,9 +1286,7 @@ class _ChooseTemplateConfirmationViewState
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             onPressed: () {
                               onApplied(tempStyle);
@@ -1126,9 +1326,7 @@ class _ChooseTemplateConfirmationViewState
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFFFF007A)
-              : const Color(0xFFF8FAFC),
+          color: isSelected ? const Color(0xFFFF007A) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
@@ -1161,85 +1359,567 @@ class _ChooseTemplateConfirmationViewState
   }
 
   void _openColorPicker() {
+    // Tentukan apakah warna saat ini adalah salah satu dari 6 preset atau custom
+    bool isCustomActive = !_presetColorOptions.contains(_textColor);
+    Color activeColor = _textColor;
+    if (isCustomActive) {
+      _customTextColor = _textColor;
+    }
+
+    HSVColor hsv = HSVColor.fromColor(activeColor);
+    double currentHue = hsv.hue;
+    double currentSaturation = hsv.saturation.clamp(0.05, 1.0);
+    double currentValue = hsv.value.clamp(0.1, 1.0);
+
+    final hexController = TextEditingController(text: _colorToHex(activeColor));
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 4.5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void updateFromSliders() {
+              final newColor = HSVColor.fromAHSV(
+                1.0,
+                currentHue,
+                currentSaturation,
+                currentValue,
+              ).toColor();
+
+              _customTextColor = newColor;
+              hexController.text = _colorToHex(newColor);
+              hexController.selection = TextSelection.fromPosition(
+                TextPosition(offset: hexController.text.length),
+              );
+
+              setSheetState(() {});
+              setState(() {
+                _textColor = newColor;
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Handle bar
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4.5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Pilih Warna Teks Tipografi',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Baris 7 Warna: 6 Preset + 1 Warna Custom di Paling Ujung
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(7, (index) {
+                          final isLastItem = index == 6;
+                          final col = isLastItem
+                              ? _customTextColor
+                              : _presetColorOptions[index];
+                          final isSelected = isLastItem
+                              ? isCustomActive
+                              : (!isCustomActive && _textColor == col);
+
+                          return GestureDetector(
+                            onTap: () {
+                              if (isLastItem) {
+                                // Klik warna paling ujung -> buka kontrol hex & slider
+                                setSheetState(() {
+                                  isCustomActive = true;
+                                  hsv = HSVColor.fromColor(_customTextColor);
+                                  currentHue = hsv.hue;
+                                  currentSaturation = hsv.saturation.clamp(
+                                    0.05,
+                                    1.0,
+                                  );
+                                  currentValue = hsv.value.clamp(0.1, 1.0);
+                                  hexController.text = _colorToHex(
+                                    _customTextColor,
+                                  );
+                                });
+                                setState(() {
+                                  _textColor = _customTextColor;
+                                });
+                              } else {
+                                // Klik warna 1-6 -> terapkan & langsung tutup
+                                setSheetState(() {
+                                  isCustomActive = false;
+                                });
+                                setState(() {
+                                  _textColor = col;
+                                });
+                                Navigator.pop(ctx);
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: col,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? (isLastItem
+                                            ? const Color(0xFFFF007A)
+                                            : Colors.white)
+                                      : (isLastItem
+                                            ? Colors.grey.shade400
+                                            : Colors.transparent),
+                                  width: isSelected
+                                      ? 3
+                                      : (isLastItem ? 1.5 : 0),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: col.withValues(alpha: 0.35),
+                                    blurRadius: isSelected ? 10 : 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: isSelected
+                                  ? const Center(
+                                      child: Icon(
+                                        Icons.check_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    )
+                                  : (isLastItem
+                                        ? Center(
+                                            child: Icon(
+                                              Icons.colorize_rounded,
+                                              color:
+                                                  col.computeLuminance() > 0.5
+                                                  ? Colors.black54
+                                                  : Colors.white70,
+                                              size: 18,
+                                            ),
+                                          )
+                                        : null),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      // Saat warna paling ujung diklik: Tampilkan Kode Hex & Slider Detail
+                      if (isCustomActive) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 1. Kotak Preview & Input Hex Code
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: _customTextColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _customTextColor.withValues(
+                                            alpha: 0.3,
+                                          ),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Container(
+                                      height: 44,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: const Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Text(
+                                            'HEX',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            width: 1,
+                                            height: 18,
+                                            color: const Color(0xFFE2E8F0),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: hexController,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF0F172A),
+                                                letterSpacing: 1.2,
+                                              ),
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                isDense: true,
+                                                contentPadding: EdgeInsets.zero,
+                                                hintText: '#RRGGBB',
+                                              ),
+                                              onChanged: (val) {
+                                                final parsed = _hexToColor(val);
+                                                if (parsed != null) {
+                                                  _customTextColor = parsed;
+                                                  final newHsv =
+                                                      HSVColor.fromColor(
+                                                        parsed,
+                                                      );
+                                                  currentHue = newHsv.hue;
+                                                  currentSaturation = newHsv
+                                                      .saturation
+                                                      .clamp(0.05, 1.0);
+                                                  currentValue = newHsv.value
+                                                      .clamp(0.1, 1.0);
+                                                  setSheetState(() {});
+                                                  setState(() {
+                                                    _textColor = parsed;
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // 2. Slider Spektrum Warna (Hue Pelangi 0° - 360°)
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Spektrum Warna (Hue)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${currentHue.round()}°',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFFF007A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    height: 12,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFF0000),
+                                          Color(0xFFFFFF00),
+                                          Color(0xFF00FF00),
+                                          Color(0xFF00FFFF),
+                                          Color(0xFF0000FF),
+                                          Color(0xFFFF00FF),
+                                          Color(0xFFFF0000),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 12,
+                                      activeTrackColor: Colors.transparent,
+                                      inactiveTrackColor: Colors.transparent,
+                                      thumbColor: Colors.white,
+                                      thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 11,
+                                        elevation: 4,
+                                      ),
+                                      overlayShape:
+                                          const RoundSliderOverlayShape(
+                                            overlayRadius: 18,
+                                          ),
+                                    ),
+                                    child: Slider(
+                                      value: currentHue,
+                                      min: 0.0,
+                                      max: 360.0,
+                                      onChanged: (val) {
+                                        currentHue = val;
+                                        updateFromSliders();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // 3. Slider Tingkat Kecerahan (Value / Brightness 10% - 100%)
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Kecerahan (Brightness)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(currentValue * 100).round()}%',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFFF007A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    height: 12,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.black,
+                                          HSVColor.fromAHSV(
+                                            1.0,
+                                            currentHue,
+                                            currentSaturation,
+                                            1.0,
+                                          ).toColor(),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 12,
+                                      activeTrackColor: Colors.transparent,
+                                      inactiveTrackColor: Colors.transparent,
+                                      thumbColor: Colors.white,
+                                      thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 11,
+                                        elevation: 4,
+                                      ),
+                                      overlayShape:
+                                          const RoundSliderOverlayShape(
+                                            overlayRadius: 18,
+                                          ),
+                                    ),
+                                    child: Slider(
+                                      value: currentValue,
+                                      min: 0.1,
+                                      max: 1.0,
+                                      onChanged: (val) {
+                                        currentValue = val;
+                                        updateFromSliders();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // 4. Slider Kepekatan Warna (Saturation 5% - 100%)
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Kepekatan Warna (Saturation)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(currentSaturation * 100).round()}%',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFFF007A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    height: 12,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          HSVColor.fromAHSV(
+                                            1.0,
+                                            currentHue,
+                                            0.0,
+                                            currentValue,
+                                          ).toColor(),
+                                          HSVColor.fromAHSV(
+                                            1.0,
+                                            currentHue,
+                                            1.0,
+                                            currentValue,
+                                          ).toColor(),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 12,
+                                      activeTrackColor: Colors.transparent,
+                                      inactiveTrackColor: Colors.transparent,
+                                      thumbColor: Colors.white,
+                                      thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 11,
+                                        elevation: 4,
+                                      ),
+                                      overlayShape:
+                                          const RoundSliderOverlayShape(
+                                            overlayRadius: 18,
+                                          ),
+                                    ),
+                                    child: Slider(
+                                      value: currentSaturation,
+                                      min: 0.05,
+                                      max: 1.0,
+                                      onChanged: (val) {
+                                        currentSaturation = val;
+                                        updateFromSliders();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // Button Selesai di Luar Border Card Warna Custom
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF007A),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Selesai',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pilih Warna Teks Tipografi',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: _colorOptions.map((col) {
-                  final isSelected = _textColor == col;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _textColor = col;
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: col,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: col.withValues(alpha: 0.35),
-                            blurRadius: isSelected ? 10 : 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: isSelected
-                          ? const Center(
-                              child: Icon(
-                                Icons.check_rounded,
-                                color: Colors.white,
-                                size: 22,
-                              ),
-                            )
-                          : null,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1406,10 +2086,7 @@ class _ChooseTemplateConfirmationViewState
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            asset,
-                            fit: BoxFit.cover,
-                          ),
+                          child: Image.asset(asset, fit: BoxFit.cover),
                         ),
                       ),
                     );
@@ -1429,77 +2106,153 @@ class _ChooseTemplateConfirmationViewState
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 4.5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Tambahkan Sticker Dekorasi',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 14,
-                runSpacing: 14,
-                children: stickers.map((st) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (_activeStickers.contains(st)) {
-                          _activeStickers.remove(st);
-                        } else {
-                          _activeStickers.add(st);
-                        }
-                      });
-                      Navigator.pop(ctx);
-                    },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
                     child: Container(
-                      width: 50,
-                      height: 50,
+                      width: 42,
+                      height: 4.5,
                       decoration: BoxDecoration(
-                        color: _activeStickers.contains(st)
-                            ? const Color(0xFFFFEEF3)
-                            : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: _activeStickers.contains(st)
-                              ? const Color(0xFFFF007A)
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          st,
-                          style: const TextStyle(fontSize: 24),
-                        ),
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Tambahkan Sticker Dekorasi',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      if (_canvasStickers.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _canvasStickers.clear();
+                              _activeStickers.clear();
+                              _selectedItemId = null;
+                            });
+                            setModalState(() {});
+                          },
+                          child: const Text(
+                            'Hapus Semua',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFE11D48),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Pilih sticker untuk ditambahkan. Di canvas, sticker dapat dipindahkan, diperbesar/perkecil, dan dihapus saat dipilih.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 14,
+                    children: stickers.map((st) {
+                      final count = _canvasStickers
+                          .where((s) => s.emoji == st)
+                          .length;
+                      return GestureDetector(
+                        onTap: () {
+                          final newId =
+                              'sticker_${DateTime.now().millisecondsSinceEpoch}_${_canvasStickers.length}';
+                          final offsetIndex = _canvasStickers.length % 5;
+                          final initialPos = Offset(
+                            120.0 + (offsetIndex * 22.0),
+                            90.0 + (offsetIndex * 22.0),
+                          );
+                          setState(() {
+                            _canvasStickers.add(
+                              CanvasStickerItem(
+                                id: newId,
+                                emoji: st,
+                                position: initialPos,
+                                scale: 1.0,
+                              ),
+                            );
+                            if (!_activeStickers.contains(st)) {
+                              _activeStickers.add(st);
+                            }
+                            _selectedItemId = newId;
+                          });
+                          Navigator.pop(ctx);
+                          SmileToast.showSuccess(
+                            context,
+                            title: 'Sticker Ditambahkan',
+                            message: 'Geser untuk memindahkan, ketuk silang untuk menghapus.',
+                          );
+                        },
+                        child: Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: count > 0
+                                ? const Color(0xFFFFEEF3)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: count > 0
+                                  ? const Color(0xFFFF007A)
+                                  : const Color(0xFFE2E8F0),
+                              width: count > 0 ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Text(st, style: const TextStyle(fontSize: 26)),
+                              if (count > 0)
+                                Positioned(
+                                  top: 3,
+                                  right: 3,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3.5),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFFF007A),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1532,10 +2285,12 @@ class _ChooseTemplateConfirmationViewState
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final activeFilterColor = _filterOptions.firstWhere(
-      (f) => f['name'] == _activeFilter,
-      orElse: () => {'color': null},
-    )['color'] as Color?;
+    final activeFilterColor =
+        _filterOptions.firstWhere(
+              (f) => f['name'] == _activeFilter,
+              orElse: () => {'color': null},
+            )['color']
+            as Color?;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -1619,257 +2374,292 @@ class _ChooseTemplateConfirmationViewState
                 ),
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 12),
 
               // ====================================================
-              // 2. CANVAS TEMPLATE PREVIEW
+              // BANNER INFORMASI PETUNJUK KANVAS
+              // (Letak di atas frame kanvas.
+              // Hanya informasinya yang diclose saat button x diklik)
               // ====================================================
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              AnimatedCrossFade(
+                firstChild: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
                   child: Center(
-                    child: AspectRatio(
-                      aspectRatio: 0.68,
-                      child: RepaintBoundary(
-                        child: Container(
-                          decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              // Gambar Template Background
-                              Image.asset(
-                                _currentCoverAsset,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: const Color(0xFFFFEEF3),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.image_outlined,
-                                        color: Color(0xFFFF007A),
-                                        size: 48,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-
-                              // Filter Suasana Berwarna
-                              if (activeFilterColor != null)
-                                Container(color: activeFilterColor),
-
-                              // Overlay Bounding Box Tipografi Event (Bisa Ditekan)
-                              Positioned(
-                                top: 50,
-                                left: 24,
-                                right: 24,
-                                child: GestureDetector(
-                                  onTap: _openTextEditor,
-                                  child: CustomPaint(
-                                    painter: _DashedBoundingBoxPainter(
-                                      color: const Color(0xFFFF007A),
-                                      handleColor: const Color(0xFFFF007A),
-                                      strokeWidth: 1.3,
-                                      dashWidth: 4.5,
-                                      dashGap: 3.5,
-                                      handleRadius: 4.2,
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 14,
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          // 1. "The Wedding of"
-                                          if (_titlePrefix.isNotEmpty) ...[
-                                            Text(
-                                              _titlePrefix,
-                                              textAlign: TextAlign.center,
-                                              style: _titlePrefixStyle
-                                                  .toTextStyle(_textColor),
-                                            ),
-                                            const SizedBox(height: 6),
-                                          ],
-
-                                          // 2. "Asa & Aulia"
-                                          if (_eventName.isNotEmpty) ...[
-                                            Text(
-                                              _eventName,
-                                              textAlign: TextAlign.center,
-                                              style: _eventNameStyle
-                                                  .toTextStyle(_textColor),
-                                            ),
-                                            const SizedBox(height: 8),
-                                          ],
-
-                                          // 3. "20 September 2026"
-                                          if (_eventDate.isNotEmpty) ...[
-                                            Text(
-                                              _eventDate,
-                                              textAlign: TextAlign.center,
-                                              style: _eventDateStyle
-                                                  .toTextStyle(_textColor),
-                                            ),
-                                            const SizedBox(height: 4),
-                                          ],
-
-                                          // 4. "The Ritz-Carlton, Jakarta"
-                                          if (_eventLocation.isNotEmpty) ...[
-                                            Text(
-                                              _eventLocation,
-                                              textAlign: TextAlign.center,
-                                              style: _eventLocationStyle
-                                                  .toTextStyle(_textColor),
-                                            ),
-                                            const SizedBox(height: 6),
-                                          ],
-
-                                          // 4b. Teks Tambahan (Dinamis)
-                                          for (int i = 0;
-                                              i < _additionalTexts.length;
-                                              i++)
-                                            if (_additionalTexts[i]
-                                                .isNotEmpty) ...[
-                                              Text(
-                                                _additionalTexts[i],
-                                                textAlign: TextAlign.center,
-                                                style: (i <
-                                                        _additionalTextStyles
-                                                            .length)
-                                                    ? _additionalTextStyles[i]
-                                                        .toTextStyle(_textColor)
-                                                    : TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontFamily: 'serif',
-                                                        color: _textColor
-                                                            .withValues(
-                                                                alpha: 0.9),
-                                                        letterSpacing: 0.2,
-                                                      ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                            ],
-
-                                          // 5. Divider Garis dengan Hati di Tengah (── ♡ ──)
-                                          if (_titlePrefix.isNotEmpty ||
-                                              _eventName.isNotEmpty ||
-                                              _eventDate.isNotEmpty ||
-                                              _eventLocation.isNotEmpty ||
-                                              _additionalTexts
-                                                  .any((t) => t.isNotEmpty)) ...[
-                                            const SizedBox(height: 2),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Container(
-                                                  width: 28,
-                                                  height: 1.2,
-                                                  color: _textColor
-                                                      .withValues(alpha: 0.6),
-                                                ),
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                  ),
-                                                  child: Icon(
-                                                    Icons.favorite_rounded,
-                                                    size: 13,
-                                                    color: _textColor,
-                                                  ),
-                                                ),
-                                                Container(
-                                                  width: 28,
-                                                  height: 1.2,
-                                                  color: _textColor
-                                                      .withValues(alpha: 0.6),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // Sticker Tambahan
-                              if (_activeStickers.isNotEmpty)
-                                Positioned(
-                                  top: 18,
-                                  right: 18,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: _activeStickers.map((st) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(left: 4),
-                                        child: Text(
-                                          st,
-                                          style: const TextStyle(fontSize: 22),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-
-                              // Floating Action Button Pensil Putih di Pojok Kanan Bawah
-                              Positioned(
-                                bottom: 14,
-                                right: 14,
-                                child: GestureDetector(
-                                  onTap: _openTextEditor,
-                                  child: Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.22),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.edit_rounded,
-                                        color: Color(0xFF1E293B),
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 5.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.touch_app_rounded,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'Geser: pindah • Sudut: resize / hapus',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _showCanvasHintBanner = false;
+                              });
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(2.0),
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Colors.white70,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
+                secondChild: const SizedBox.shrink(),
+                crossFadeState: _showCanvasHintBanner
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                duration: const Duration(milliseconds: 200),
               ),
-            ),
 
-              const SizedBox(height: 14),
+              // ====================================================
+              // 2. CANVAS TEMPLATE PREVIEW
+              // ====================================================
+              ChooseTemplateConfirmationCanvas(
+                coverAsset: _currentCoverAsset,
+                activeFilterColor: activeFilterColor,
+                textColor: _textColor,
+                canvasInitialized: _canvasInitialized,
+                onCanvasSizeChanged: (width, height) {
+                  _canvasWidth = width;
+                  _canvasHeight = height;
+                },
+                onInitializePositions: (width, height) {
+                  setState(() {
+                    _canvasInitialized = true;
+                    _canvasWidth = width;
+                    _canvasHeight = height;
+                    final centerX = width / 2;
+                    _prefixPos = Offset(centerX, height * 0.14);
+                    _namePos = Offset(centerX, height * 0.23);
+                    _datePos = Offset(centerX, height * 0.31);
+                    _locPos = Offset(centerX, height * 0.37);
+                    _dividerPos = Offset(centerX, height * 0.43);
+                    for (int i = 0; i < _extraPositions.length; i++) {
+                      _extraPositions[i] = Offset(
+                        centerX,
+                        height * (0.48 + (i * 0.06)),
+                      );
+                    }
+                  });
+                },
+                titlePrefix: _titlePrefix,
+                prefixPos: _prefixPos,
+                prefixScale: _prefixScale,
+                titlePrefixStyle: _titlePrefixStyle,
+                onPrefixPosChanged: (pos) => setState(() => _prefixPos = pos),
+                onPrefixScaleChanged: (scale) =>
+                    setState(() => _prefixScale = scale),
+                onEditPrefix: () {
+                  _openFontDialog(
+                    label: 'Subjudul',
+                    previewText: _titlePrefix,
+                    currentConfig: _titlePrefixStyle,
+                    onApplied: (newConfig) {
+                      setState(() => _titlePrefixStyle = newConfig);
+                    },
+                  );
+                },
+                onDeletePrefix: () => _deleteItemById('prefix'),
+                eventName: _eventName,
+                namePos: _namePos,
+                nameScale: _nameScale,
+                eventNameStyle: _eventNameStyle,
+                onNamePosChanged: (pos) => setState(() => _namePos = pos),
+                onNameScaleChanged: (scale) =>
+                    setState(() => _nameScale = scale),
+                onEditName: () {
+                  _openFontDialog(
+                    label: 'Nama Event / Pasangan',
+                    previewText: _eventName,
+                    currentConfig: _eventNameStyle,
+                    onApplied: (newConfig) {
+                      setState(() => _eventNameStyle = newConfig);
+                    },
+                  );
+                },
+                onDeleteName: () => _deleteItemById('name'),
+                eventDate: _eventDate,
+                datePos: _datePos,
+                dateScale: _dateScale,
+                eventDateStyle: _eventDateStyle,
+                onDatePosChanged: (pos) => setState(() => _datePos = pos),
+                onDateScaleChanged: (scale) =>
+                    setState(() => _dateScale = scale),
+                onEditDate: () {
+                  _openFontDialog(
+                    label: 'Tanggal Event',
+                    previewText: _eventDate,
+                    currentConfig: _eventDateStyle,
+                    onApplied: (newConfig) {
+                      setState(() => _eventDateStyle = newConfig);
+                    },
+                  );
+                },
+                onDeleteDate: () => _deleteItemById('date'),
+                eventLocation: _eventLocation,
+                locPos: _locPos,
+                locScale: _locScale,
+                eventLocationStyle: _eventLocationStyle,
+                onLocPosChanged: (pos) => setState(() => _locPos = pos),
+                onLocScaleChanged: (scale) => setState(() => _locScale = scale),
+                onEditLocation: () {
+                  _openFontDialog(
+                    label: 'Lokasi Event',
+                    previewText: _eventLocation,
+                    currentConfig: _eventLocationStyle,
+                    onApplied: (newConfig) {
+                      setState(() => _eventLocationStyle = newConfig);
+                    },
+                  );
+                },
+                onDeleteLocation: () => _deleteItemById('location'),
+                additionalTexts: _additionalTexts,
+                extraPositions: _extraPositions,
+                extraScales: _extraScales,
+                additionalTextStyles: _additionalTextStyles,
+                onExtraPosChanged: (i, pos) =>
+                    setState(() => _extraPositions[i] = pos),
+                onExtraScaleChanged: (i, scale) {
+                  if (i < _extraScales.length) {
+                    setState(() => _extraScales[i] = scale);
+                  }
+                },
+                onEditExtra: (i) {
+                  _openFontDialog(
+                    label: 'Teks Tambahan ${i + 1}',
+                    previewText: _additionalTexts[i],
+                    currentConfig: i < _additionalTextStyles.length
+                        ? _additionalTextStyles[i]
+                        : CustomTextStyleConfig(fontSize: 12.0),
+                    onApplied: (newConfig) {
+                      setState(() {
+                        if (i < _additionalTextStyles.length) {
+                          _additionalTextStyles[i] = newConfig;
+                        }
+                      });
+                    },
+                  );
+                },
+                onDeleteExtra: (i) => _deleteItemById('extra_$i'),
+                showHeartDivider: _showHeartDivider,
+                dividerPos: _dividerPos,
+                dividerScale: _dividerScale,
+                onDividerPosChanged: (pos) => setState(() => _dividerPos = pos),
+                onDividerScaleChanged: (scale) =>
+                    setState(() => _dividerScale = scale),
+                onDeleteDivider: () => _deleteItemById('divider'),
+                canvasStickers: _canvasStickers,
+                onStickerPosChanged: (sticker, pos) =>
+                    setState(() => sticker.position = pos),
+                onStickerScaleChanged: (sticker, scale) =>
+                    setState(() => sticker.scale = scale),
+                onDeleteSticker: (id) => _deleteItemById(id),
+                selectedItemId: _selectedItemId,
+                onSelectItem: (id) => setState(() => _selectedItemId = id),
+                showVerticalCenterGuide: _showVerticalCenterGuide,
+                showHorizontalCenterGuide: _showHorizontalCenterGuide,
+                onGuideChanged: _updateCenterGuides,
+                onOpenTextEditor: _openTextEditor,
+                coverScale: _coverScale,
+                coverOffset: _coverOffset,
+                onCoverTransformChanged: (scale, offset) {
+                  setState(() {
+                    _coverScale = scale;
+                    _coverOffset = offset;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // ====================================================
+              // TOMBOL PREVIEW REAL LAYAR TAMU (ICON MATA)
+              // (Diposisikan di bawah tengah, di atas bottom toolbar)
+              // ====================================================
+              Center(
+                child: GestureDetector(
+                  onTap: _openGuestRealPreview,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFFF007A).withValues(alpha: 0.28),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF007A)
+                              .withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.visibility_rounded,
+                          color: Color(0xFFFF007A),
+                          size: 18,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Preview',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
 
               // ====================================================
               // 3. BOTTOM TOOLBAR (Teks, Sticker, Foto, Warna, Filter)
@@ -1911,7 +2701,6 @@ class _ChooseTemplateConfirmationViewState
                       ),
                       label: 'Sticker',
                     ),
-
 
                     // Tool 4: Warna
                     _buildToolButton(
@@ -1966,9 +2755,7 @@ class _ChooseTemplateConfirmationViewState
                   : const Color(0xFFF3F4F8),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isCurrent
-                    ? const Color(0xFFFF007A)
-                    : Colors.transparent,
+                color: isCurrent ? const Color(0xFFFF007A) : Colors.transparent,
                 width: 1.5,
               ),
               boxShadow: [
@@ -1996,118 +2783,70 @@ class _ChooseTemplateConfirmationViewState
       ),
     );
   }
-}
 
-/// Painter Dashed Bounding Box Pink dengan 8 Handle Titik Lingkaran
-class _DashedBoundingBoxPainter extends CustomPainter {
-  final Color color;
-  final Color handleColor;
-  final double strokeWidth;
-  final double dashWidth;
-  final double dashGap;
-  final double handleRadius;
-
-  _DashedBoundingBoxPainter({
-    required this.color,
-    required this.handleColor,
-    this.strokeWidth = 1.3,
-    this.dashWidth = 4.5,
-    this.dashGap = 3.5,
-    this.handleRadius = 4.2,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    final rect = Offset.zero & size;
-
-    // Garis putus-putus 4 sisi persegi panjang
-    _drawDashedLine(canvas, rect.topLeft, rect.topRight, paint);
-    _drawDashedLine(canvas, rect.topRight, rect.bottomRight, paint);
-    _drawDashedLine(canvas, rect.bottomRight, rect.bottomLeft, paint);
-    _drawDashedLine(canvas, rect.bottomLeft, rect.topLeft, paint);
-
-    // Garis panduan horizontal putus-putus di dalam (seperti di referensi)
-    final y1 = rect.top + rect.height * 0.28;
-    final y2 = rect.top + rect.height * 0.65;
-    _drawDashedLine(
-      canvas,
-      Offset(rect.left, y1),
-      Offset(rect.right, y1),
-      paint,
-    );
-    _drawDashedLine(
-      canvas,
-      Offset(rect.left, y2),
-      Offset(rect.right, y2),
-      paint,
-    );
-
-    // Titik Handle Lingkaran Pink dengan Border Putih
-    final handleFill = Paint()
-      ..color = handleColor
-      ..style = PaintingStyle.fill;
-
-    final handleBorder = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    // Titik handle di sudut dan sisi
-    final points = [
-      rect.topLeft,
-      Offset(rect.center.dx, rect.top),
-      rect.topRight,
-      Offset(rect.left, y1),
-      Offset(rect.right, y1),
-      Offset(rect.left, y2),
-      Offset(rect.right, y2),
-      rect.bottomLeft,
-      Offset(rect.center.dx, rect.bottom),
-      rect.bottomRight,
-    ];
-
-    for (final pt in points) {
-      canvas.drawCircle(pt, handleRadius, handleFill);
-      canvas.drawCircle(pt, handleRadius, handleBorder);
-    }
-  }
-
-  void _drawDashedLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
-    final dx = p2.dx - p1.dx;
-    final dy = p2.dy - p1.dy;
-    final distance = sqrt(dx * dx + dy * dy);
-    if (distance <= 0) return;
-
-    final unitX = dx / distance;
-    final unitY = dy / distance;
-
-    double currentDist = 0;
-    while (currentDist < distance) {
-      final start = Offset(
-        p1.dx + unitX * currentDist,
-        p1.dy + unitY * currentDist,
-      );
-      currentDist += dashWidth;
-      if (currentDist > distance) currentDist = distance;
-      final end = Offset(
-        p1.dx + unitX * currentDist,
-        p1.dy + unitY * currentDist,
-      );
-      canvas.drawLine(start, end, paint);
-      currentDist += dashGap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBoundingBoxPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.handleColor != handleColor ||
-        oldDelegate.strokeWidth != strokeWidth;
+  /// Menghapus item tertentu berdasarkan id dari canvas
+  void _deleteItemById(String? id) {
+    if (id == null) return;
+    setState(() {
+      if (id == 'prefix') {
+        _titlePrefix = '';
+        SmileToast.showSuccess(
+          context,
+          title: 'Teks Dihapus',
+          message: 'Subjudul berhasil dihapus.',
+        );
+      } else if (id == 'name') {
+        _eventName = '';
+        SmileToast.showSuccess(
+          context,
+          title: 'Teks Dihapus',
+          message: 'Nama event berhasil dihapus.',
+        );
+      } else if (id == 'date') {
+        _eventDate = '';
+        SmileToast.showSuccess(
+          context,
+          title: 'Teks Dihapus',
+          message: 'Tanggal event berhasil dihapus.',
+        );
+      } else if (id == 'location') {
+        _eventLocation = '';
+        SmileToast.showSuccess(
+          context,
+          title: 'Teks Dihapus',
+          message: 'Lokasi event berhasil dihapus.',
+        );
+      } else if (id == 'divider') {
+        _showHeartDivider = false;
+      } else if (id.startsWith('extra_')) {
+        final idx = int.tryParse(id.replaceFirst('extra_', ''));
+        if (idx != null && idx < _additionalTexts.length) {
+          _additionalTexts.removeAt(idx);
+          if (idx < _additionalTextStyles.length) {
+            _additionalTextStyles.removeAt(idx);
+          }
+          if (idx < _extraPositions.length) {
+            _extraPositions.removeAt(idx);
+          }
+          if (idx < _extraScales.length) {
+            _extraScales.removeAt(idx);
+          }
+          SmileToast.showSuccess(
+            context,
+            title: 'Teks Dihapus',
+            message: 'Teks tambahan berhasil dihapus.',
+          );
+        }
+      } else if (id.startsWith('sticker_')) {
+        _canvasStickers.removeWhere((s) => s.id == id);
+        SmileToast.showSuccess(
+          context,
+          title: 'Sticker Dihapus',
+          message: 'Sticker berhasil dihapus dari canvas.',
+        );
+      }
+      _selectedItemId = null;
+    });
   }
 }
 
@@ -2229,7 +2968,7 @@ class _SlideableTextField extends StatefulWidget {
 }
 
 class _SlideableTextFieldState extends State<_SlideableTextField>
-  with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
   late final Animation<Offset> _offsetAnimation;
   bool _isOpen = false;
@@ -2242,13 +2981,13 @@ class _SlideableTextFieldState extends State<_SlideableTextField>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _offsetAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(-_actionWidth, 0),
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutCubic,
-    ));
+    _offsetAnimation =
+        Tween<Offset>(
+          begin: Offset.zero,
+          end: const Offset(-_actionWidth, 0),
+        ).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
   }
 
   @override
@@ -2302,7 +3041,9 @@ class _SlideableTextFieldState extends State<_SlideableTextField>
                         child: Container(
                           width: _actionWidth,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFFFE4E6), // Soft rose red background
+                            color: Color(
+                              0xFFFFE4E6,
+                            ), // Soft rose red background
                           ),
                           child: Material(
                             color: Colors.transparent,
@@ -2314,7 +3055,9 @@ class _SlideableTextFieldState extends State<_SlideableTextField>
                                   children: [
                                     Icon(
                                       Icons.delete_outline_rounded,
-                                      color: Color(0xFFE11D48), // Rose Red trash icon
+                                      color: Color(
+                                        0xFFE11D48,
+                                      ), // Rose Red trash icon
                                       size: 22,
                                     ),
                                     SizedBox(height: 2),
@@ -2448,4 +3191,3 @@ class _SlideableTextFieldState extends State<_SlideableTextField>
     );
   }
 }
-
