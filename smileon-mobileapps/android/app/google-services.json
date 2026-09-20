@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "2138942689",
+    "project_id": "smileon-photobooth",
+    "storage_bucket": "smileon-photobooth.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:2138942689:android:f0f4a8b282a9ee3e875ba0",
+        "android_client_info": {
+          "package_name": "com.smileon.photobox"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBObpJdhWuwdpr3YVHZ41V_2PtAWhCUBtk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

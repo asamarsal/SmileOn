@@ -272,6 +272,7 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
 
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // 1. Kamera Langsung atau Latar Belakang Event (Fallback)
@@ -358,159 +359,203 @@ class _QrScanScreenState extends ConsumerState<QrScanScreen>
   Widget _buildInstructionView(bool isEn) {
     return SafeArea(
       key: const ValueKey('instruction_view'),
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isShort = constraints.maxHeight < 620;
+
+          if (isShort) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 24.0),
+                child: Column(
+                  children: [
+                    _buildInstructionTopBar(),
+                    const SizedBox(height: 6),
+                    _buildInstructionIllustration(),
+                    const SizedBox(height: 16),
+                    _buildInstructionTitle(isEn),
+                    const SizedBox(height: 6),
+                    _buildInstructionSubtitle(isEn),
+                    const SizedBox(height: 16),
+                    _buildInstructionChecklist(isEn),
+                    const SizedBox(height: 20),
+                    _buildStartScanButton(isEn),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            children: [
+              _buildInstructionTopBar(),
+              const SizedBox(height: 6),
+              _buildInstructionIllustration(),
+              const SizedBox(height: 20),
+              _buildInstructionTitle(isEn),
+              const SizedBox(height: 8),
+              _buildInstructionSubtitle(isEn),
+              const Spacer(),
+              _buildInstructionChecklist(isEn),
+              const Spacer(),
+              _buildStartScanButton(isEn),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Top Bar instruksi: Tombol Tutup (X) & Tombol Flash
+  Widget _buildInstructionTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 8.0,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Top Bar: Tombol Tutup (X) & Tombol Flash
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Colors.white, size: 26),
-                  splashRadius: 22,
-                ),
-                IconButton(
-                  onPressed: _toggleTorch,
-                  icon: Icon(
-                    _isTorchOn ? Icons.bolt_rounded : Icons.flash_off_rounded,
-                    color: _isTorchOn ? const Color(0xFFFFD700) : Colors.white,
-                    size: 26,
-                  ),
-                  splashRadius: 22,
-                ),
-              ],
-            ),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close, color: Colors.white, size: 26),
+            splashRadius: 22,
           ),
-
-          const SizedBox(height: 6),
-
-          // Kartu Ilustrasi Smartphone dengan QR Code dipegang tangan
-          Center(
-            child: Container(
-              width: 270,
-              height: 215,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2C2C2E).withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  width: 1.2,
-                ),
-              ),
-              child: const CustomPaint(
-                painter: _HandPhoneQrIllustrationPainter(),
-              ),
+          IconButton(
+            onPressed: _toggleTorch,
+            icon: Icon(
+              _isTorchOn ? Icons.bolt_rounded : Icons.flash_off_rounded,
+              color: _isTorchOn ? const Color(0xFFFFD700) : Colors.white,
+              size: 26,
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Judul "Scan QR Code"
-          Text(
-            isEn ? 'Scan QR Code' : 'Scan QR Code',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: -0.2,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Subtitle deskripsi
-          Text(
-            isEn
-                ? 'Point camera to QR Code\nfrom your event'
-                : 'Arahkan kamera ke QR Code\ndari event Anda',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.85),
-              height: 1.45,
-            ),
-          ),
-
-          const Spacer(),
-
-          // 3 Tips Petunjuk Checklist
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 36.0),
-            child: Column(
-              children: [
-                _buildInstructionItem(
-                  icon: const Icon(
-                    Icons.wb_sunny_outlined,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                  text: isEn
-                      ? 'Ensure sufficient lighting'
-                      : 'Pastikan pencahayaan cukup',
-                ),
-                const SizedBox(height: 20),
-                _buildInstructionItem(
-                  icon: const SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CustomPaint(painter: _DistanceIconPainter()),
-                  ),
-                  text: isEn ? 'Keep distance 10–30 cm' : 'Jaga jarak 10–30 cm',
-                ),
-                const SizedBox(height: 20),
-                _buildInstructionItem(
-                  icon: const SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CustomPaint(painter: _BoxFocusIconPainter()),
-                  ),
-                  text: isEn
-                      ? 'Focus QR Code inside the box area'
-                      : 'Fokuskan QR Code pada area kotak',
-                ),
-              ],
-            ),
-          ),
-
-          const Spacer(),
-
-          // Tombol Merah Muda "Mulai Scan"
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-            child: SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isScanning = true;
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF2D78),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(27),
-                  ),
-                ),
-                child: Text(
-                  isEn ? 'Start Scan' : 'Mulai Scan',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ),
+            splashRadius: 22,
           ),
         ],
+      ),
+    );
+  }
+
+  /// Kartu Ilustrasi Smartphone dengan QR Code dipegang tangan
+  Widget _buildInstructionIllustration() {
+    return Center(
+      child: Container(
+        width: 270,
+        height: 215,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2C2C2E).withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 1.2,
+          ),
+        ),
+        child: const CustomPaint(
+          painter: _HandPhoneQrIllustrationPainter(),
+        ),
+      ),
+    );
+  }
+
+  /// Judul "Scan QR Code"
+  Widget _buildInstructionTitle(bool isEn) {
+    return Text(
+      isEn ? 'Scan QR Code' : 'Scan QR Code',
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+        letterSpacing: -0.2,
+      ),
+    );
+  }
+
+  /// Subtitle deskripsi
+  Widget _buildInstructionSubtitle(bool isEn) {
+    return Text(
+      isEn
+          ? 'Point camera to QR Code\nfrom your event'
+          : 'Arahkan kamera ke QR Code\ndari event Anda',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 14,
+        color: Colors.white.withValues(alpha: 0.85),
+        height: 1.45,
+      ),
+    );
+  }
+
+  /// 3 Tips Petunjuk Checklist
+  Widget _buildInstructionChecklist(bool isEn) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 36.0),
+      child: Column(
+        children: [
+          _buildInstructionItem(
+            icon: const Icon(
+              Icons.wb_sunny_outlined,
+              color: Colors.white,
+              size: 26,
+            ),
+            text: isEn
+                ? 'Ensure sufficient lighting'
+                : 'Pastikan pencahayaan cukup',
+          ),
+          const SizedBox(height: 20),
+          _buildInstructionItem(
+            icon: const SizedBox(
+              width: 26,
+              height: 26,
+              child: CustomPaint(painter: _DistanceIconPainter()),
+            ),
+            text: isEn ? 'Keep distance 10–30 cm' : 'Jaga jarak 10–30 cm',
+          ),
+          const SizedBox(height: 20),
+          _buildInstructionItem(
+            icon: const SizedBox(
+              width: 26,
+              height: 26,
+              child: CustomPaint(painter: _BoxFocusIconPainter()),
+            ),
+            text: isEn
+                ? 'Focus QR Code inside the box area'
+                : 'Fokuskan QR Code pada area kotak',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tombol Merah Muda "Mulai Scan"
+  Widget _buildStartScanButton(bool isEn) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+      child: SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: () {
+            setState(() {
+              _isScanning = true;
+            });
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF2D78),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(27),
+            ),
+          ),
+          child: Text(
+            isEn ? 'Start Scan' : 'Mulai Scan',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
       ),
     );
   }

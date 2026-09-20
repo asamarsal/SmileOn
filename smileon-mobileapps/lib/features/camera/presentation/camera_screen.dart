@@ -308,13 +308,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         ),
 
         // 3. Konten Utama: Card Putih Akses Event di bagian bawah
-        Column(
-          children: [
-            const Spacer(),
-
-            // Bottom Card Putih Akses Event
-            _buildEventBottomCard(t),
-          ],
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _buildEventBottomCard(t),
         ),
       ],
     );
@@ -391,6 +387,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   onTap: () {
+                    FocusScope.of(context).unfocus();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -561,13 +558,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         ),
 
         // 3. Konten Utama: Card Putih Akses Personal di bagian bawah
-        Column(
-          children: [
-            const Spacer(),
-
-            // Bottom Card Putih dengan sudut melengkung 32px
-            _buildPersonalBottomCard(t),
-          ],
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _buildPersonalBottomCard(t),
         ),
       ],
     );
@@ -648,6 +641,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   onTap: () {
+                    FocusScope.of(context).unfocus();
                     Navigator.push(
                       context,
                       MaterialPageRoute(

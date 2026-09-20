@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
 enum SmileToastType {
-  success, // Hijau tegas (Emerald / Mint bold)
-  error,   // Merah tegas (Ruby / Crimson bold)
-  warning, // Kuning-oranye tegas (Amber / Tangerine bold)
-  info,    // Biru tegas (Royal Sky / Sapphire bold)
+  success, // Hijau muda bold (Emerald / Mint)
+  error,   // Merah muda bold (Signature Pink SmileOn)
+  warning, // Kuning bold (Vibrant Amber / Honey)
+  info,    // Biru muda bold (Vibrant Sky Blue)
 }
 
-/// Toast profesional & solid bertema SmileOn dengan kontras tegas (Bold colors)
+/// Toast profesional & solid bertema SmileOn dengan background warna bold (hijau muda, merah muda, biru muda, kuning bold)
 /// Dirancang bersih, clean, dan elegan tanpa kesan template/vibecode murahan.
 class SmileToast {
   static OverlayEntry? _currentOverlay;
 
-  /// Tampilkan toast sukses (Warna Hijau Bold)
+  /// Tampilkan toast sukses (Background Hijau Muda Bold)
   static void showSuccess(
     BuildContext context, {
     required String message,
@@ -28,7 +28,7 @@ class SmileToast {
     );
   }
 
-  /// Tampilkan toast error (Warna Merah Bold)
+  /// Tampilkan toast error (Background Merah Muda / Pink Bold)
   static void showError(
     BuildContext context, {
     required String message,
@@ -44,7 +44,7 @@ class SmileToast {
     );
   }
 
-  /// Tampilkan toast warning (Warna Kuning-Amber Bold)
+  /// Tampilkan toast warning (Background Kuning Bold)
   static void showWarning(
     BuildContext context, {
     required String message,
@@ -60,7 +60,7 @@ class SmileToast {
     );
   }
 
-  /// Tampilkan toast info (Warna Biru Sapphire Bold)
+  /// Tampilkan toast info (Background Biru Muda Bold)
   static void showInfo(
     BuildContext context, {
     required String message,
@@ -172,31 +172,35 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
     switch (widget.type) {
       case SmileToastType.success:
         return const _ToastStyle(
-          primaryColor: Color(0xFF059669),   // Emerald Bold
-          accentColor: Color(0xFF10B981),
-          surfaceColor: Color(0xFF064E3B),   // Deep Solid Forest
+          primaryColor: Color(0xFF059669),
+          accentColor: Color(0xFF34D399),
+          surfaceColor: Color(0xFF10B981), // Hijau muda bold (Vibrant Emerald / Mint)
           iconData: Icons.check_circle_rounded,
+          iconColor: Color(0xFF059669),
         );
       case SmileToastType.error:
         return const _ToastStyle(
-          primaryColor: Color(0xFFE11D48),   // Crimson / Rose Bold
-          accentColor: Color(0xFFF43F5E),
-          surfaceColor: Color(0xFF881337),   // Deep Solid Ruby
+          primaryColor: Color(0xFFE11D48),
+          accentColor: Color(0xFFFF699E),
+          surfaceColor: Color(0xFFFF2E7E), // Merah muda bold (Signature Pink SmileOn)
           iconData: Icons.cancel_rounded,
+          iconColor: Color(0xFFFF2E7E),
         );
       case SmileToastType.warning:
         return const _ToastStyle(
-          primaryColor: Color(0xFFD97706),   // Amber Bold
-          accentColor: Color(0xFFF59E0B),
-          surfaceColor: Color(0xFF78350F),   // Deep Solid Honey
+          primaryColor: Color(0xFFD97706),
+          accentColor: Color(0xFFFBBF24),
+          surfaceColor: Color(0xFFF59E0B), // Kuning bold (Vibrant Amber / Honey)
           iconData: Icons.warning_rounded,
+          iconColor: Color(0xFFD97706),
         );
       case SmileToastType.info:
         return const _ToastStyle(
-          primaryColor: Color(0xFF2563EB),   // Royal Blue Bold
-          accentColor: Color(0xFF3B82F6),
-          surfaceColor: Color(0xFF1E3A8A),   // Deep Solid Navy
+          primaryColor: Color(0xFF0284C7),
+          accentColor: Color(0xFF38BDF8),
+          surfaceColor: Color(0xFF0EA5E9), // Biru muda bold (Vibrant Sky Blue)
           iconData: Icons.info_rounded,
+          iconColor: Color(0xFF0284C7),
         );
     }
   }
@@ -225,35 +229,35 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.22),
+                      color: style.surfaceColor.withValues(alpha: 0.38),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
                     BoxShadow(
-                      color: style.primaryColor.withValues(alpha: 0.35),
-                      blurRadius: 10,
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
                   border: Border.all(
-                    color: style.accentColor.withValues(alpha: 0.45),
+                    color: Colors.white.withValues(alpha: 0.28),
                     width: 1.2,
                   ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Solid Vibrant Icon Badge
+                    // Solid White Badge dengan Ikon Warna Bold Senada
                     Container(
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: style.accentColor,
+                        color: Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: style.accentColor.withValues(alpha: 0.4),
-                            blurRadius: 8,
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
                         ],
@@ -261,8 +265,8 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
                       alignment: Alignment.center,
                       child: Icon(
                         style.iconData,
-                        size: 22,
-                        color: Colors.white,
+                        size: 20,
+                        color: style.iconColor,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -289,7 +293,7 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
                             widget.message,
                             style: TextStyle(
                               fontSize: 12.5,
-                              color: Colors.white.withValues(alpha: 0.92),
+                              color: Colors.white.withValues(alpha: 0.95),
                               height: 1.3,
                               fontWeight: FontWeight.w500,
                             ),
@@ -306,7 +310,7 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
                       icon: Icon(
                         Icons.close_rounded,
                         size: 18,
-                        color: Colors.white.withValues(alpha: 0.65),
+                        color: Colors.white.withValues(alpha: 0.85),
                       ),
                       onPressed: _dismiss,
                     ),
@@ -326,11 +330,13 @@ class _ToastStyle {
   final Color accentColor;
   final Color surfaceColor;
   final IconData iconData;
+  final Color iconColor;
 
   const _ToastStyle({
     required this.primaryColor,
     required this.accentColor,
     required this.surfaceColor,
     required this.iconData,
+    required this.iconColor,
   });
 }

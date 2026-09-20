@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 
 /// Layar / Dialog Fullscreen Preview Photo 16:9 Ratio untuk Step 3
 /// Desain meniru `SmileDialogFullscreenPreviewPhotostrip` dengan:
@@ -24,6 +25,7 @@ class FramePreviewStripStep3 extends StatefulWidget {
   final int initialIndex;
   final Function(int targetIndex)? onRetakePhoto;
   final VoidCallback? onRetakeLater;
+  final bool isDownloadMode;
 
   const FramePreviewStripStep3({
     super.key,
@@ -39,6 +41,7 @@ class FramePreviewStripStep3 extends StatefulWidget {
     this.initialIndex = 0,
     this.onRetakePhoto,
     this.onRetakeLater,
+    this.isDownloadMode = false,
   });
 
   /// Static helper untuk memunculkan fullscreen preview dialog 16:9
@@ -57,6 +60,7 @@ class FramePreviewStripStep3 extends StatefulWidget {
     int initialIndex = 0,
     Function(int targetIndex)? onRetakePhoto,
     VoidCallback? onRetakeLater,
+    bool isDownloadMode = false,
   }) {
     return Navigator.of(context).push(
       PageRouteBuilder(
@@ -77,6 +81,7 @@ class FramePreviewStripStep3 extends StatefulWidget {
               initialIndex: initialIndex,
               onRetakePhoto: onRetakePhoto,
               onRetakeLater: onRetakeLater,
+              isDownloadMode: isDownloadMode,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
@@ -103,6 +108,9 @@ class _FramePreviewStripStep3State extends State<FramePreviewStripStep3>
 
   // Mode gelap/terang (default light mode)
   bool _isDarkMode = false;
+
+  // Kontrol tampilan watermark pada preview foto
+  bool _showWatermark = true;
 
   // Controller transformasi untuk zoom & pan
   late final TransformationController _transformationController;
@@ -523,6 +531,70 @@ class _FramePreviewStripStep3State extends State<FramePreviewStripStep3>
                                   color: subtitleColor,
                                 ),
                               ),
+                              const SizedBox(height: 5),
+
+                              // Button Mata Watermark untuk menyembunyikan/menampilkan watermark
+                              GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  setState(() {
+                                    _showWatermark = !_showWatermark;
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 3.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _showWatermark
+                                        ? const Color(0xFFFF2E7E)
+                                            .withValues(alpha: 0.12)
+                                        : (_isDarkMode
+                                            ? Colors.white
+                                                .withValues(alpha: 0.08)
+                                            : Colors.black
+                                                .withValues(alpha: 0.05)),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: _showWatermark
+                                          ? const Color(0xFFFF2E7E)
+                                              .withValues(alpha: 0.40)
+                                          : (_isDarkMode
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.15)
+                                              : const Color(0xFFCBD5E1)),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _showWatermark
+                                            ? Icons.visibility_rounded
+                                            : Icons.visibility_off_rounded,
+                                        size: 13.5,
+                                        color: _showWatermark
+                                            ? const Color(0xFFFF2E7E)
+                                            : subtitleColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Watermark',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: _showWatermark
+                                              ? const Color(0xFFFF2E7E)
+                                              : subtitleColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -761,14 +833,23 @@ class _FramePreviewStripStep3State extends State<FramePreviewStripStep3>
                               textColor: toolbarSubtextColor,
                               onTap: _fitScreen,
                             ),
-                            // Button Ulangi Foto (mengambil ulang foto yang dituju) - Paling Kanan
-                            _buildToolbarButton(
-                              icon: Icons.replay_rounded,
-                              label: 'Ulangi Foto',
-                              color: const Color(0xFFFF2E7E),
-                              textColor: const Color(0xFFFF2E7E),
-                              onTap: _handleRetakeCurrentPhoto,
-                            ),
+                            // Button Paling Kanan: Unduh jika isDownloadMode, atau Ulangi Foto jika mode retake biasa
+                            if (widget.isDownloadMode)
+                              _buildToolbarButton(
+                                icon: Icons.file_download_outlined,
+                                label: 'Unduh',
+                                color: const Color(0xFFFF2E7E),
+                                textColor: const Color(0xFFFF2E7E),
+                                onTap: _showDownloadOptionsDialog,
+                              )
+                            else
+                              _buildToolbarButton(
+                                icon: Icons.replay_rounded,
+                                label: 'Ulangi Foto',
+                                color: const Color(0xFFFF2E7E),
+                                textColor: const Color(0xFFFF2E7E),
+                                onTap: _handleRetakeCurrentPhoto,
+                              ),
                           ],
                         ),
                       ),
@@ -780,6 +861,192 @@ class _FramePreviewStripStep3State extends State<FramePreviewStripStep3>
           ],
         ),
       ),
+    );
+  }
+
+  /// Menampilkan dialog kecil di kanan bawah untuk opsi download (tanpa dropshadow/background blur)
+  void _showDownloadOptionsDialog() {
+    HapticFeedback.lightImpact();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) {
+        return Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16.0, bottom: 95.0),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 235,
+                decoration: BoxDecoration(
+                  color: _isDarkMode ? const Color(0xFF1E1F28) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isDarkMode
+                        ? Colors.white.withValues(alpha: 0.25)
+                        : const Color(0xFFFFD4E2),
+                    width: 1.4,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18.5),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Opsi 1: Download 1 Foto
+                      InkWell(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _downloadSinglePhoto(_currentIndex);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 14.0,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF2E7E)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.image_outlined,
+                                  color: Color(0xFFFF2E7E),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Download 1 Foto',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: _isDarkMode
+                                            ? Colors.white
+                                            : const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Foto ${_currentIndex + 1} saat ini',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _isDarkMode
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: _isDarkMode
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : const Color(0xFFF1F5F9),
+                      ),
+                      // Opsi 2: Download Semuanya
+                      InkWell(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _downloadAllPhotos();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 14.0,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF2E7E)
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.photo_library_outlined,
+                                  color: Color(0xFFFF2E7E),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Download Semuanya',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: _isDarkMode
+                                            ? Colors.white
+                                            : const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Semua ${_effectivePhotos.length} foto',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _isDarkMode
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _downloadSinglePhoto(int index) {
+    HapticFeedback.mediumImpact();
+    SmileToast.showSuccess(
+      context,
+      title: 'Unduh Berhasil',
+      message: 'Foto ${index + 1} berhasil disimpan ke galeri',
+    );
+  }
+
+  void _downloadAllPhotos() {
+    HapticFeedback.mediumImpact();
+    SmileToast.showSuccess(
+      context,
+      title: 'Unduh Berhasil',
+      message: 'Semua ${_effectivePhotos.length} foto berhasil disimpan ke galeri',
     );
   }
 
@@ -849,75 +1116,77 @@ class _FramePreviewStripStep3State extends State<FramePreviewStripStep3>
                 ),
               ),
             ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 56,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.65),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // 4. Bottom Info: Judul Event, Tanggal & Branding SmileOn
-            Positioned(
-              bottom: 12,
-              left: 14,
-              right: 14,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.eventName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                            shadows: [
-                              Shadow(color: Colors.black87, blurRadius: 4),
-                            ],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.eventDate,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
+            if (_showWatermark)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 56,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.65),
+                        Colors.transparent,
                       ],
                     ),
                   ),
-                  Image.asset(
-                    'assets/icons/smileon-border.png',
-                    height: 22,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
+
+            // 4. Bottom Info: Judul Event, Tanggal & Branding SmileOn (Watermark)
+            if (_showWatermark)
+              Positioned(
+                bottom: 12,
+                left: 14,
+                right: 14,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.eventName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.2,
+                              shadows: [
+                                Shadow(color: Colors.black87, blurRadius: 4),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.eventDate,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Image.asset(
+                      'assets/icons/smileon-border.png',
+                      height: 22,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

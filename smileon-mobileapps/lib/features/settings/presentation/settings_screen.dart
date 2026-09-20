@@ -10,11 +10,13 @@ import 'package:smileon/features/login/loginscreen.dart';
 import 'package:smileon/features/settings/presentation/account/account_setting.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 import 'package:smileon/features/settings/presentation/language/language_setting.dart';
+import 'package:smileon/features/settings/presentation/payment/payment_setting.dart';
 import 'package:smileon/features/settings/presentation/security-privacy/securityprivacy_setting.dart';
 
 export 'package:smileon/features/settings/presentation/account/account_setting.dart';
 export 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 export 'package:smileon/features/settings/presentation/language/language_setting.dart';
+export 'package:smileon/features/settings/presentation/payment/payment_setting.dart';
 export 'package:smileon/features/settings/presentation/security/security_setting.dart';
 export 'package:smileon/features/settings/presentation/security-privacy/securityprivacy_setting.dart';
 
@@ -292,7 +294,7 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.credit_card_outlined,
             iconColor: AppTheme.primaryRose,
             title: t.menuPayment,
-            onTap: () => _showPaymentBottomSheet(context, ref),
+            onTap: () => showPaymentBottomSheet(context, ref),
           ),
           _buildMenuDivider(),
 
@@ -507,123 +509,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-
-  void _showPaymentBottomSheet(BuildContext context, WidgetRef ref) {
-    final t = ref.read(tProvider);
-    final auth = ref.read(authProvider).asData?.value;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildStandardBottomSheet(
-        context: ctx,
-        icon: Icons.credit_card_outlined,
-        title: t.paymentSettingsTitle,
-        subtitle: t.paymentSettingsDesc,
-        content: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8338EC)
-                                  .withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.bolt_rounded,
-                              size: 16,
-                              color: Color(0xFF8338EC),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Monad Testnet',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Color(0xFF1E1E22),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
-                        ),
-                        child: Text(
-                          t.connected,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF059669),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (auth?.walletAddress != null &&
-                      auth!.walletAddress!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      t.walletAddressTitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      auth.walletAddress!,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontFamily: 'monospace',
-                        color: Color(0xFF374151),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            SmileButton(
-              text: t.buyVoucherTitle,
-              icon: Icons.confirmation_number_outlined,
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BuyVoucherScreen()),
-                );
-              },
-              isFullWidth: true,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
 
 

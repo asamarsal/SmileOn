@@ -92,6 +92,7 @@ class _Step4AllDoneViewVerticalState
           'assets/images/frame-example/frame-example-2.png',
       capturedPhotos: _effectivePhotos,
       initialIndex: 0,
+      isDownloadMode: true,
       onRetakePhoto: (targetIndex) {
         if (mounted) {
           // Jika user memilih 'Ulangi Foto', kembali ke Step 3 dengan indeks foto

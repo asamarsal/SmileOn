@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/components/smile_dialog_shareframe.dart';
 import 'package:smileon/core/components/smile_dialog_fullscreen_previewphotostrip.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 
 /// Dialog Detail & Preview Photostrip saat salah satu frame diklik pada SmileSliderviewFrame
@@ -314,6 +315,19 @@ class _SmileDialogPreviewPhotostripState
                             GestureDetector(
                               onTap: () {
                                 setState(() => _isBookmarked = !_isBookmarked);
+                                if (_isBookmarked) {
+                                  SmileToast.showSuccess(
+                                    context,
+                                    title: 'Koleksi',
+                                    message: 'Photostrip disimpan ke koleksi 🔖',
+                                  );
+                                } else {
+                                  SmileToast.showInfo(
+                                    context,
+                                    title: 'Koleksi',
+                                    message: 'Dihapus dari koleksi',
+                                  );
+                                }
                               },
                               child: Container(
                                 width: 44,
@@ -530,20 +544,25 @@ class _SmileDialogPreviewPhotostripState
                           icon: _isLoved
                               ? Icons.favorite_rounded
                               : Icons.favorite_border_rounded,
-                          label: 'Simpan ke Favorit',
+                          label: 'Sukai Photostrip',
                           onTap: () {
                             setState(() {
                               _isLoved = !_isLoved;
                               _isMoreMenuOpen = false;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_isLoved
-                                    ? 'Ditambahkan ke Favorit ❤️'
-                                    : 'Dihapus dari Favorit'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
+                            if (_isLoved) {
+                              SmileToast.showSuccess(
+                                context,
+                                title: 'Favorit',
+                                message: 'Menyukai photostrip ❤️',
+                              );
+                            } else {
+                              SmileToast.showInfo(
+                                context,
+                                title: 'Favorit',
+                                message: 'Batal menyukai photostrip',
+                              );
+                            }
                           },
                         ),
                         _buildDropdownItem(

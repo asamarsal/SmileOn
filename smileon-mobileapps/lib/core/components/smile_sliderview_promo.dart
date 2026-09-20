@@ -102,6 +102,7 @@ class SmileSliderviewPromo extends StatefulWidget {
 }
 
 class _SmileSliderviewPromoState extends State<SmileSliderviewPromo> {
+  static const int _kLoopMultiplier = 10000;
   late final PageController _pageController;
   int _currentPage = 0;
   Timer? _timer;
@@ -111,10 +112,20 @@ class _SmileSliderviewPromoState extends State<SmileSliderviewPromo> {
           ? widget.items!
           : PromoBannerItem.defaultItems;
 
+  int get _initialPage {
+    final count = _effectiveItems.length;
+    if (count <= 1) return 0;
+    return _kLoopMultiplier * count;
+  }
+
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.88);
+    _currentPage = 0;
+    _pageController = PageController(
+      initialPage: _initialPage,
+      viewportFraction: 0.88,
+    );
 
     if (widget.autoSlide) {
       _startAutoSlide();
@@ -123,15 +134,27 @@ class _SmileSliderviewPromoState extends State<SmileSliderviewPromo> {
 
   void _startAutoSlide() {
     _timer?.cancel();
+    if (_effectiveItems.length <= 1) return;
     _timer = Timer.periodic(widget.autoSlideInterval, (timer) {
-      if (!mounted) return;
-      final int nextIndex = (_currentPage + 1) % _effectiveItems.length;
-      _pageController.animateToPage(
-        nextIndex,
-        duration: const Duration(milliseconds: 400),
+      if (!mounted || !_pageController.hasClients) return;
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
       );
     });
+  }
+
+  @override
+  void didUpdateWidget(SmileSliderviewPromo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.autoSlide != oldWidget.autoSlide ||
+        widget.autoSlideInterval != oldWidget.autoSlideInterval) {
+      if (widget.autoSlide) {
+        _startAutoSlide();
+      } else {
+        _timer?.cancel();
+      }
+    }
   }
 
   @override
@@ -144,30 +167,49 @@ class _SmileSliderviewPromoState extends State<SmileSliderviewPromo> {
   @override
   Widget build(BuildContext context) {
     final items = _effectiveItems;
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final isInfinite = items.length > 1;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 1. PageView Carousel
+        // 1. PageView Carousel dengan Infinite Looping Satu Arah
         SizedBox(
           height: widget.height,
-          child: PageView.builder(
-            controller: _pageController,
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            onPageChanged: (index) {
-              setState(() => _currentPage = index);
-              widget.onPageChanged?.call(index);
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollStartNotification) {
+                _timer?.cancel();
+              } else if (notification is ScrollEndNotification) {
+                if (widget.autoSlide) {
+                  _startAutoSlide();
+                }
+              }
+              return false;
             },
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _buildPromoCard(context, item);
-            },
+            child: PageView.builder(
+              controller: _pageController,
+              physics: const BouncingScrollPhysics(),
+              itemCount: isInfinite ? null : 1,
+              onPageChanged: (index) {
+                final realIndex = index % items.length;
+                if (_currentPage != realIndex) {
+                  setState(() => _currentPage = realIndex);
+                }
+                widget.onPageChanged?.call(realIndex);
+              },
+              itemBuilder: (context, index) {
+                final itemIndex = index % items.length;
+                final item = items[itemIndex];
+                return _buildPromoCard(context, item);
+              },
+            ),
           ),
         ),
 
         // 2. Animated Dot Indicators
-        if (!widget.dotsDisabled) ...[
+        if (!widget.dotsDisabled && items.length > 1) ...[
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
