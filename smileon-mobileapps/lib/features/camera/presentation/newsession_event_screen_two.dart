@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/features/camera/presentation/newsession_event_finish.dart';
 import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_view.dart';
-import 'package:smileon/features/camera/presentation/vertical/event_step/step1_waitingview_vertical.dart';
 
 /// Screen "Siapkan Sesi Foto" (Mode Event - Langkah Kedua)
 /// Tampilan modern persis seperti NewSessionPersonalScreen namun dengan tag/badge "Event",
@@ -18,6 +18,7 @@ class NewSessionEventScreenTwo extends ConsumerStatefulWidget {
   final int? userCredits;
   final String? initialFrameTitle;
   final String? initialFrameAsset;
+  final Map<String, dynamic>? customTemplateData;
 
   const NewSessionEventScreenTwo({
     super.key,
@@ -31,6 +32,7 @@ class NewSessionEventScreenTwo extends ConsumerStatefulWidget {
     this.userCredits = 20,
     this.initialFrameTitle = 'Hanfleur Florist',
     this.initialFrameAsset = 'assets/images/frame-example/frame-example-2.png',
+    this.customTemplateData,
   });
 
   @override
@@ -93,17 +95,16 @@ class _NewSessionEventScreenTwoState
     SmileToast.showSuccess(
       context,
       title: 'Sesi Siap',
-      message: 'Memulai sesi event...',
+      message: 'Menyiapkan ringkasan event...',
       duration: const Duration(seconds: 1),
     );
 
-    // Buka Step1WaitingViewVertical
+    // Buka NewSessionEventFinish
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Step1WaitingViewVertical(
-          eventName: widget.eventName,
-          sessionName: title,
+        builder: (context) => NewSessionEventFinish(
+          eventName: title,
           eventDate: widget.eventDate,
           eventLocation: _selectedLocation,
           eventOrganizer: widget.eventOrganizer,
@@ -113,6 +114,8 @@ class _NewSessionEventScreenTwoState
           userCredits: widget.userCredits,
           selectedFrameName: _selectedFrameName,
           selectedFrameAsset: _selectedFrameAsset,
+          titlePrefix: widget.customTemplateData?['titlePrefix'] as String?,
+          customTemplateData: widget.customTemplateData,
         ),
       ),
     );
@@ -790,79 +793,385 @@ class _NewSessionEventScreenTwoState
     return const Icon(Icons.image_rounded, color: Color(0xFFFF1E75), size: 32);
   }
 
+  /// Helper untuk merender item teks / sticker pada koordinat proporsional banner
+  Widget _buildPreviewItem({
+    required Offset pos,
+    required double scale,
+    required double scaleX,
+    required double scaleY,
+    required Widget child,
+  }) {
+    return Positioned(
+      left: pos.dx * scaleX,
+      top: pos.dy * scaleY,
+      child: FractionalTranslation(
+        translation: const Offset(-0.5, -0.5),
+        child: Transform.scale(scale: scale * scaleX, child: child),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final isKeyboardOpen = mediaQuery.viewInsets.bottom > 80;
+
     // Tinggi banner responsif sekitar 36% layar (min 260, max 340)
     final bannerHeight = (screenHeight * 0.36).clamp(260.0, 340.0);
+    final visualPhotoHeight = screenWidth / 0.68;
+    final photoContainerHeight = visualPhotoHeight > (bannerHeight + 36)
+        ? visualPhotoHeight
+        : (bannerHeight + 36);
+
+    final tData = widget.customTemplateData;
+    final bool hasCustomTemplate = tData?['hasCustomTemplate'] == true;
+    final double canvasWidth =
+        (tData?['canvasWidth'] as num?)?.toDouble() ?? 310.0;
+    final double canvasHeight =
+        (tData?['canvasHeight'] as num?)?.toDouble() ?? 455.0;
+    final double scaleX = screenWidth / canvasWidth;
+    final double scaleY = visualPhotoHeight / canvasHeight;
+
+    final Color? currentFilterColor = tData?['filterColor'] as Color?;
+    final Color currentTextColor =
+        (tData?['textColor'] as Color?) ?? const Color(0xFF7A1C2E);
+    final double bannerScale =
+        (tData?['bannerScale'] as num?)?.toDouble() ?? 1.0;
+    final Offset bannerOffset =
+        (tData?['bannerOffset'] as Offset?) ?? Offset.zero;
+
+    String bannerCategory = (tData?['bannerCategory'] as String?) ?? '';
+    if (bannerCategory.isEmpty) {
+      final nameLower = (widget.eventName ?? '').toLowerCase();
+      if (nameLower.contains('wedding') || nameLower.contains('nikah')) {
+        bannerCategory = 'Wedding';
+      } else if (nameLower.contains('birthday') ||
+          nameLower.contains('ulang tahun') ||
+          nameLower.contains('hbd')) {
+        bannerCategory = 'Birthday';
+      } else if (nameLower.contains('engagement') ||
+          nameLower.contains('lamaran') ||
+          nameLower.contains('tunangan')) {
+        bannerCategory = 'Engagement';
+      } else {
+        bannerCategory = 'The Wedding of';
+      }
+    }
+    final String bannerOrganizer = (tData?['bannerOrganizer'] as String?) ??
+        widget.eventOrganizer ??
+        widget.eventName ??
+        'Asa & Aulia';
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF8FA),
       body: Stack(
         children: [
-          // 1. Top Image Banner Event & ornamen Good Memories
+          // 1. Top Image Banner Event & Tipografi Romantis (Identik dengan Page Sebelumnya)
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: bannerHeight + 36, // Sedikit overlap dengan card putih
+            height: photoContainerHeight,
             child: Stack(
               fit: StackFit.expand,
+              clipBehavior: Clip.none,
               children: [
-                // Gambar Banner Event Wedding/Event
-                Image.asset(
-                  widget.bannerAsset ??
-                      'assets/images/eventmode/wedding_event_banner.jpg',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      'assets/images/personalmode/friends_photobooth_banner.jpg',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: const Color(0xFFF6D8E4),
-                          child: const Center(
+                ClipRect(
+                  child: Transform.translate(
+                    offset: Offset(
+                      bannerOffset.dx * scaleX,
+                      bannerOffset.dy * scaleY,
+                    ),
+                    child: Transform.scale(
+                      scale: bannerScale,
+                      alignment: Alignment.topCenter,
+                      child: Image.asset(
+                        widget.bannerAsset ??
+                            'assets/images/eventmode/wedding_event_banner.jpg',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            'assets/images/eventmode/event_illustration_high.png',
+                            fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Filter suasana warna dari kustomisasi template
+                if (currentFilterColor != null)
+                  Positioned.fill(
+                    child: Container(color: currentFilterColor),
+                  ),
+
+                // Vignette gradasi halus dari atas (sama persis dengan di preview dialog tamu)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.16),
+                          Colors.transparent,
+                          Colors.white.withValues(alpha: 0.06),
+                        ],
+                        stops: const [0.0, 0.35, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ====================================================
+                // ELEMEN-ELEMEN TIPOGRAFI & ORNAMEN DARI TEMPLATE KANVAS
+                // ====================================================
+                if (hasCustomTemplate && !isKeyboardOpen) ...[
+                  // 1. Subjudul (Prefix)
+                  if ((tData?['titlePrefix'] as String? ?? '').isNotEmpty)
+                    _buildPreviewItem(
+                      pos: (tData?['prefixPos'] as Offset?) ??
+                          const Offset(155, 60),
+                      scale:
+                          (tData?['prefixScale'] as num?)?.toDouble() ?? 1.0,
+                      scaleX: scaleX,
+                      scaleY: scaleY,
+                      child: Text(
+                        tData!['titlePrefix'],
+                        textAlign: TextAlign.center,
+                        style: (tData['prefixStyle'] as CustomTextStyleConfig?)
+                                ?.toTextStyle(currentTextColor) ??
+                            TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'serif',
+                              color: currentTextColor,
+                            ),
+                      ),
+                    ),
+
+                  // 2. Nama Event / Pasangan
+                  if ((tData?['eventName'] as String? ?? '').isNotEmpty)
+                    _buildPreviewItem(
+                      pos: (tData?['namePos'] as Offset?) ??
+                          const Offset(155, 102),
+                      scale: (tData?['nameScale'] as num?)?.toDouble() ?? 1.0,
+                      scaleX: scaleX,
+                      scaleY: scaleY,
+                      child: Text(
+                        tData!['eventName'],
+                        textAlign: TextAlign.center,
+                        style: (tData['nameStyle'] as CustomTextStyleConfig?)
+                                ?.toTextStyle(currentTextColor) ??
+                            TextStyle(
+                              fontSize: 30.0,
+                              fontWeight: FontWeight.bold,
+                              fontStyle: FontStyle.italic,
+                              fontFamily: 'serif',
+                              color: currentTextColor,
+                            ),
+                      ),
+                    ),
+
+                  // 3. Tanggal Event
+                  if ((tData?['eventDate'] as String? ?? '').isNotEmpty)
+                    _buildPreviewItem(
+                      pos: (tData?['datePos'] as Offset?) ??
+                          const Offset(155, 140),
+                      scale: (tData?['dateScale'] as num?)?.toDouble() ?? 1.0,
+                      scaleX: scaleX,
+                      scaleY: scaleY,
+                      child: Text(
+                        tData!['eventDate'],
+                        textAlign: TextAlign.center,
+                        style: (tData['dateStyle'] as CustomTextStyleConfig?)
+                                ?.toTextStyle(currentTextColor) ??
+                            TextStyle(
+                              fontSize: 12.5,
+                              fontFamily: 'serif',
+                              color: currentTextColor,
+                            ),
+                      ),
+                    ),
+
+                  // 4. Lokasi Event
+                  if ((tData?['eventLocation'] as String? ?? '').isNotEmpty)
+                    _buildPreviewItem(
+                      pos: (tData?['locPos'] as Offset?) ??
+                          const Offset(155, 168),
+                      scale: (tData?['locScale'] as num?)?.toDouble() ?? 1.0,
+                      scaleX: scaleX,
+                      scaleY: scaleY,
+                      child: Text(
+                        tData!['eventLocation'],
+                        textAlign: TextAlign.center,
+                        style: (tData['locStyle'] as CustomTextStyleConfig?)
+                                ?.toTextStyle(currentTextColor) ??
+                            TextStyle(
+                              fontSize: 12.5,
+                              fontFamily: 'serif',
+                              color: currentTextColor,
+                            ),
+                      ),
+                    ),
+
+                  // 5. Teks Tambahan Dinamis
+                  if (tData?['additionalTexts'] is List)
+                    for (int i = 0;
+                        i < (tData!['additionalTexts'] as List).length;
+                        i++)
+                      if ((tData['additionalTexts'][i] as String)
+                              .trim()
+                              .isNotEmpty &&
+                          i < ((tData['extraPositions'] as List?)?.length ?? 0))
+                        _buildPreviewItem(
+                          pos: tData['extraPositions'][i] as Offset,
+                          scale: i <
+                                  ((tData['extraScales'] as List?)?.length ?? 0)
+                              ? (tData['extraScales'][i] as num).toDouble()
+                              : 1.0,
+                          scaleX: scaleX,
+                          scaleY: scaleY,
+                          child: Text(
+                            tData['additionalTexts'][i] as String,
+                            textAlign: TextAlign.center,
+                            style: (i <
+                                        ((tData['additionalTextStyles']
+                                                    as List?)
+                                                ?.length ??
+                                            0)
+                                    ? tData['additionalTextStyles'][i]
+                                        as CustomTextStyleConfig
+                                    : CustomTextStyleConfig(fontSize: 12.0))
+                                .toTextStyle(currentTextColor),
+                          ),
+                        ),
+
+                  // 6. Ornamen Divider Hati (- ♥ -)
+                  if (tData?['showHeartDivider'] == true)
+                    _buildPreviewItem(
+                      pos: (tData?['dividerPos'] as Offset?) ??
+                          const Offset(155, 196),
+                      scale:
+                          (tData?['dividerScale'] as num?)?.toDouble() ?? 1.0,
+                      scaleX: scaleX,
+                      scaleY: scaleY,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 1.2,
+                            color: currentTextColor.withValues(alpha: 0.6),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
                             child: Icon(
-                              Icons.celebration_rounded,
-                              size: 64,
-                              color: Color(0xFFFF85A1),
+                              Icons.favorite_border_rounded,
+                              size: 14,
+                              color: currentTextColor,
                             ),
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                          Container(
+                            width: 28,
+                            height: 1.2,
+                            color: currentTextColor.withValues(alpha: 0.6),
+                          ),
+                        ],
+                      ),
+                    ),
 
-                // Gradasi halus agar teks & ikon kontras
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.18),
-                        Colors.transparent,
-                        const Color(0xFFFBF8FA).withValues(alpha: 0.4),
+                  // 7. Stiker-stiker emoji di kanvas
+                  if (tData?['canvasStickers'] is List)
+                    for (final sticker in (tData!['canvasStickers'] as List))
+                      _buildPreviewItem(
+                        pos: (sticker as CanvasStickerItem).position,
+                        scale: sticker.scale,
+                        scaleX: scaleX,
+                        scaleY: scaleY,
+                        child: Text(
+                          sticker.emoji,
+                          style: const TextStyle(fontSize: 28),
+                        ),
+                      ),
+                ] else if (!hasCustomTemplate && !isKeyboardOpen) ...[
+                  // Tipografi Elegan Default di tengah banner (hanya saat belum memilih template custom)
+                  Positioned(
+                    top: mediaQuery.padding.top,
+                    left: 24,
+                    right: 24,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.favorite_rounded,
+                          size: 14,
+                          color: Color(0xFFFF2D78),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          bannerCategory,
+                          style: const TextStyle(
+                            fontFamily: 'serif',
+                            fontStyle: FontStyle.italic,
+                            fontSize: 27,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFFFF2D78),
+                            height: 1.1,
+                            letterSpacing: 0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          bannerOrganizer,
+                          style: const TextStyle(
+                            fontFamily: 'serif',
+                            fontStyle: FontStyle.italic,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFFF2D78),
+                            height: 1.15,
+                            letterSpacing: -0.2,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 18,
+                              height: 1,
+                              color: const Color(0xFFFF659E)
+                                  .withValues(alpha: 0.6),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6),
+                              child: Icon(
+                                Icons.favorite_border_rounded,
+                                size: 13,
+                                color: Color(0xFFFF2D78),
+                              ),
+                            ),
+                            Container(
+                              width: 18,
+                              height: 1,
+                              color: const Color(0xFFFF659E)
+                                  .withValues(alpha: 0.6),
+                            ),
+                          ],
+                        ),
                       ],
-                      stops: const [0.0, 0.4, 1.0],
                     ),
                   ),
-                ),
-
-                // Ornamen Doodle Kupu-kupu/Sparkles di kanan atas foto
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 50,
-                  right: 32,
-                  child: Transform.rotate(
-                    angle: 0.25,
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Color(0xFFFF85A1),
-                      size: 26,
-                    ),
-                  ),
-                ),
+                ],
               ],
             ),
           ),

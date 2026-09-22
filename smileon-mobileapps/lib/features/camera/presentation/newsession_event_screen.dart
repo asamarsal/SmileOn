@@ -867,6 +867,56 @@ class _NewSessionEventScreenState extends State<NewSessionEventScreen> {
         message: 'Melanjutkan ke pemilihan frame...',
       );
 
+      final templateData = {
+        'hasCustomTemplate': _hasCustomTemplate,
+        'canvasWidth': _canvasWidth,
+        'canvasHeight': _canvasHeight,
+        'filterColor': _currentFilterColor,
+        'textColor': _currentTextColor,
+        'bannerScale': _currentBannerScale,
+        'bannerOffset': _currentBannerOffset,
+        'titlePrefix': _currentTitlePrefix,
+        'prefixPos': _currentPrefixPos,
+        'prefixScale': _currentPrefixScale,
+        'prefixStyle': _currentTitlePrefixStyle,
+        'eventName': _currentEventName.isNotEmpty ? _currentEventName : name,
+        'namePos': _currentNamePos,
+        'nameScale': _currentNameScale,
+        'nameStyle': _currentEventNameStyle,
+        'eventDate': _currentEventDate.isNotEmpty ? _currentEventDate : date,
+        'datePos': _currentDatePos,
+        'dateScale': _currentDateScale,
+        'dateStyle': _currentEventDateStyle,
+        'eventLocation': _currentEventLocation.isNotEmpty
+            ? _currentEventLocation
+            : location,
+        'locPos': _currentLocPos,
+        'locScale': _currentLocScale,
+        'locStyle': _currentEventLocationStyle,
+        'additionalTexts': _currentAdditionalTexts,
+        'extraPositions': _currentExtraPositions,
+        'extraScales': _currentExtraScales,
+        'additionalTextStyles': _currentAdditionalTextStyles,
+        'showHeartDivider': _currentShowHeartDivider,
+        'dividerPos': _currentDividerPos,
+        'dividerScale': _currentDividerScale,
+        'canvasStickers': _currentCanvasStickers,
+        'bannerCategory':
+            _hasCustomTemplate && _currentTitlePrefix.trim().isNotEmpty
+                ? _currentTitlePrefix.trim()
+                : (name.toLowerCase().contains('wedding')
+                    ? 'Wedding'
+                    : (name.toLowerCase().contains('birthday')
+                        ? 'Birthday'
+                        : (name.toLowerCase().contains('engagement')
+                            ? 'Engagement'
+                            : (name.isNotEmpty ? name : 'Event Baru')))),
+        'bannerOrganizer':
+            _hasCustomTemplate && _currentEventName.trim().isNotEmpty
+                ? _currentEventName.trim()
+                : (organizer.isNotEmpty ? organizer : 'Nama Pasangan'),
+      };
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -879,11 +929,64 @@ class _NewSessionEventScreenState extends State<NewSessionEventScreen> {
             totalCredits: widget.totalCredits,
             remainingCredits: widget.remainingCredits,
             userCredits: widget.userCredits,
+            customTemplateData: templateData,
           ),
         ),
       );
     } else {
       // Mode view biasa (TESTVIEWEVENT)
+      final viewTemplateData = {
+        'hasCustomTemplate': _hasCustomTemplate,
+        'canvasWidth': _canvasWidth,
+        'canvasHeight': _canvasHeight,
+        'filterColor': _currentFilterColor,
+        'textColor': _currentTextColor,
+        'bannerScale': _currentBannerScale,
+        'bannerOffset': _currentBannerOffset,
+        'titlePrefix': _currentTitlePrefix,
+        'prefixPos': _currentPrefixPos,
+        'prefixScale': _currentPrefixScale,
+        'prefixStyle': _currentTitlePrefixStyle,
+        'eventName': _currentEventName.isNotEmpty
+            ? _currentEventName
+            : (widget.eventName ?? 'Wedding Asa & Aulia'),
+        'namePos': _currentNamePos,
+        'nameScale': _currentNameScale,
+        'nameStyle': _currentEventNameStyle,
+        'eventDate': _currentEventDate.isNotEmpty
+            ? _currentEventDate
+            : (widget.eventDate ?? '20 September 2026'),
+        'datePos': _currentDatePos,
+        'dateScale': _currentDateScale,
+        'dateStyle': _currentEventDateStyle,
+        'eventLocation': _currentEventLocation.isNotEmpty
+            ? _currentEventLocation
+            : (widget.eventLocation ?? 'The Ritz-Carlton, Jakarta'),
+        'locPos': _currentLocPos,
+        'locScale': _currentLocScale,
+        'locStyle': _currentEventLocationStyle,
+        'additionalTexts': _currentAdditionalTexts,
+        'extraPositions': _currentExtraPositions,
+        'extraScales': _currentExtraScales,
+        'additionalTextStyles': _currentAdditionalTextStyles,
+        'showHeartDivider': _currentShowHeartDivider,
+        'dividerPos': _currentDividerPos,
+        'dividerScale': _currentDividerScale,
+        'canvasStickers': _currentCanvasStickers,
+        'bannerCategory':
+            _hasCustomTemplate && _currentTitlePrefix.trim().isNotEmpty
+                ? _currentTitlePrefix.trim()
+                : ((widget.eventName ?? '').toLowerCase().contains('wedding')
+                    ? 'Wedding'
+                    : ((widget.eventName ?? '').toLowerCase().contains('birthday')
+                        ? 'Birthday'
+                        : 'Engagement')),
+        'bannerOrganizer':
+            _hasCustomTemplate && _currentEventName.trim().isNotEmpty
+                ? _currentEventName.trim()
+                : (widget.eventOrganizer ?? 'Asa & Aulia'),
+      };
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -896,6 +999,7 @@ class _NewSessionEventScreenState extends State<NewSessionEventScreen> {
             totalCredits: widget.totalCredits,
             remainingCredits: widget.remainingCredits,
             userCredits: widget.userCredits,
+            customTemplateData: viewTemplateData,
           ),
         ),
       );
