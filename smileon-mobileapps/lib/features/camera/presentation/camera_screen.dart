@@ -68,7 +68,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     final normalized = code.toUpperCase().replaceAll(RegExp(r'\s+'), '');
     debugPrint('>>> _onCheckVoucher: code="$code", normalized="$normalized"');
 
-    // Navigasi khusus untuk voucher TESTVIEWEVENT ke NewSessionEventScreen
+    // Navigasi khusus untuk voucher TESTVIEWEVENT ke NewSessionEventScreen (mode tamu)
     if (normalized == 'TESTVIEWEVENT') {
       Navigator.push(
         context,
@@ -81,26 +81,33 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             totalCredits: 300,
             remainingCredits: 280,
             userCredits: 20,
+            isMakeEvent: false,
+            isEventMaker: false,
+            isGuest: true,
+            voucherCode: 'TESTVIEWEVENT',
           ),
         ),
       );
       return;
     }
 
-    // Navigasi khusus untuk voucher TESTMAKEEVENT ke NewSessionEventScreen (mode input event baru)
-    if (normalized == 'TESTMAKEEVENT') {
+    // Navigasi khusus untuk voucher TESTMAKEEVENT / TESTNEWEVENT ke NewSessionEventScreen (mode input event baru)
+    if (normalized == 'TESTMAKEEVENT' || normalized == 'TESTNEWEVENT') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const NewSessionEventScreen(
+          builder: (context) => NewSessionEventScreen(
             isMakeEvent: true,
+            isEventMaker: true,
+            isGuest: false,
+            voucherCode: normalized,
           ),
         ),
       );
       return;
     }
 
-    // Selain TESTVIEWEVENT dan TESTMAKEEVENT, munculkan toast kode voucher tidak ditemukan
+    // Selain TESTVIEWEVENT, TESTMAKEEVENT, dan TESTNEWEVENT, munculkan toast kode voucher tidak ditemukan
     SmileToast.showError(
       context,
       title: 'Kode Voucher',
@@ -138,19 +145,26 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             totalCredits: 300,
             remainingCredits: 280,
             userCredits: 20,
+            isMakeEvent: false,
+            isEventMaker: false,
+            isGuest: true,
+            voucherCode: 'TESTVIEWEVENT',
           ),
         ),
       );
       return;
     }
 
-    // Navigasi jika voucher TESTMAKEEVENT juga diinput pada tab Personal
-    if (normalized == 'TESTMAKEEVENT') {
+    // Navigasi jika voucher TESTMAKEEVENT / TESTNEWEVENT juga diinput pada tab Personal
+    if (normalized == 'TESTMAKEEVENT' || normalized == 'TESTNEWEVENT') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const NewSessionEventScreen(
+          builder: (context) => NewSessionEventScreen(
             isMakeEvent: true,
+            isEventMaker: true,
+            isGuest: false,
+            voucherCode: normalized,
           ),
         ),
       );

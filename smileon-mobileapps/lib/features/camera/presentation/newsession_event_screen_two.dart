@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/features/camera/presentation/newsession_event_finish.dart';
 import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_view.dart';
+import 'package:smileon/features/camera/presentation/vertical/event_step/step1_waitingview_vertical.dart';
 
 /// Screen "Siapkan Sesi Foto" (Mode Event - Langkah Kedua)
 /// Tampilan modern persis seperti NewSessionPersonalScreen namun dengan tag/badge "Event",
@@ -19,6 +20,10 @@ class NewSessionEventScreenTwo extends ConsumerStatefulWidget {
   final String? initialFrameTitle;
   final String? initialFrameAsset;
   final Map<String, dynamic>? customTemplateData;
+  final bool isMakeEvent;
+  final bool? isEventMaker;
+  final bool? isGuest;
+  final String? voucherCode;
 
   const NewSessionEventScreenTwo({
     super.key,
@@ -33,6 +38,10 @@ class NewSessionEventScreenTwo extends ConsumerStatefulWidget {
     this.initialFrameTitle = 'Hanfleur Florist',
     this.initialFrameAsset = 'assets/images/frame-example/frame-example-2.png',
     this.customTemplateData,
+    this.isMakeEvent = true,
+    this.isEventMaker,
+    this.isGuest,
+    this.voucherCode,
   });
 
   @override
@@ -92,33 +101,74 @@ class _NewSessionEventScreenTwoState
       return;
     }
 
-    SmileToast.showSuccess(
-      context,
-      title: 'Sesi Siap',
-      message: 'Menyiapkan ringkasan event...',
-      duration: const Duration(seconds: 1),
-    );
+    // Resolusi Role & Validasi:
+    // 1. isGuest: validasi role (apakah tamu)
+    // 2. isEventMaker: role (apakah pembuat acara)
+    // 3. voucherCode: kode voucher
+    // 4. isMakeEvent: status page
+    final bool isGuestUser = widget.isGuest ??
+        (widget.isEventMaker != null
+            ? !widget.isEventMaker!
+            : (widget.voucherCode != null
+                ? widget.voucherCode!.toUpperCase() == 'TESTVIEWEVENT'
+                : !widget.isMakeEvent));
 
-    // Buka NewSessionEventFinish
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => NewSessionEventFinish(
-          eventName: title,
-          eventDate: widget.eventDate,
-          eventLocation: _selectedLocation,
-          eventOrganizer: widget.eventOrganizer,
-          bannerAsset: widget.bannerAsset,
-          totalCredits: widget.totalCredits,
-          remainingCredits: widget.remainingCredits,
-          userCredits: widget.userCredits,
-          selectedFrameName: _selectedFrameName,
-          selectedFrameAsset: _selectedFrameAsset,
-          titlePrefix: widget.customTemplateData?['titlePrefix'] as String?,
-          customTemplateData: widget.customTemplateData,
+    if (!isGuestUser) {
+      // Mode Pembuat Acara (isEventMaker == true / isGuest == false) -> NewSessionEventFinish
+      SmileToast.showSuccess(
+        context,
+        title: 'Sesi Siap',
+        message: 'Menyiapkan ringkasan event...',
+        duration: const Duration(seconds: 1),
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NewSessionEventFinish(
+            eventName: title,
+            eventDate: widget.eventDate,
+            eventLocation: _selectedLocation,
+            eventOrganizer: widget.eventOrganizer,
+            bannerAsset: widget.bannerAsset,
+            totalCredits: widget.totalCredits,
+            remainingCredits: widget.remainingCredits,
+            userCredits: widget.userCredits,
+            selectedFrameName: _selectedFrameName,
+            selectedFrameAsset: _selectedFrameAsset,
+            titlePrefix: widget.customTemplateData?['titlePrefix'] as String?,
+            customTemplateData: widget.customTemplateData,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // Mode Tamu (isGuest == true / isEventMaker == false) -> Langsung ke Step1WaitingViewVertical
+      SmileToast.showSuccess(
+        context,
+        title: 'Sesi Siap',
+        message: 'Memulai sesi foto photobox...',
+        duration: const Duration(seconds: 1),
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Step1WaitingViewVertical(
+            eventName: widget.eventName,
+            sessionName: title,
+            eventDate: widget.eventDate,
+            eventLocation: _selectedLocation,
+            eventOrganizer: widget.eventOrganizer,
+            bannerAsset: widget.bannerAsset,
+            totalCredits: widget.totalCredits,
+            remainingCredits: widget.remainingCredits,
+            userCredits: widget.userCredits,
+            selectedFrameName: _selectedFrameName,
+            selectedFrameAsset: _selectedFrameAsset,
+          ),
+        ),
+      );
+    }
   }
 
   void _showLocationPicker() {

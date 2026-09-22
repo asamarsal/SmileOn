@@ -18,6 +18,9 @@ class NewSessionEventScreen extends StatefulWidget {
   final int? remainingCredits;
   final int? userCredits;
   final bool isMakeEvent;
+  final bool? isEventMaker;
+  final bool? isGuest;
+  final String? voucherCode;
 
   const NewSessionEventScreen({
     super.key,
@@ -30,6 +33,9 @@ class NewSessionEventScreen extends StatefulWidget {
     this.remainingCredits = 280,
     this.userCredits = 20,
     this.isMakeEvent = false,
+    this.isEventMaker,
+    this.isGuest,
+    this.voucherCode,
   });
 
   @override
@@ -37,6 +43,21 @@ class NewSessionEventScreen extends StatefulWidget {
 }
 
 class _NewSessionEventScreenState extends State<NewSessionEventScreen> {
+  bool get _effectiveIsEventMaker =>
+      widget.isEventMaker ??
+      (widget.isGuest != null
+          ? !widget.isGuest!
+          : (widget.voucherCode?.toUpperCase() == 'TESTMAKEEVENT' ||
+              widget.voucherCode?.toUpperCase() == 'TESTNEWEVENT' ||
+              widget.isMakeEvent));
+
+  bool get _effectiveIsGuest =>
+      widget.isGuest ??
+      (widget.isEventMaker != null
+          ? !widget.isEventMaker!
+          : (widget.voucherCode?.toUpperCase() == 'TESTVIEWEVENT' ||
+              !_effectiveIsEventMaker));
+
   late final TextEditingController _eventNameController;
   late final TextEditingController _eventDateController;
   late final TextEditingController _eventLocationController;
@@ -930,6 +951,10 @@ class _NewSessionEventScreenState extends State<NewSessionEventScreen> {
             remainingCredits: widget.remainingCredits,
             userCredits: widget.userCredits,
             customTemplateData: templateData,
+            isMakeEvent: widget.isMakeEvent,
+            isEventMaker: _effectiveIsEventMaker,
+            isGuest: _effectiveIsGuest,
+            voucherCode: widget.voucherCode ?? 'TESTMAKEEVENT',
           ),
         ),
       );
@@ -1000,6 +1025,10 @@ class _NewSessionEventScreenState extends State<NewSessionEventScreen> {
             remainingCredits: widget.remainingCredits,
             userCredits: widget.userCredits,
             customTemplateData: viewTemplateData,
+            isMakeEvent: widget.isMakeEvent,
+            isEventMaker: _effectiveIsEventMaker,
+            isGuest: _effectiveIsGuest,
+            voucherCode: widget.voucherCode ?? 'TESTVIEWEVENT',
           ),
         ),
       );
