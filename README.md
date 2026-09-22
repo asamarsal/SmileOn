@@ -95,21 +95,21 @@ Photos saved to Google Drive
 When a guest starts a photo session, the **mobile screen** guides them through 4 sequential steps:
 
 ```
-Step 1 — Menunggu Sesi
+Step 1 — Waiting for Session
    Waiting view: event info, frame preview, 4-dot session stepper.
    Auto-navigates to Step 2 after a brief standby.
     ↓
-Step 2 — Mulai Foto (Countdown)
+Step 2 — Start Photo (Countdown)
    Animated circular countdown (3 → 2 → 1).
    Ring sweeps 0° → 360° per number with sparkle particles.
    Auto-navigates to Step 3 when countdown finishes.
     ↓
-Step 3 — Sedang Mengambil Foto
+Step 3 — Taking Photos
    Shows 4 photo slots in a 9:16 photostrip ratio.
    Captured slots display the photo; pending slots show a ghost overlay with dashed spinner.
    4-segment horizontal progress bar reflects current session progress.
     ↓
-Step 4 — Sesi Selesai (All Done)
+Step 4 — Session Complete (All Done)
    Session complete confirmation. [In Progress]
 ```
 
