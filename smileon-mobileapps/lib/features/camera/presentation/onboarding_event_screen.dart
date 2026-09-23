@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:smileon/features/camera/presentation/layout-onboarding-evemt/horizontal/onboarding_horizontal.dart';
-import 'package:smileon/features/camera/presentation/layout-onboarding-evemt/vertical/onboarding_vertical.dart';
+import 'package:smileon/features/camera/presentation/layout-onboarding-event/horizontal/onboarding_horizontal.dart';
+import 'package:smileon/features/camera/presentation/layout-onboarding-event/vertical/onboarding_vertical.dart';
 
-export 'package:smileon/features/camera/presentation/layout-onboarding-evemt/horizontal/onboarding_horizontal.dart';
-export 'package:smileon/features/camera/presentation/layout-onboarding-evemt/vertical/onboarding_vertical.dart';
+export 'package:smileon/features/camera/presentation/layout-onboarding-event/horizontal/onboarding_horizontal.dart';
+export 'package:smileon/features/camera/presentation/layout-onboarding-event/vertical/onboarding_vertical.dart';
+export 'package:smileon/features/camera/presentation/layout-onboarding-event/vertical/component-onboarding-vertical/show_qrcode_view.dart';
 
 /// Screen Utama Onboarding Photobox Event.
 ///

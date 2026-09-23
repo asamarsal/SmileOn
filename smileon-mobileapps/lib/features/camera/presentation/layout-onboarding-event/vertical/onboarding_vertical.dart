@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
-import 'package:smileon/features/camera/presentation/qrscan/qrscan_screen.dart';
+import 'package:smileon/features/camera/presentation/layout-onboarding-event/vertical/component-onboarding-vertical/show_qrcode_view.dart';
 import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_view.dart';
 
 /// Layout Onboarding Event Tampilan Vertikal (Portrait).
@@ -194,10 +194,10 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
     );
   }
 
-  void _defaultScanQr(BuildContext context) {
-    Navigator.push(
+  void _showQrCodeDialog(BuildContext context) {
+    ShowQrCodeView.show(
       context,
-      MaterialPageRoute(builder: (context) => const QrScanScreen()),
+      eventName: widget.eventName ?? 'Asa & Aulia',
     );
   }
 
@@ -849,7 +849,7 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                                     isCollapsed: _isCollapsed,
                                     onTap:
                                         widget.onScanQr ??
-                                        () => _defaultScanQr(context),
+                                        () => _showQrCodeDialog(context),
                                   ),
                                   const SizedBox(width: 14),
                                   _buildActionCard(
@@ -1010,7 +1010,7 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                                             child: Text(
                                               isEn
                                                   ? 'Guest Invitation List'
-                                                  : 'Daftar Nama Undangan',
+                                                  : 'Tamu Undangan',
                                               style: TextStyle(
                                                 fontSize: _isCollapsed
                                                     ? 13.5
