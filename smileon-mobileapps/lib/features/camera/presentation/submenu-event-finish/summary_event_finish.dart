@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/features/camera/presentation/onboarding_event_screen.dart';
 
 /// Tab Ringkasan pada Event Siap / Finish
 /// Menampilkan:
@@ -10,7 +11,12 @@ import 'package:smileon/core/components/smile_toast.dart';
 /// - Card Bagikan Link dengan tombol copy
 class SummaryEventFinish extends StatelessWidget {
   final String? eventName;
+  final String? titlePrefix;
+  final String? eventDate;
   final String? eventLocation;
+  final String? eventOrganizer;
+  final String? bannerAsset;
+  final Map<String, dynamic>? customTemplateData;
   final String? selectedFrameName;
   final int? totalCredits;
   final String? voucherCode;
@@ -20,7 +26,12 @@ class SummaryEventFinish extends StatelessWidget {
   const SummaryEventFinish({
     super.key,
     this.eventName,
+    this.titlePrefix,
+    this.eventDate,
     this.eventLocation,
+    this.eventOrganizer,
+    this.bannerAsset,
+    this.customTemplateData,
     this.selectedFrameName,
     this.totalCredits,
     this.voucherCode,
@@ -154,7 +165,24 @@ class SummaryEventFinish extends StatelessWidget {
         Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onStartPhotoSession,
+            onTap: onStartPhotoSession ??
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OnboardingEventScreen(
+                        titlePrefix: titlePrefix,
+                        eventName: eventName,
+                        eventDate: eventDate,
+                        eventLocation: eventLocation,
+                        eventOrganizer: eventOrganizer,
+                        remainingSessions: totalCredits ?? 300,
+                        bannerAsset: bannerAsset,
+                        customTemplateData: customTemplateData,
+                      ),
+                    ),
+                  );
+                },
             borderRadius: BorderRadius.circular(18),
             child: Ink(
               height: 54,

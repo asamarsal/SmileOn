@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
-import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
+import 'package:smileon/features/camera/presentation/onboarding_event_screen.dart';
 import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_view.dart';
 import 'package:smileon/features/camera/presentation/submenu-event-finish/invite_event_finish.dart';
 import 'package:smileon/features/camera/presentation/submenu-event-finish/setting_event_finish.dart';
@@ -106,17 +106,20 @@ class _NewSessionEventFinishState extends ConsumerState<NewSessionEventFinish> {
   int _selectedTabIndex = 0; // 0: Ringkasan, 1: Undangan, 2: Pengaturan
 
   void _handleStartPhotoSession() {
-    SmileToast.showSuccess(
-      context,
-      title: 'Sesi Siap',
-      message: 'Membuka kamera aktif...',
-      duration: const Duration(seconds: 1),
-    );
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ActiveCameraScreen(),
+        builder: (context) => OnboardingEventScreen(
+          titlePrefix: widget.titlePrefix,
+          eventName: widget.eventName,
+          eventDate: widget.eventDate,
+          eventLocation: widget.eventLocation,
+          eventOrganizer: widget.eventOrganizer,
+          remainingSessions:
+              widget.remainingCredits ?? widget.totalCredits ?? 300,
+          bannerAsset: widget.bannerAsset,
+          customTemplateData: widget.customTemplateData,
+        ),
       ),
     );
   }
@@ -713,7 +716,12 @@ class _NewSessionEventFinishState extends ConsumerState<NewSessionEventFinish> {
       case 0:
         return SummaryEventFinish(
           eventName: widget.eventName,
+          titlePrefix: widget.titlePrefix,
+          eventDate: widget.eventDate,
           eventLocation: widget.eventLocation,
+          eventOrganizer: widget.eventOrganizer,
+          bannerAsset: widget.bannerAsset,
+          customTemplateData: widget.customTemplateData,
           selectedFrameName: widget.selectedFrameName,
           totalCredits: widget.totalCredits,
           voucherCode: widget.voucherCode,
@@ -737,7 +745,12 @@ class _NewSessionEventFinishState extends ConsumerState<NewSessionEventFinish> {
       default:
         return SummaryEventFinish(
           eventName: widget.eventName,
+          titlePrefix: widget.titlePrefix,
+          eventDate: widget.eventDate,
           eventLocation: widget.eventLocation,
+          eventOrganizer: widget.eventOrganizer,
+          bannerAsset: widget.bannerAsset,
+          customTemplateData: widget.customTemplateData,
           selectedFrameName: widget.selectedFrameName,
           totalCredits: widget.totalCredits,
           voucherCode: widget.voucherCode,
