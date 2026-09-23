@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lottie/lottie.dart';
 import 'package:smileon/core/components/smile_circularprogressbar.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/core/localization/app_translations.dart';
@@ -67,9 +68,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/icons/smileon-line.png',
-                    height: 32,
+                  Lottie.asset(
+                    'assets/lottie/smileon_loading.json',
+                    height: 42,
                     fit: BoxFit.contain,
                   ),
                   Material(

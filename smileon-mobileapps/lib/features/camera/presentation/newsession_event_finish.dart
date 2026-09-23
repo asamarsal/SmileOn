@@ -117,6 +117,8 @@ class _NewSessionEventFinishState extends ConsumerState<NewSessionEventFinish> {
           eventOrganizer: widget.eventOrganizer,
           remainingSessions:
               widget.remainingCredits ?? widget.totalCredits ?? 300,
+          totalCredits: widget.totalCredits ?? 300,
+          remainingCredits: widget.remainingCredits ?? 280,
           bannerAsset: widget.bannerAsset,
           customTemplateData: widget.customTemplateData,
         ),
@@ -724,6 +726,7 @@ class _NewSessionEventFinishState extends ConsumerState<NewSessionEventFinish> {
           customTemplateData: widget.customTemplateData,
           selectedFrameName: widget.selectedFrameName,
           totalCredits: widget.totalCredits,
+          remainingCredits: widget.remainingCredits,
           voucherCode: widget.voucherCode,
           shareLink: widget.shareLink,
           onStartPhotoSession: _handleStartPhotoSession,

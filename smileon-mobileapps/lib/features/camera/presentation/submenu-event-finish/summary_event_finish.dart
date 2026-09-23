@@ -19,6 +19,7 @@ class SummaryEventFinish extends StatelessWidget {
   final Map<String, dynamic>? customTemplateData;
   final String? selectedFrameName;
   final int? totalCredits;
+  final int? remainingCredits;
   final String? voucherCode;
   final String? shareLink;
   final VoidCallback? onStartPhotoSession;
@@ -34,6 +35,7 @@ class SummaryEventFinish extends StatelessWidget {
     this.customTemplateData,
     this.selectedFrameName,
     this.totalCredits,
+    this.remainingCredits = 280,
     this.voucherCode,
     this.shareLink,
     this.onStartPhotoSession,
@@ -176,7 +178,9 @@ class SummaryEventFinish extends StatelessWidget {
                         eventDate: eventDate,
                         eventLocation: eventLocation,
                         eventOrganizer: eventOrganizer,
-                        remainingSessions: totalCredits ?? 300,
+                        remainingSessions: remainingCredits ?? totalCredits ?? 300,
+                        totalCredits: totalCredits ?? 300,
+                        remainingCredits: remainingCredits ?? 280,
                         bannerAsset: bannerAsset,
                         customTemplateData: customTemplateData,
                       ),

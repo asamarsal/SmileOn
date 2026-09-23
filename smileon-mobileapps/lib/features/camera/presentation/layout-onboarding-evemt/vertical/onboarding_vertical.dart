@@ -25,6 +25,8 @@ class OnboardingVertical extends ConsumerStatefulWidget {
   final String? eventLocation;
   final String? eventOrganizer;
   final int remainingSessions;
+  final int? totalCredits;
+  final int? remainingCredits;
   final String? bannerAsset;
   final Map<String, dynamic>? customTemplateData;
   final VoidCallback? onScanQr;
@@ -39,6 +41,8 @@ class OnboardingVertical extends ConsumerStatefulWidget {
     this.eventLocation,
     this.eventOrganizer,
     this.remainingSessions = 300,
+    this.totalCredits = 300,
+    this.remainingCredits = 280,
     this.bannerAsset,
     this.customTemplateData,
     this.onScanQr,
@@ -51,6 +55,9 @@ class OnboardingVertical extends ConsumerStatefulWidget {
 }
 
 class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
+  bool _isCollapsed = false;
+  double _dragDistance = 0;
+
   /// Helper untuk merender item teks / sticker pada koordinat proporsional banner
   Widget _buildPreviewItem({
     required Offset pos,
@@ -69,12 +76,128 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
     );
   }
 
+  /// Badge mengambang yang menampilkan Photo Credit dan Sisa Credit,
+  /// berposisi tepat di tengah garis border dialog atas.
+  Widget _buildCreditPill(bool isEn) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isCollapsed = !_isCollapsed;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.98),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFFFE8EF), width: 1.2),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Photo Credit
+              const Icon(
+                Icons.camera_alt_rounded,
+                size: 18,
+                color: Color(0xFFFF2E7E),
+              ),
+              const SizedBox(width: 7),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${widget.totalCredits ?? 300} ',
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const TextSpan(
+                      text: 'Photo Credit',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Divider
+              Container(
+                width: 1,
+                height: 18,
+                color: const Color(0xFFE2E8F0),
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+
+              // Sisa Credit
+              const Icon(
+                Icons.confirmation_number_outlined,
+                size: 18,
+                color: Color(0xFFFF2E7E),
+              ),
+              const SizedBox(width: 7),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text:
+                          '${widget.remainingCredits ?? widget.remainingSessions} ',
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFFF2E7E),
+                      ),
+                    ),
+                    TextSpan(
+                      text: isEn ? 'Remaining Credit' : 'Sisa Credit',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Divider & Chevron Toggle Icon
+              Container(
+                width: 1,
+                height: 18,
+                color: const Color(0xFFE2E8F0),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              Icon(
+                _isCollapsed
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: const Color(0xFFFF2E7E),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _defaultScanQr(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const QrScanScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const QrScanScreen()),
     );
   }
 
@@ -88,9 +211,7 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const ActiveCameraScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
     );
   }
 
@@ -110,12 +231,19 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
           );
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const ActiveCameraScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
           );
         },
       ),
+    );
+  }
+
+  void _showGuestListSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => const _GuestListBottomSheet(),
     );
   }
 
@@ -263,6 +391,13 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
 
     // Tinggi banner responsif persis seperti newsession_event_finish
     final bannerHeight = (screenHeight * 0.36).clamp(260.0, 340.0);
+    final double openTop = bannerHeight;
+    final double targetCollapsedTop =
+        screenHeight - (mediaQuery.padding.bottom + 346.0);
+    final double collapsedTop = targetCollapsedTop > openTop
+        ? targetCollapsedTop
+        : openTop;
+    final double currentTop = _isCollapsed ? collapsedTop : openTop;
     final visualPhotoHeight = screenWidth / 0.68;
     final photoContainerHeight = visualPhotoHeight > (bannerHeight + 36)
         ? visualPhotoHeight
@@ -306,7 +441,8 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
         }
       }
     }
-    final String bannerOrganizer = (tData?['bannerOrganizer'] as String?) ??
+    final String bannerOrganizer =
+        (tData?['bannerOrganizer'] as String?) ??
         widget.eventOrganizer ??
         widget.eventName ??
         'Asa & Aulia';
@@ -353,9 +489,7 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
 
                 // Filter suasana warna dari kustomisasi template
                 if (currentFilterColor != null)
-                  Positioned.fill(
-                    child: Container(color: currentFilterColor),
-                  ),
+                  Positioned.fill(child: Container(color: currentFilterColor)),
 
                 // Vignette gradasi halus dari atas (sama persis dengan di preview dialog tamu dan newsession_event_finish)
                 Positioned.fill(
@@ -382,16 +516,17 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                   // 1. Subjudul (Prefix)
                   if ((tData?['titlePrefix'] as String? ?? '').isNotEmpty)
                     _buildPreviewItem(
-                      pos: (tData?['prefixPos'] as Offset?) ??
+                      pos:
+                          (tData?['prefixPos'] as Offset?) ??
                           const Offset(155, 60),
-                      scale:
-                          (tData?['prefixScale'] as num?)?.toDouble() ?? 1.0,
+                      scale: (tData?['prefixScale'] as num?)?.toDouble() ?? 1.0,
                       scaleX: scaleX,
                       scaleY: scaleY,
                       child: Text(
                         tData!['titlePrefix'],
                         textAlign: TextAlign.center,
-                        style: (tData['prefixStyle'] as CustomTextStyleConfig?)
+                        style:
+                            (tData['prefixStyle'] as CustomTextStyleConfig?)
                                 ?.toTextStyle(currentTextColor) ??
                             TextStyle(
                               fontSize: 14.5,
@@ -405,7 +540,8 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                   // 2. Nama Event / Pasangan
                   if ((tData?['eventName'] as String? ?? '').isNotEmpty)
                     _buildPreviewItem(
-                      pos: (tData?['namePos'] as Offset?) ??
+                      pos:
+                          (tData?['namePos'] as Offset?) ??
                           const Offset(155, 102),
                       scale: (tData?['nameScale'] as num?)?.toDouble() ?? 1.0,
                       scaleX: scaleX,
@@ -413,7 +549,8 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                       child: Text(
                         tData!['eventName'],
                         textAlign: TextAlign.center,
-                        style: (tData['nameStyle'] as CustomTextStyleConfig?)
+                        style:
+                            (tData['nameStyle'] as CustomTextStyleConfig?)
                                 ?.toTextStyle(currentTextColor) ??
                             TextStyle(
                               fontSize: 27.0,
@@ -428,7 +565,8 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                   // 3. Tanggal Event
                   if ((tData?['eventDate'] as String? ?? '').isNotEmpty)
                     _buildPreviewItem(
-                      pos: (tData?['datePos'] as Offset?) ??
+                      pos:
+                          (tData?['datePos'] as Offset?) ??
                           const Offset(155, 140),
                       scale: (tData?['dateScale'] as num?)?.toDouble() ?? 1.0,
                       scaleX: scaleX,
@@ -436,7 +574,8 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                       child: Text(
                         tData!['eventDate'],
                         textAlign: TextAlign.center,
-                        style: (tData['dateStyle'] as CustomTextStyleConfig?)
+                        style:
+                            (tData['dateStyle'] as CustomTextStyleConfig?)
                                 ?.toTextStyle(currentTextColor) ??
                             TextStyle(
                               fontSize: 12.5,
@@ -458,7 +597,8 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                       child: Text(
                         tData!['eventLocation'],
                         textAlign: TextAlign.center,
-                        style: (tData['locStyle'] as CustomTextStyleConfig?)
+                        style:
+                            (tData['locStyle'] as CustomTextStyleConfig?)
                                 ?.toTextStyle(currentTextColor) ??
                             TextStyle(
                               fontSize: 12.5,
@@ -470,17 +610,19 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
 
                   // 5. Teks Tambahan Dinamis
                   if (tData?['additionalTexts'] is List)
-                    for (int i = 0;
-                        i < (tData!['additionalTexts'] as List).length;
-                        i++)
+                    for (
+                      int i = 0;
+                      i < (tData!['additionalTexts'] as List).length;
+                      i++
+                    )
                       if ((tData['additionalTexts'][i] as String)
                               .trim()
                               .isNotEmpty &&
                           i < ((tData['extraPositions'] as List?)?.length ?? 0))
                         _buildPreviewItem(
                           pos: tData['extraPositions'][i] as Offset,
-                          scale: i <
-                                  ((tData['extraScales'] as List?)?.length ?? 0)
+                          scale:
+                              i < ((tData['extraScales'] as List?)?.length ?? 0)
                               ? (tData['extraScales'][i] as num).toDouble()
                               : 1.0,
                           scaleX: scaleX,
@@ -488,22 +630,24 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
                           child: Text(
                             tData['additionalTexts'][i] as String,
                             textAlign: TextAlign.center,
-                            style: (i <
-                                        ((tData['additionalTextStyles']
-                                                    as List?)
-                                                ?.length ??
-                                            0)
-                                    ? tData['additionalTextStyles'][i]
-                                        as CustomTextStyleConfig
-                                    : CustomTextStyleConfig(fontSize: 12.0))
-                                .toTextStyle(currentTextColor),
+                            style:
+                                (i <
+                                            ((tData['additionalTextStyles']
+                                                        as List?)
+                                                    ?.length ??
+                                                0)
+                                        ? tData['additionalTextStyles'][i]
+                                              as CustomTextStyleConfig
+                                        : CustomTextStyleConfig(fontSize: 12.0))
+                                    .toTextStyle(currentTextColor),
                           ),
                         ),
 
                   // 6. Ornamen Divider Hati (- ♥ -)
                   if (tData?['showHeartDivider'] == true)
                     _buildPreviewItem(
-                      pos: (tData?['dividerPos'] as Offset?) ??
+                      pos:
+                          (tData?['dividerPos'] as Offset?) ??
                           const Offset(155, 196),
                       scale:
                           (tData?['dividerScale'] as num?)?.toDouble() ?? 1.0,
@@ -625,249 +769,443 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
             ),
           ),
 
-          // 2. Area Konten Bawah (Dimulai dari bannerHeight - 18 dengan radius 24)
-          Positioned(
-            top: bannerHeight - 18,
+          // 2. Area Konten Bawah / Dialog (Dapat dibuka & ditutup setengah)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOutCubic,
+            top: currentTop,
             left: 0,
             right: 0,
             bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF7F5),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x1F000000),
-                    blurRadius: 16,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                child: Stack(
-                  children: [
-                    // Hiasan Bunga Watercolor di Bagian Bawah
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: screenHeight * 0.22,
-                      child: Opacity(
-                        opacity: 0.85,
-                        child: Image.asset(
-                          'assets/images/eventmode/wedding_floral_bottom.jpg',
-                          fit: BoxFit.cover,
-                          alignment: Alignment.bottomCenter,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                      ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _isCollapsed
+                  ? () => setState(() => _isCollapsed = false)
+                  : null,
+              onVerticalDragStart: (_) => _dragDistance = 0,
+              onVerticalDragUpdate: (details) {
+                _dragDistance += details.primaryDelta ?? 0;
+              },
+              onVerticalDragEnd: (details) {
+                final velocity = details.primaryVelocity ?? 0;
+                if (velocity > 150 || _dragDistance > 40) {
+                  if (!_isCollapsed) setState(() => _isCollapsed = true);
+                } else if (velocity < -150 || _dragDistance < -40) {
+                  if (_isCollapsed) setState(() => _isCollapsed = false);
+                }
+              },
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF7F5),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x1F000000),
+                      blurRadius: 16,
+                      offset: Offset(0, -4),
                     ),
-
-                    // Konten Utama yang Dapat Di-scroll
-                    SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                      child: Column(
-                        children: [
-                          // Floating Pill: 300 sesi tersisa
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.96),
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.camera_alt_rounded,
-                                  size: 20,
-                                  color: Color(0xFF0F172A),
-                                ),
-                                const SizedBox(width: 8),
-                                RichText(
-                                  text: TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: '${widget.remainingSessions} ',
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: isEn ? 'sessions left' : 'sesi tersisa',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          color: Color(0xFF334155),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  child: Stack(
+                    children: [
+                      // Konten Utama yang Dapat Di-scroll
+                      NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (!_isCollapsed &&
+                              notification is ScrollUpdateNotification) {
+                            if (notification.metrics.pixels < -30) {
+                              setState(() => _isCollapsed = true);
+                            }
+                          }
+                          return false;
+                        },
+                        child: SingleChildScrollView(
+                          physics: _isCollapsed
+                              ? const NeverScrollableScrollPhysics()
+                              : const BouncingScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(
+                            20,
+                            _isCollapsed ? 38 : 34,
+                            20,
+                            _isCollapsed ? 10 : 20,
                           ),
-                          const SizedBox(height: 24),
-
-                          // Dua Kartu Pilihan Berdampingan (Scan QR & Masukkan Kode)
-                          Row(
+                          child: Column(
                             children: [
-                              _buildActionCard(
-                                icon: Icons.qr_code_2_rounded,
-                                title: isEn ? 'Scan QR Code' : 'Scan QR Code',
-                                subtitle: isEn
-                                    ? 'Point camera at your invitation QR'
-                                    : 'Arahkan kamera\nke QR undangan\nAnda',
-                                onTap: widget.onScanQr ??
-                                    () => _defaultScanQr(context),
-                              ),
-                              const SizedBox(width: 14),
-                              _buildActionCard(
-                                icon: Icons.keyboard_alt_outlined,
-                                title: isEn ? 'Enter Code' : 'Masukkan Kode',
-                                subtitle: isEn
-                                    ? 'Type 6-digit\ninvitation code'
-                                    : 'Ketik 6 digit\nkode undangan',
-                                onTap: widget.onInputCode ??
-                                    () => _showInputCodeSheet(context),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-
-                          // Pemisah "atau"
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Divider(
-                                  color: Color(0xFFE2E8F0),
-                                  thickness: 1,
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 14),
-                                child: Text(
-                                  isEn ? 'or' : 'atau',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF94A3B8),
+                              // Dua Kartu Pilihan Berdampingan (Scan QR & Masukkan Kode)
+                              Row(
+                                children: [
+                                  _buildActionCard(
+                                    icon: Icons.qr_code_2_rounded,
+                                    title: isEn
+                                        ? 'Scan QR Code'
+                                        : 'Scan QR Code',
+                                    subtitle: isEn
+                                        ? 'Point camera at your invitation QR'
+                                        : 'Arahkan kamera\nke QR undangan\nAnda',
+                                    isCollapsed: _isCollapsed,
+                                    onTap:
+                                        widget.onScanQr ??
+                                        () => _defaultScanQr(context),
                                   ),
-                                ),
+                                  const SizedBox(width: 14),
+                                  _buildActionCard(
+                                    icon: Icons.keyboard_alt_outlined,
+                                    title: isEn
+                                        ? 'Enter Code'
+                                        : 'Masukkan Kode',
+                                    subtitle: isEn
+                                        ? 'Type 6-digit\ninvitation code'
+                                        : 'Ketik 6 digit\nkode undangan',
+                                    isCollapsed: _isCollapsed,
+                                    onTap:
+                                        widget.onInputCode ??
+                                        () => _showInputCodeSheet(context),
+                                  ),
+                                ],
                               ),
-                              const Expanded(
-                                child: Divider(
-                                  color: Color(0xFFE2E8F0),
-                                  thickness: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
+                              SizedBox(height: _isCollapsed ? 10 : 18),
 
-                          // Tombol Sekunder: Foto sebagai Tamu Umum
-                          Container(
-                            width: double.infinity,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFDE8EC),
-                              borderRadius: BorderRadius.circular(27),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFFF2E7E).withValues(alpha: 0.08),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: widget.onGuestAccess ??
-                                    () => _defaultGuestAccess(context),
-                                borderRadius: BorderRadius.circular(27),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.person_outline_rounded,
-                                      size: 22,
-                                      color: Color(0xFF1E293B),
+                              // Pemisah "atau"
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Divider(
+                                      color: Color(0xFFE2E8F0),
+                                      thickness: 1,
                                     ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      isEn
-                                          ? 'Photo as General Guest'
-                                          : 'Foto sebagai Tamu Umum',
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                    ),
+                                    child: Text(
+                                      isEn ? 'or' : 'atau',
                                       style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF1E293B),
-                                        letterSpacing: 0.1,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF94A3B8),
                                       ),
+                                    ),
+                                  ),
+                                  const Expanded(
+                                    child: Divider(
+                                      color: Color(0xFFE2E8F0),
+                                      thickness: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: _isCollapsed ? 10 : 16),
+
+                              // Tombol Sekunder: Foto sebagai Tamu Umum
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 320),
+                                curve: Curves.easeInOutCubic,
+                                width: double.infinity,
+                                height: _isCollapsed ? 48 : 54,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFDE8EC),
+                                  borderRadius: BorderRadius.circular(27),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF2E7E)
+                                          .withValues(alpha: 0.08),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
                                     ),
                                   ],
                                 ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap:
+                                        widget.onGuestAccess ??
+                                        () => _defaultGuestAccess(context),
+                                    borderRadius: BorderRadius.circular(27),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.person_outline_rounded,
+                                          size: 22,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          isEn
+                                              ? 'Photo as General Guest'
+                                              : 'Foto sebagai Tamu Umum',
+                                          style: TextStyle(
+                                            fontSize: _isCollapsed ? 14 : 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF1E293B),
+                                            letterSpacing: 0.1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 22),
+                              SizedBox(height: _isCollapsed ? 10 : 14),
 
-                          // Kaligrafi Cantik: Together is a beautiful place
-                          const Column(
-                            children: [
-                              Text(
-                                'Together',
-                                style: TextStyle(
-                                  fontFamily: 'serif',
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFB08974),
-                                  letterSpacing: 0.5,
+                              // Card: Daftar Nama Undangan
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 320),
+                                curve: Curves.easeInOutCubic,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: const Color(0xFFF1F4F9),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => _showGuestListSheet(context),
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: _isCollapsed ? 10 : 12,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Icon Undangan / Badge ID
+                                          Container(
+                                            width: _isCollapsed ? 34 : 38,
+                                            height: _isCollapsed ? 34 : 38,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(
+                                              Icons.badge_outlined,
+                                              size: _isCollapsed ? 20 : 22,
+                                              color: const Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+
+                                          // Label Teks
+                                          Expanded(
+                                            child: Text(
+                                              isEn
+                                                  ? 'Guest Invitation List'
+                                                  : 'Daftar Nama Undangan',
+                                              style: TextStyle(
+                                                fontSize: _isCollapsed
+                                                    ? 13.5
+                                                    : 14.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFF1E293B),
+                                                letterSpacing: 0.1,
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Avatar Stack & +124
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              SizedBox(
+                                                width: 64,
+                                                height: 28,
+                                                child: Stack(
+                                                  children: [
+                                                    Positioned(
+                                                      left: 0,
+                                                      child: Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border: Border.all(
+                                                                color: Colors
+                                                                    .white,
+                                                                width: 1.5,
+                                                              ),
+                                                            ),
+                                                        child:
+                                                            const CircleAvatar(
+                                                              radius: 13,
+                                                              backgroundColor:
+                                                                  Color(
+                                                                    0xFFFFDDE9,
+                                                                  ),
+                                                              child: Icon(
+                                                                Icons.person,
+                                                                size: 15,
+                                                                color: Color(
+                                                                  0xFFFF2E7E,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      left: 18,
+                                                      child: Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border: Border.all(
+                                                                color: Colors
+                                                                    .white,
+                                                                width: 1.5,
+                                                              ),
+                                                            ),
+                                                        child:
+                                                            const CircleAvatar(
+                                                              radius: 13,
+                                                              backgroundColor:
+                                                                  Color(
+                                                                    0xFFE0E7FF,
+                                                                  ),
+                                                              child: Icon(
+                                                                Icons.person,
+                                                                size: 15,
+                                                                color: Color(
+                                                                  0xFF4338CA,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      left: 36,
+                                                      child: Container(
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border: Border.all(
+                                                                color: Colors
+                                                                    .white,
+                                                                width: 1.5,
+                                                              ),
+                                                            ),
+                                                        child:
+                                                            const CircleAvatar(
+                                                              radius: 13,
+                                                              backgroundColor:
+                                                                  Color(
+                                                                    0xFFDCFCE7,
+                                                                  ),
+                                                              child: Icon(
+                                                                Icons.person,
+                                                                size: 15,
+                                                                color: Color(
+                                                                  0xFF15803D,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+
+                                              // Badge Counter (+124)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 3,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFFFE4EE,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: const Text(
+                                                  '+124',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF1E293B),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+
+                                              // Chevron Right Pink
+                                              const Icon(
+                                                Icons.chevron_right_rounded,
+                                                size: 22,
+                                                color: Color(0xFFFF2E7E),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              SizedBox(height: 2),
-                              Text(
-                                'is a beautiful place',
-                                style: TextStyle(
-                                  fontFamily: 'serif',
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFFC49A85),
-                                  letterSpacing: 0.5,
+                              SizedBox(height: _isCollapsed ? 12 : 18),
+
+                              // Watermark Logo SmileOn di Bagian Bawah
+                              Center(
+                                child: Opacity(
+                                  opacity: 0.85,
+                                  child: Image.asset(
+                                    'assets/icons/smileon-line.png',
+                                    height: _isCollapsed ? 22 : 26,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (
+                                      context,
+                                      error,
+                                      stackTrace,
+                                    ) => const SizedBox.shrink(),
+                                  ),
                                 ),
                               ),
+                              SizedBox(height: _isCollapsed ? 16 : 14),
                             ],
                           ),
-                          const SizedBox(height: 26),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
 
-          // 3. Tombol Kembali di Kiri Atas
+          // 3. Floating Pill: Photo Credit & Sisa Credit (Tepat di garis tengah border dialog atas)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOutCubic,
+            top: currentTop - 21,
+            left: 20,
+            right: 20,
+            child: Center(child: _buildCreditPill(isEn)),
+          ),
+
+          // 4. Tombol Kembali di Kiri Atas
           Positioned(
             top: mediaQuery.padding.top + 4,
             left: 14,
@@ -899,7 +1237,7 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
             ),
           ),
 
-          // 4. Tombol Pemilih Bahasa (Globe + ID/EN) di Kanan Atas
+          // 5. Tombol Pemilih Bahasa (Globe + ID/EN) di Kanan Atas
           Positioned(
             top: mediaQuery.padding.top + 4,
             right: 14,
@@ -963,10 +1301,14 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    bool isCollapsed = false,
   }) {
     return Expanded(
-      child: Container(
-        height: 225,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeInOutCubic,
+        height: isCollapsed ? 104 : 225,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -984,72 +1326,90 @@ class _OnboardingVerticalState extends ConsumerState<OnboardingVertical> {
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(22),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Icon Bagian Atas
-                  Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    child: Icon(
-                      icon,
-                      size: 38,
-                      color: const Color(0xFFFF1E69),
-                    ),
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: SizedBox(
+                height: isCollapsed ? 104 : 225,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: isCollapsed ? 8 : 20,
                   ),
-
-                  // Teks Judul & Deskripsi
-                  Column(
+                  child: Column(
+                    mainAxisAlignment: isCollapsed
+                        ? MainAxisAlignment.center
+                        : MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                          letterSpacing: -0.2,
+                      // Icon Bagian Atas
+                      Container(
+                        width: isCollapsed ? 36 : 48,
+                        height: isCollapsed ? 36 : 48,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          icon,
+                          size: isCollapsed ? 28 : 38,
+                          color: const Color(0xFFFF1E69),
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF64748B),
-                          height: 1.25,
+                      if (isCollapsed) const SizedBox(height: 3),
+
+                      // Teks Judul & Deskripsi
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: isCollapsed ? 12.5 : 15,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.2,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: isCollapsed ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (!isCollapsed) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF64748B),
+                                height: 1.25,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ],
+                      ),
+
+                      // Tombol Bulat Panah Kanan
+                      if (!isCollapsed)
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFFF1E69),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x40FF1E69),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
                     ],
                   ),
-
-                  // Tombol Bulat Panah Kanan
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFFF1E69),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x40FF1E69),
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1070,8 +1430,10 @@ class _InputCodeBottomSheet extends StatefulWidget {
 }
 
 class _InputCodeBottomSheetState extends State<_InputCodeBottomSheet> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
 
@@ -1181,10 +1543,7 @@ class _InputCodeBottomSheetState extends State<_InputCodeBottomSheet> {
             const SizedBox(height: 6),
             const Text(
               'Ketik 6 digit kode yang tertera di undangan Anda',
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -1242,8 +1601,8 @@ class _InputCodeBottomSheetState extends State<_InputCodeBottomSheet> {
                 onPressed: _isLoading || !isCodeComplete ? null : _submitCode,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF1E69),
-                  disabledBackgroundColor:
-                      const Color(0xFFFF1E69).withValues(alpha: 0.35),
+                  disabledBackgroundColor: const Color(0xFFFF1E69)
+                      .withValues(alpha: 0.35),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -1270,6 +1629,299 @@ class _InputCodeBottomSheetState extends State<_InputCodeBottomSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Modal Bottom Sheet Interaktif untuk Menampilkan Daftar Nama Undangan Acara
+class _GuestListBottomSheet extends StatefulWidget {
+  const _GuestListBottomSheet();
+
+  @override
+  State<_GuestListBottomSheet> createState() => _GuestListBottomSheetState();
+}
+
+class _GuestListBottomSheetState extends State<_GuestListBottomSheet> {
+  final TextEditingController _searchController = TextEditingController();
+
+  final List<Map<String, dynamic>> _guests = const [
+    {
+      'name': 'Dimas & Sarah',
+      'category': 'VIP',
+      'hasPhoto': true,
+      'photoCount': 2,
+    },
+    {
+      'name': 'Keluarga Bpk. Hendra',
+      'category': 'Keluarga',
+      'hasPhoto': true,
+      'photoCount': 3,
+    },
+    {
+      'name': 'Rian Pratama',
+      'category': 'Teman Kantor',
+      'hasPhoto': false,
+      'photoCount': 0,
+    },
+    {
+      'name': 'Nadia & Sahabat SMA',
+      'category': 'Teman',
+      'hasPhoto': false,
+      'photoCount': 0,
+    },
+    {
+      'name': 'dr. Aditya Wijaya',
+      'category': 'Tamu Khusus',
+      'hasPhoto': true,
+      'photoCount': 1,
+    },
+    {
+      'name': 'Siti Rahmawati & Partner',
+      'category': 'Teman',
+      'hasPhoto': false,
+      'photoCount': 0,
+    },
+    {
+      'name': 'Budi Santoso & Keluarga',
+      'category': 'Keluarga',
+      'hasPhoto': true,
+      'photoCount': 2,
+    },
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _searchController.text.trim().toLowerCase();
+    final filteredGuests = _guests.where((g) {
+      final name = (g['name'] as String).toLowerCase();
+      final cat = (g['category'] as String).toLowerCase();
+      return name.contains(query) || cat.contains(query);
+    }).toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        children: [
+          // Handle Bar & Header
+          Padding(
+            padding: const EdgeInsets.only(
+              top: 14,
+              left: 20,
+              right: 20,
+              bottom: 8,
+            ),
+            child: Column(
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0F5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.badge_outlined,
+                        color: Color(0xFFFF2E7E),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daftar Nama Undangan',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E2448),
+                            ),
+                          ),
+                          Text(
+                            '128 Undangan Terdaftar',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF64748B),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Search field
+                TextField(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Cari nama tamu undangan...',
+                    hintStyle: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFF64748B),
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+          // Guest list scrollable
+          Expanded(
+            child: filteredGuests.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Tamu tidak ditemukan',
+                      style: TextStyle(color: Color(0xFF94A3B8)),
+                    ),
+                  )
+                : ListView.separated(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                    itemCount: filteredGuests.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final guest = filteredGuests[index];
+                      final hasPhoto = guest['hasPhoto'] as bool;
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFBFBFD),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF1F4F9)),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: hasPhoto
+                                  ? const Color(0xFFECFDF5)
+                                  : const Color(0xFFFFF1F2),
+                              child: Icon(
+                                hasPhoto
+                                    ? Icons.check_circle_rounded
+                                    : Icons.hourglass_top_rounded,
+                                color: hasPhoto
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFF43F5E),
+                                size: 19,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    guest['name'] as String,
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1E2448),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${guest['category']} • ${hasPhoto ? '${guest['photoCount']} sesi berfoto' : 'Belum berfoto'}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: hasPhoto
+                                          ? const Color(0xFF059669)
+                                          : const Color(0xFF64748B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: hasPhoto
+                                    ? const Color(0xFFE6F9F0)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                hasPhoto ? 'Hadir' : 'Undangan',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: hasPhoto
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

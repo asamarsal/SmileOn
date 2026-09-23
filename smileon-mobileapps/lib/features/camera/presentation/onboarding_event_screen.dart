@@ -17,6 +17,8 @@ class OnboardingEventScreen extends StatelessWidget {
   final String? eventLocation;
   final String? eventOrganizer;
   final int remainingSessions;
+  final int? totalCredits;
+  final int? remainingCredits;
   final String? bannerAsset;
   final Map<String, dynamic>? customTemplateData;
   final VoidCallback? onScanQr;
@@ -31,6 +33,8 @@ class OnboardingEventScreen extends StatelessWidget {
     this.eventLocation,
     this.eventOrganizer,
     this.remainingSessions = 300,
+    this.totalCredits = 300,
+    this.remainingCredits = 280,
     this.bannerAsset,
     this.customTemplateData,
     this.onScanQr,
@@ -49,6 +53,8 @@ class OnboardingEventScreen extends StatelessWidget {
             eventDate: eventDate ?? '20 September 2026',
             eventLocation: eventLocation ?? 'The Ritz-Carlton, Jakarta',
             remainingSessions: remainingSessions,
+            totalCredits: totalCredits,
+            remainingCredits: remainingCredits,
             bannerAsset: bannerAsset,
             onScanQr: onScanQr,
             onInputCode: onInputCode,
@@ -62,6 +68,8 @@ class OnboardingEventScreen extends StatelessWidget {
             eventLocation: eventLocation,
             eventOrganizer: eventOrganizer,
             remainingSessions: remainingSessions,
+            totalCredits: totalCredits,
+            remainingCredits: remainingCredits,
             bannerAsset: bannerAsset,
             customTemplateData: customTemplateData,
             onScanQr: onScanQr,

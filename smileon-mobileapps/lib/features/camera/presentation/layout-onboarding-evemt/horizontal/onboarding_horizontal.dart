@@ -18,6 +18,8 @@ class OnboardingHorizontal extends ConsumerStatefulWidget {
   final String eventDate;
   final String eventLocation;
   final int remainingSessions;
+  final int? totalCredits;
+  final int? remainingCredits;
   final String? bannerAsset;
   final VoidCallback? onScanQr;
   final VoidCallback? onInputCode;
@@ -30,6 +32,8 @@ class OnboardingHorizontal extends ConsumerStatefulWidget {
     this.eventDate = '20 September 2026',
     this.eventLocation = 'The Ritz-Carlton, Jakarta',
     this.remainingSessions = 300,
+    this.totalCredits = 300,
+    this.remainingCredits = 280,
     this.bannerAsset,
     this.onScanQr,
     this.onInputCode,
