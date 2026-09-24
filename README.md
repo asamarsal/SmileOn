@@ -6,6 +6,8 @@
 
 *Capture your moments, create your memories, and keep them with you.*
 
+<img src="picture/cover_redame_smileon.png" alt="SmileOn Banner" width="100%"/>
+
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter)](https://flutter.dev)
 [![Monad](https://img.shields.io/badge/Network-Monad_Testnet-836EF9?style=for-the-badge)](https://monad.xyz)
 [![Dynamic](https://img.shields.io/badge/Auth-Dynamic.xyz-000000?style=for-the-badge)](https://dynamic.xyz)
