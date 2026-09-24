@@ -1,4 +1,3 @@
-import 'package:dynamic_sdk/dynamic_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
@@ -7,7 +6,6 @@ import 'package:smileon/core/auth/saved_account_model.dart';
 import 'package:smileon/core/components/smile_dialog.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/core/utils/jwt_utils.dart';
 import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
 
 /// Halaman pemilih akun Google yang tersimpan di perangkat (Quick Account Chooser)
@@ -56,41 +54,21 @@ class _GoogleAccountChooserScreenState
 
     setState(() => _isLoading = true);
     try {
-      final authService = ref.read(authServiceProvider);
-      final currentDynamicToken = DynamicSDK.instance.auth.token;
-      final isDynamicActive =
-          currentDynamicToken != null && !JwtUtils.isExpired(currentDynamicToken);
-
-      if (isDynamicActive) {
-        // Jika sesi Dynamic masih aktif & valid, pulihkan sesi akun tersimpan secara instan
-        await ref
-            .read(authProvider.notifier)
-            .loginWithSavedAccount(selectedAccount);
-        _onSuccessLogin();
-      } else {
-        // Sesi Dynamic belum aktif atau sudah expired:
-        // Panggil Google Social Connect langsung melalui Dynamic SDK di latar belakang
-        await ref.read(authProvider.notifier).connectGoogleSocial();
-
-        final activeSession = await authService.validateAndGetActiveSession();
-        if (activeSession != null) {
-          _onSuccessLogin();
-        }
-      }
+      // Langsung pulihkan dan login dengan akun tersimpan yang dipilih pengguna
+      await ref
+          .read(authProvider.notifier)
+          .loginWithSavedAccount(selectedAccount);
+      _onSuccessLogin();
     } catch (e) {
-      debugPrint('Gagal menghubungkan akun Google via Dynamic: $e');
+      debugPrint('Gagal login dengan akun tersimpan: $e');
       if (mounted) {
-        try {
-          ref.read(authServiceProvider).showDynamicAuth();
-        } catch (_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Gagal login dengan akun ${selectedAccount.email}: $e',
-              ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Gagal login dengan akun ${selectedAccount.email}: $e',
             ),
-          );
-        }
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

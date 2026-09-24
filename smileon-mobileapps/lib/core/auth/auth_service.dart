@@ -301,15 +301,36 @@ class AuthService {
     } catch (_) {}
   }
 
+  /// Pre-warm Dynamic SDK di background tanpa memblokir UI pengguna
+  Future<void> warmUpDynamicSdk() async {
+    try {
+      await DynamicSDK.instance.sdk.readyChanges
+          .firstWhere((ready) => ready == true)
+          .timeout(const Duration(seconds: 4));
+      debugPrint("AuthService: Dynamic SDK sudah aktif dan siap (warm-up sukses).");
+    } catch (_) {
+      // Abaikan jika timeout, proses di latar belakang
+    }
+  }
+
   /// Memicu login Google Social Authentication langsung melalui Dynamic SDK
   Future<void> connectGoogleSocial() async {
     try {
-      await DynamicSDK.instance.auth.social.connect(
-        provider: SocialProvider.google,
-      );
+      // 1. Pastikan SDK sudah berstatus ready (tunggu maksimal 3 detik jika cold start)
+      try {
+        await DynamicSDK.instance.sdk.readyChanges
+            .firstWhere((ready) => ready == true)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        debugPrint("AuthService: Dynamic SDK belum berstatus ready saat connectGoogle, melanjutkan...");
+      }
+
+      // 2. Hubungkan Google Social dengan batas waktu aman (safety timeout 7 detik)
+      await DynamicSDK.instance.auth.social
+          .connect(provider: SocialProvider.google)
+          .timeout(const Duration(seconds: 7));
     } catch (e) {
       debugPrint("Error connecting with Google via Dynamic: $e");
-      showDynamicAuth();
       rethrow;
     }
   }

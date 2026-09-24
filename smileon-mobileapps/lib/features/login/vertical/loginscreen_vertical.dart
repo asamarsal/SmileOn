@@ -17,6 +17,15 @@ class LoginScreenVertical extends ConsumerStatefulWidget {
 class _LoginScreenVerticalState extends ConsumerState<LoginScreenVertical> {
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Pre-warm Dynamic SDK di latar belakang segera setelah layar terbuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authServiceProvider).warmUpDynamicSdk();
+    });
+  }
+
   void _onSuccessLogin() {
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -210,17 +219,20 @@ class _LoginScreenVerticalState extends ConsumerState<LoginScreenVertical> {
     );
   }
 
-  // --- REUSABLE AUTH OPTION CARDS ---
   Widget _buildGoogleOptionCard() {
     return _buildAuthOptionCard(
       iconWidget: _buildGoogleIcon(),
       title: 'Continue with Google',
       subtitle: 'Fast, secure, and easy via Dynamic',
       onTap: () async {
+        if (_isLoading) return;
         final navigator = Navigator.of(context);
         setState(() => _isLoading = true);
         try {
-          final savedAccounts = await ref.read(authServiceProvider).getSavedAccounts();
+          final savedAccounts = await ref
+              .read(authServiceProvider)
+              .getSavedAccounts()
+              .timeout(const Duration(seconds: 3), onTimeout: () => []);
           if (!mounted) return;
           if (savedAccounts.isNotEmpty) {
             navigator.push(
@@ -234,6 +246,7 @@ class _LoginScreenVerticalState extends ConsumerState<LoginScreenVertical> {
             await ref.read(authProvider.notifier).connectGoogleSocial();
           }
         } catch (e) {
+          debugPrint('Google login flow error or fallback: $e');
           if (mounted) _openDynamicAuth();
         } finally {
           if (mounted) setState(() => _isLoading = false);
