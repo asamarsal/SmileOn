@@ -396,558 +396,157 @@ class VerticalFrameThumbnails {
       'name': 'Hanfleur Florist',
       'category': '🌸 Floral',
       'badge': 'Populer',
+      'asset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview1.png',
     },
     {
       'index': 1,
       'name': 'Black SmileOn',
       'category': '🖤 Noir',
       'badge': 'Eksklusif',
+      'asset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview2.png',
     },
     {
       'index': 2,
       'name': 'Good Times 35mm',
       'category': '🎞️ Vintage',
       'badge': 'Retro',
+      'asset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview3.png',
     },
     {
       'index': 3,
       'name': 'Better Together',
       'category': '🎀 Pastel',
       'badge': 'Cute',
+      'asset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview1.png',
     },
     {
       'index': 4,
       'name': 'Noir Archive',
       'category': '🖤 Noir',
       'badge': 'Minimal',
+      'asset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview2.png',
     },
     {
       'index': 5,
       'name': 'Romantic Love',
       'category': '🎀 Pastel',
       'badge': 'Sweet',
+      'asset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview3.png',
     },
     {
       'index': 6,
       'name': 'Vintage News',
       'category': '🎞️ Vintage',
       'badge': 'Classic',
+      'asset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview1.png',
     },
     {
       'index': 7,
       'name': 'Blush Bloom',
       'category': '🌸 Floral',
       'badge': 'Baru',
+      'asset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview2.png',
     },
     {
       'index': 8,
       'name': 'Retro VHS 90s',
       'category': '🎞️ Vintage',
       'badge': 'Cyber',
+      'asset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      'fallback': 'assets/images/frame-example/photostrip_preview3.png',
     },
   ];
 
   static Widget buildThumbnail(int index) {
     switch (index) {
       case 0:
-        return _buildHanfleurFlorist();
+        return _buildFrameImage(
+          'assets/frame/photostrip1/photostrip_preview1.png',
+          'assets/images/frame-example/photostrip_preview1.png',
+        );
       case 1:
-        return _buildBlackSmileOn();
+        return _buildFrameImage(
+          'assets/frame/photostrip2/photostrip_preview2.png',
+          'assets/images/frame-example/photostrip_preview2.png',
+        );
       case 2:
-        return _buildGoodTimes();
+        return _buildFrameImage(
+          'assets/frame/photostrip3/photostrip_preview3.png',
+          'assets/images/frame-example/photostrip_preview3.png',
+        );
       case 3:
-        return _buildBetterTogether();
+        return _buildFrameImage(
+          'assets/frame/photostrip1/photostrip_preview1.png',
+          'assets/images/frame-example/photostrip_preview1.png',
+        );
       case 4:
-        return _buildNoirArchive();
+        return _buildFrameImage(
+          'assets/frame/photostrip2/photostrip_preview2.png',
+          'assets/images/frame-example/photostrip_preview2.png',
+        );
       case 5:
-        return _buildRomanticLove();
+        return _buildFrameImage(
+          'assets/frame/photostrip3/photostrip_preview3.png',
+          'assets/images/frame-example/photostrip_preview3.png',
+        );
       case 6:
-        return _buildVintageNewspaper();
+        return _buildFrameImage(
+          'assets/frame/photostrip1/photostrip_preview1.png',
+          'assets/images/frame-example/photostrip_preview1.png',
+        );
       case 7:
-        return _buildBlushFlowers();
+        return _buildFrameImage(
+          'assets/frame/photostrip2/photostrip_preview2.png',
+          'assets/images/frame-example/photostrip_preview2.png',
+        );
       case 8:
-        return _buildRetroVHS();
+        return _buildFrameImage(
+          'assets/frame/photostrip3/photostrip_preview3.png',
+          'assets/images/frame-example/photostrip_preview3.png',
+        );
       default:
-        return _buildHanfleurFlorist();
+        return _buildFrameImage(
+          'assets/frame/photostrip1/photostrip_preview1.png',
+          'assets/images/frame-example/photostrip_preview1.png',
+        );
     }
   }
 
-  // --- FRAME 0: Hanfleur Florist (Floral) ---
-  static Widget _buildHanfleurFlorist() {
-    return Container(
-      color: const Color(0xFFFFF9FA),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
-      child: Column(
-        children: [
-          for (int i = 0; i < 4; i++) ...[
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEEF2),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: const Color(0xFFFFD1DC),
-                    width: 0.8,
-                  ),
-                ),
-                child: Center(
+  static Widget _buildFrameImage(String primaryAsset, String fallbackAsset) {
+    return Image.asset(
+      primaryAsset,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Mencoba fallback untuk frame: $primaryAsset');
+        return Image.asset(
+          fallbackAsset,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) {
+            return Image.asset(
+              'assets/images/frame-example/frame-example-2.png',
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: const Color(0xFFFFEEF3),
+                child: const Center(
                   child: Icon(
-                    Icons.person,
-                    size: 14,
-                    color: AppTheme.primaryRose.withValues(alpha: 0.5),
+                    Icons.broken_image_rounded,
+                    color: AppTheme.primaryRose,
+                    size: 24,
                   ),
                 ),
               ),
-            ),
-          ],
-          const SizedBox(height: 4),
-          const Text(
-            'Hanfleur',
-            style: TextStyle(
-              fontSize: 7.5,
-              fontWeight: FontWeight.bold,
-              fontStyle: FontStyle.italic,
-              color: Color(0xFFC24168),
-              height: 1.0,
-            ),
-          ),
-          const Text(
-            'Florist',
-            style: TextStyle(
-              fontSize: 6.5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFC24168),
-              height: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 1: Black SmileOn ---
-  static Widget _buildBlackSmileOn() {
-    return Container(
-      color: const Color(0xFF141416),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2E),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.white, width: 1.5),
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'smile',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  height: 1.0,
-                ),
-              ),
-              Text(
-                'on ✨',
-                style: TextStyle(
-                  color: AppTheme.primaryRose,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  height: 1.0,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2E),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: Colors.white, width: 1.2),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2E),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: Colors.white, width: 1.2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 2: Good Times (Retro Filmstrip) ---
-  static Widget _buildGoodTimes() {
-    return Container(
-      color: const Color(0xFFFBF6ED),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: Row(
-        children: [
-          _buildFilmSprockets(),
-          const SizedBox(width: 3),
-          Expanded(
-            child: Column(
-              children: [
-                for (int i = 0; i < 3; i++) ...[
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1F1F24),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                const Text(
-                  'Good\nTimes ♡',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 7,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF5A4638),
-                    height: 1.1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 3),
-          _buildFilmSprockets(),
-        ],
-      ),
-    );
-  }
-
-  static Widget _buildFilmSprockets() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(
-        8,
-        (i) => Container(
-          width: 3.5,
-          height: 5,
-          margin: const EdgeInsets.symmetric(vertical: 1),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E22),
-            borderRadius: BorderRadius.circular(1),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- FRAME 3: Better Together (Pink Gingham) ---
-  static Widget _buildBetterTogether() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFEEF3),
-        border: Border.all(color: const Color(0xFFFFD1DC)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
-      child: Column(
-        children: [
-          for (int i = 0; i < 3; i++) ...[
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB0B0B8),
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: Colors.white, width: 1.2),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 6),
-          const Text(
-            'Better\nTogether ♡',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 7,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryRose,
-              height: 1.1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 4: Capture Print Share (Noir Film) ---
-  static Widget _buildNoirArchive() {
-    return Container(
-      color: const Color(0xFF0D0D10),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      child: Column(
-        children: [
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 2.5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2C2C34),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 2.5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2C2C34),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Capture\nPrint\nShare ♡',
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              fontSize: 6.5,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              height: 1.1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 5: Romantic Love ---
-  static Widget _buildRomanticLove() {
-    return Container(
-      color: const Color(0xFFFFF0F5),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
-      child: Column(
-        children: [
-          for (int i = 0; i < 4; i++) ...[
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE4EC),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: const Color(0xFFFFB6C1),
-                    width: 0.8,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.favorite,
-                    size: 13,
-                    color: AppTheme.primaryRose.withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 4),
-          const Text(
-            'Love',
-            style: TextStyle(
-              fontSize: 7.5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFE91E63),
-              height: 1.0,
-            ),
-          ),
-          const Text(
-            'Always ♡',
-            style: TextStyle(
-              fontSize: 6.5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFE91E63),
-              height: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 6: Vintage Newspaper ---
-  static Widget _buildVintageNewspaper() {
-    return Container(
-      color: const Color(0xFFF6F0E6),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
-      child: Column(
-        children: [
-          const Text(
-            'THE DAILY SMILE',
-            style: TextStyle(
-              fontSize: 5.5,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'serif',
-              letterSpacing: 0.5,
-              color: Color(0xFF2C241E),
-            ),
-          ),
-          const SizedBox(height: 3),
-          for (int i = 0; i < 4; i++) ...[
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAE2D5),
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(
-                    color: const Color(0xFF3D322A),
-                    width: 0.8,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.article_outlined,
-                    size: 13,
-                    color: const Color(0xFF6B5A4D).withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 3),
-          const Text(
-            'VOL. 01 • ISSUE',
-            style: TextStyle(
-              fontSize: 5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF5A493E),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 7: Blush Bloom ---
-  static Widget _buildBlushFlowers() {
-    return Container(
-      color: const Color(0xFFF4FAF6),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
-      child: Column(
-        children: [
-          for (int i = 0; i < 4; i++) ...[
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5F4EB),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: const Color(0xFFBFE3CD),
-                    width: 0.8,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.filter_vintage_outlined,
-                    size: 13,
-                    color: const Color(0xFF4A8F66).withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 4),
-          const Text(
-            'Blush Bloom',
-            style: TextStyle(
-              fontSize: 7,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D6A4F),
-              height: 1.0,
-            ),
-          ),
-          const Text(
-            'Spring Edition 🌸',
-            style: TextStyle(
-              fontSize: 5.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF52B788),
-              height: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- FRAME 8: Retro VHS 90s ---
-  static Widget _buildRetroVHS() {
-    return Container(
-      color: const Color(0xFF1E172A),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
-      child: Column(
-        children: [
-          const Text(
-            'REC ● 1998',
-            style: TextStyle(
-              fontSize: 5.5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFFF0055),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 3),
-          for (int i = 0; i < 4; i++) ...[
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF100B1A),
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(
-                    color: const Color(0xFF00F0FF),
-                    width: 0.8,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.videocam_outlined,
-                    size: 13,
-                    color: const Color(0xFF00F0FF).withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 3),
-          const Text(
-            'PLAY ▶ HI-FI',
-            style: TextStyle(
-              fontSize: 5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF00F0FF),
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -791,7 +791,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
               86.0,
               (constraints.maxWidth - (3 * 10.0)) / 3.5,
             );
-            final double carouselHeight = math.max(195.0, itemWidth * 2.25);
+            // Rasio photostrip 1:3 (600x1800 px)
+            final double carouselHeight = itemWidth * 3.0;
 
             return SizedBox(
               height: carouselHeight,

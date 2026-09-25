@@ -88,6 +88,13 @@ flutter:
     - assets/images/voucher/
     - assets/splash/
     - assets/lottie/
+    - assets/frame/
+    - assets/frame/photostrip1/
+    - assets/frame/photostrip2/
+    - assets/frame/photostrip3/
+    - assets/frame/photostrip1/photostrip_preview1.png
+    - assets/frame/photostrip2/photostrip_preview2.png
+    - assets/frame/photostrip3/photostrip_preview3.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
