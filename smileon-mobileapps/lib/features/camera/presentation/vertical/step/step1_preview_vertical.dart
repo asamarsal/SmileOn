@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
@@ -441,16 +441,55 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
     );
   }
 
-  // --- 3. PHOTOSTRIP SECTION (4 Strip Layout) ---
+  // ------ Asset path resolvers (sama persis dengan dialog_previewphotostrip.dart) ------
+
+  String _bgAsset(int frameIndex) {
+    switch (frameIndex) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_background2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_background3.png';
+      case 3:
+        return 'assets/frame/photostrip3/photostrip_background3.png';
+      case 4:
+        return 'assets/frame/photostrip2/photostrip_background2.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_background1.png';
+    }
+  }
+
+  String _frameAsset(int frameIndex) {
+    switch (frameIndex) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_frame2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_frame3.png';
+      case 3:
+        return 'assets/frame/photostrip3/photostrip_frame3.png';
+      case 4:
+        return 'assets/frame/photostrip2/photostrip_frame2.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_frame1.png';
+    }
+  }
+
+  // --- 3. PHOTOSTRIP SECTION ---
+  /// Menampilkan photostrip menggunakan AspectRatio 600:1800 (1:3),
+  /// sama persis dengan dialog_previewphotostrip.dart.
   Widget _buildPhotostripSection() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableH = constraints.maxHeight;
         final availableW = constraints.maxWidth;
+        final availableH = constraints.maxHeight;
 
-        // Proporsi photostrip 4 strip layout (rasio ~ 1 : 2.7)
-        final cardH = math.min(availableH - 6, 500.0);
-        final cardW = math.min(cardH * 0.38, availableW * 0.60);
+        // Rasio 1:3 (600×1800) — hitung lebar dari tinggi atau sebaliknya
+        final double maxCardH = availableH - 6;
+        final double maxCardW = availableW * 0.55;
+        // Clamp: gunakan lebar yang dibatasi oleh tinggi (rasio 1:3)
+        final double cardW = math.min(maxCardW, maxCardH / 3.0);
+        final double cardH = cardW * 3.0;
 
         return Center(
           child: SizedBox(
@@ -462,7 +501,7 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
               onPageChanged: _onFramePageChanged,
               physics: const BouncingScrollPhysics(),
               itemBuilder: (context, index) {
-                return _buildPhotostripCard(index, cardW, cardH);
+                return _buildPhotostripCard(index);
               },
             ),
           ),
@@ -471,270 +510,138 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
     );
   }
 
-  // --- PHOTOSTRIP CARD (Disesuaikan persis dengan gambar Hanfleur Florist) ---
-  Widget _buildPhotostripCard(int frameIndex, double width, double height) {
-    final frame = _frames[frameIndex];
-    final bool isHanfleur = frameIndex == 0;
-    final bool isDark = frame['isDark'] as bool;
-    final Color bgColor = frame['bgColor'] as Color;
-
-    final double cardRadius = _isRoundedBorder ? 16 : 0;
-    final double innerRadius = _isRoundedBorder ? 15 : 0;
-
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(cardRadius),
-        border: Border.all(
-          color: isHanfleur ? const Color(0xFFFFEBF0) : (isDark ? const Color(0xFF33333A) : const Color(0xFFEFE4E7)),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF8DA1).withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(innerRadius),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background & Border Floral Watercolor (Khusus Hanfleur Florist)
-            if (isHanfleur)
-              CustomPaint(
-                size: Size(width, height),
-                painter: const _HanfleurFloralPainter(),
-              ),
-
-            // Konten 4 Slot Foto & Footer
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Column(
-                children: [
-                  const SizedBox(height: 14),
-
-                  // 4 Slot Foto Vertikal
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(4, (photoIdx) {
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2.5),
-                            child: _buildPhotoSlotItem(photoIdx, isDark),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  // Footer Branding
-                  _buildPhotostripFooter(frameIndex),
-
-                  const SizedBox(height: 6),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- ITEM SLOT FOTO (3 slot berjejer vertikal) ---
-  Widget _buildPhotoSlotItem(int index, bool isDark) {
-    final bool hasPhoto = index < widget.capturedPhotos.length &&
-        File(widget.capturedPhotos[index]).existsSync();
-
-    final double slotRadius = _isRoundedBorder ? 10 : 0;
-    final double slotInnerRadius = _isRoundedBorder ? 9 : 0;
-
+  // --- PHOTOSTRIP CARD (3-layer: Background PNG → Foto Slots → Frame overlay PNG) ---
+  /// Identik dengan _buildPhotostripCard di dialog_previewphotostrip.dart:
+  /// AspectRatio 600:1800, koordinat presisi frame-existing.md.
+  Widget _buildPhotostripCard(int frameIndex) {
+    final double cardRadius = _isRoundedBorder ? 16.0 : 0.0;
     return AspectRatio(
-      aspectRatio: 16 / 10,
+      aspectRatio: 600.0 / 1800.0,
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF222228) : const Color(0xFFF6EFF2),
-          borderRadius: BorderRadius.circular(slotRadius),
-          border: Border.all(
-            color: isDark ? const Color(0xFF44444E) : const Color(0xFFE8D6DC),
-            width: 1.0,
-          ),
+          borderRadius: BorderRadius.circular(cardRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: AppTheme.primaryRose.withValues(alpha: 0.10),
+              blurRadius: 24,
+              spreadRadius: 2,
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(slotInnerRadius),
-          child: hasPhoto
-              ? Image.file(
-                  File(widget.capturedPhotos[index]),
-                  fit: BoxFit.cover,
-                )
-              : CustomPaint(
-                  painter: _SelfieFriendsPainter(slotIndex: index),
-                ),
+          borderRadius: BorderRadius.circular(cardRadius),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // ------ Layer 1: Background PNG ----------------------------------------
+              Image.asset(_bgAsset(frameIndex), fit: BoxFit.fill),
+
+              // ------ Layer 2: Slot foto kamera (koordinat presisi frame-existing.md) ---
+              _buildPhotoSlotsLayer(frameIndex),
+
+              // ------ Layer 3: Frame PNG overlay ----------------------------------------
+              IgnorePointer(
+                child: Image.asset(_frameAsset(frameIndex), fit: BoxFit.fill),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // --- FOOTER PHOTOSTRIP (Hanfleur Florist, Black SmileOn, dll) ---
-  Widget _buildPhotostripFooter(int frameIndex) {
-    switch (frameIndex) {
-      case 1: // Black SmileOn
-        return const Column(
-          mainAxisSize: MainAxisSize.min,
+  /// Koordinat presisi berdasarkan frame-existing.md (canvas 600 × 1800 px):
+  ///   Padding H  : 44px  — 44/600   = 7.333%
+  ///   Padding Top: 80px  — 80/1800  = 4.444%
+  ///   Foto H     : 288px — 288/1800 = 16%
+  ///   Gap        : 88px  — 88/1800  = 4.889%
+  Widget _buildPhotoSlotsLayer(int frameIndex) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double w = constraints.maxWidth;
+        final double h = constraints.maxHeight;
+
+        final double paddingH    = w * (44.0 / 600.0);
+        final double photoW      = w - 2.0 * paddingH;
+        final double paddingTop  = h * (80.0 / 1800.0);
+        final double photoH      = h * (288.0 / 1800.0);
+        final double gap         = h * (88.0 / 1800.0);
+
+        return Stack(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'smile',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Text(
-                  'on ✨',
-                  style: TextStyle(
-                    color: AppTheme.primaryRose,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 2),
-            Text(
-              'PHOTOSTUDIO',
-              style: TextStyle(
-                color: Colors.white60,
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
+            for (int i = 0; i < 4; i++)
+              Positioned(
+                left: paddingH,
+                top: paddingTop + i * (photoH + gap),
+                width: photoW,
+                height: photoH,
+                child: _buildPhotoSlot(i),
               ),
-            ),
           ],
         );
-      case 2: // Good Times
-        return const Column(
+      },
+    );
+  }
+
+  Widget _buildPhotoSlot(int index) {
+    final bool hasPhoto =
+        index < widget.capturedPhotos.length &&
+        File(widget.capturedPhotos[index]).existsSync();
+
+    if (hasPhoto) {
+      return Image.file(
+        File(widget.capturedPhotos[index]),
+        fit: BoxFit.cover,
+      );
+    }
+
+    // Slot kosong — placeholder netral
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Good Times ♡',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF423228),
-                letterSpacing: 0.5,
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFF3A3A3C).withValues(alpha: 0.25),
+                  width: 1.2,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF2C2C2E),
+                  ),
+                ),
               ),
             ),
-            Text(
-              '35MM FILM MEMORIES',
-              style: TextStyle(
-                fontSize: 7.5,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF7A6455),
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        );
-      case 3: // Better Together
-        return const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Better Together ♡',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.primaryRose,
-              ),
-            ),
-            Text(
-              'MEMORIES FOREVER',
+            const SizedBox(height: 3),
+            const Text(
+              'Menunggu Foto',
               style: TextStyle(
                 fontSize: 7.5,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFC45A78),
-                letterSpacing: 1.0,
+                color: Color(0xFF48484A),
               ),
             ),
           ],
-        );
-      case 4: // Noir Archive
-        return const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'LIMITED ARCHIVE',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: 1.8,
-              ),
-            ),
-            Text(
-              'SMILEON STUDIO 2026',
-              style: TextStyle(
-                fontSize: 7.5,
-                color: Colors.white38,
-                letterSpacing: 1.4,
-              ),
-            ),
-          ],
-        );
-      case 0: // Hanfleur Florist (Default Sesuai Gambar)
-      default:
-        return const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Hanfleur',
-              style: TextStyle(
-                fontFamily: 'serif',
-                fontStyle: FontStyle.italic,
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFC24168),
-                height: 1.05,
-              ),
-            ),
-            Text(
-              'Florist',
-              style: TextStyle(
-                fontFamily: 'serif',
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFC24168),
-                height: 1.05,
-              ),
-            ),
-          ],
-        );
-    }
+        ),
+      ),
+    );
   }
 
 
@@ -856,393 +763,3 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
   }
 }
 
-/// Painter untuk hiasan mawar watercolor & kupu-kupu Hanfleur Florist
-/// Tepat menyerupai gambar referensi:
-/// - Mawar pink di kiri atas
-/// - Kupu-kupu coral/pink di kanan atas
-/// - Ranting daun dan kuntum mawar di kiri dan kanan
-/// - Hiasan mawar di kiri & kanan tulisan Hanfleur Florist di bawah
-class _HanfleurFloralPainter extends CustomPainter {
-  const _HanfleurFloralPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // --- 1. Mawar Watercolor di Pojok Kiri Atas ---
-    _drawRoseCluster(canvas, Offset(w * 0.12, h * 0.05), radius: w * 0.13);
-    _drawRoseCluster(canvas, Offset(w * 0.05, h * 0.09), radius: w * 0.09);
-    _drawLeaf(canvas, Offset(w * 0.22, h * 0.03), angle: -math.pi / 4, size: w * 0.07);
-    _drawLeaf(canvas, Offset(w * 0.02, h * 0.14), angle: math.pi / 3, size: w * 0.06);
-
-    // --- 2. Kupu-Kupu di Pojok Kanan Atas ---
-    _drawButterfly(canvas, Offset(w * 0.85, h * 0.06), size: w * 0.14);
-
-    // --- 3. Tanaman & Bunga Sepanjang Sisi Kiri ---
-    _drawSidePetals(canvas, Offset(w * 0.02, h * 0.28), isLeft: true, width: w * 0.08);
-    _drawSidePetals(canvas, Offset(w * 0.02, h * 0.58), isLeft: true, width: w * 0.08);
-
-    // --- 4. Tanaman & Kuntum Sepanjang Sisi Kanan ---
-    _drawSidePetals(canvas, Offset(w * 0.98, h * 0.32), isLeft: false, width: w * 0.08);
-    _drawSidePetals(canvas, Offset(w * 0.98, h * 0.60), isLeft: false, width: w * 0.08);
-
-    // --- 5. Rangkaian Mawar di Bawah Mengapit Teks Hanfleur Florist ---
-    _drawRoseCluster(canvas, Offset(w * 0.12, h * 0.93), radius: w * 0.10);
-    _drawLeaf(canvas, Offset(w * 0.20, h * 0.91), angle: -math.pi / 6, size: w * 0.06);
-
-    _drawRoseCluster(canvas, Offset(w * 0.88, h * 0.93), radius: w * 0.10);
-    _drawLeaf(canvas, Offset(w * 0.80, h * 0.91), angle: math.pi / 6, size: w * 0.06);
-  }
-
-  void _drawRoseCluster(Canvas canvas, Offset center, {required double radius}) {
-    // Kelopak dasar lembut
-    final basePaint = Paint()
-      ..color = const Color(0xFFFFB6C6).withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius, basePaint);
-
-    // Lapisan kelopak dalam
-    final midPaint = Paint()
-      ..color = const Color(0xFFF06292).withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(
-      Offset(center.dx + radius * 0.1, center.dy + radius * 0.1),
-      radius * 0.65,
-      midPaint,
-    );
-
-    // Inti bunga mawar
-    final corePaint = Paint()
-      ..color = const Color(0xFFC2185B).withValues(alpha: 0.9)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(
-      Offset(center.dx + radius * 0.15, center.dy + radius * 0.15),
-      radius * 0.35,
-      corePaint,
-    );
-
-    // Pola spiral kelopak mawar
-    final arcPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius * 0.5),
-      0,
-      math.pi * 1.5,
-      false,
-      arcPaint,
-    );
-  }
-
-  void _drawLeaf(Canvas canvas, Offset pos, {required double angle, required double size}) {
-    final leafPaint = Paint()
-      ..color = const Color(0xFF81C784).withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-
-    canvas.save();
-    canvas.translate(pos.dx, pos.dy);
-    canvas.rotate(angle);
-
-    final path = Path()
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(size * 0.5, -size * 0.3, size, 0)
-      ..quadraticBezierTo(size * 0.5, size * 0.3, 0, 0)
-      ..close();
-
-    canvas.drawPath(path, leafPaint);
-    canvas.restore();
-  }
-
-  void _drawButterfly(Canvas canvas, Offset center, {required double size}) {
-    final wingPaint = Paint()
-      ..color = const Color(0xFFFF6F91).withValues(alpha: 0.9)
-      ..style = PaintingStyle.fill;
-
-    final wingGlow = Paint()
-      ..color = const Color(0xFFFFB2C5).withValues(alpha: 0.7)
-      ..style = PaintingStyle.fill;
-
-    final bodyPaint = Paint()
-      ..color = const Color(0xFF880E4F)
-      ..style = PaintingStyle.fill;
-
-    // Sayap Kiri Atas
-    final leftUpperWing = Path()
-      ..moveTo(center.dx, center.dy)
-      ..quadraticBezierTo(center.dx - size * 0.6, center.dy - size * 0.5, center.dx - size * 0.4, center.dy - size * 0.7)
-      ..quadraticBezierTo(center.dx - size * 0.1, center.dy - size * 0.4, center.dx, center.dy)
-      ..close();
-    canvas.drawPath(leftUpperWing, wingPaint);
-    canvas.drawCircle(Offset(center.dx - size * 0.35, center.dy - size * 0.45), size * 0.12, wingGlow);
-
-    // Sayap Kanan Atas
-    final rightUpperWing = Path()
-      ..moveTo(center.dx, center.dy)
-      ..quadraticBezierTo(center.dx + size * 0.6, center.dy - size * 0.5, center.dx + size * 0.4, center.dy - size * 0.7)
-      ..quadraticBezierTo(center.dx + size * 0.1, center.dy - size * 0.4, center.dx, center.dy)
-      ..close();
-    canvas.drawPath(rightUpperWing, wingPaint);
-    canvas.drawCircle(Offset(center.dx + size * 0.35, center.dy - size * 0.45), size * 0.12, wingGlow);
-
-    // Sayap Kiri Bawah
-    final leftLowerWing = Path()
-      ..moveTo(center.dx, center.dy)
-      ..quadraticBezierTo(center.dx - size * 0.45, center.dy + size * 0.2, center.dx - size * 0.25, center.dy + size * 0.5)
-      ..quadraticBezierTo(center.dx, center.dy + size * 0.2, center.dx, center.dy)
-      ..close();
-    canvas.drawPath(leftLowerWing, wingPaint);
-
-    // Sayap Kanan Bawah
-    final rightLowerWing = Path()
-      ..moveTo(center.dx, center.dy)
-      ..quadraticBezierTo(center.dx + size * 0.45, center.dy + size * 0.2, center.dx + size * 0.25, center.dy + size * 0.5)
-      ..quadraticBezierTo(center.dx, center.dy + size * 0.2, center.dx, center.dy)
-      ..close();
-    canvas.drawPath(rightLowerWing, wingPaint);
-
-    // Badan & Antena Kupu-Kupu
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: center, width: size * 0.1, height: size * 0.55),
-        const Radius.circular(3),
-      ),
-      bodyPaint,
-    );
-  }
-
-  void _drawSidePetals(Canvas canvas, Offset pos, {required bool isLeft, required double width}) {
-    final petalPaint = Paint()
-      ..color = const Color(0xFFFF8DA1).withValues(alpha: 0.75)
-      ..style = PaintingStyle.fill;
-
-    final leafPaint = Paint()
-      ..color = const Color(0xFF81C784).withValues(alpha: 0.6)
-      ..style = PaintingStyle.fill;
-
-    final sign = isLeft ? 1.0 : -1.0;
-
-    canvas.drawCircle(Offset(pos.dx + sign * width * 0.4, pos.dy), width * 0.4, petalPaint);
-    canvas.drawCircle(Offset(pos.dx + sign * width * 0.7, pos.dy - width * 0.3), width * 0.28, petalPaint);
-    canvas.drawCircle(Offset(pos.dx + sign * width * 0.6, pos.dy + width * 0.4), width * 0.22, leafPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Fallback painter yang menggambar 5 sahabat berpose selfie outdoor di bawah langit cerah
-/// (persis seperti foto pada gambar mockup pengguna)
-class _SelfieFriendsPainter extends CustomPainter {
-  final int slotIndex;
-  const _SelfieFriendsPainter({required this.slotIndex});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // 1. Langit biru cerah & matahari
-    final skyPaint = Paint()..color = const Color(0xFF68B0E8);
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), skyPaint);
-
-    // Cahaya sinar matahari di kiri atas
-    final sunGlow = Paint()..color = Colors.white.withValues(alpha: 0.25);
-    canvas.drawCircle(Offset(w * 0.15, h * 0.1), w * 0.35, sunGlow);
-
-    // Pepohonan / taman di kejauhan
-    final treePaint = Paint()..color = const Color(0xFF437A47);
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(w * 0.2, h * 0.65), width: w * 0.6, height: h * 0.4),
-      treePaint,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(w * 0.85, h * 0.65), width: w * 0.5, height: h * 0.35),
-      treePaint,
-    );
-
-    // 2. Menggambar 5 Karakter Teman Tersenyum Bersama
-    // Teman 1: Kiri belakang (cowok berbaju hitam/gelap)
-    _drawCharacter(
-      canvas,
-      center: Offset(w * 0.25, h * 0.38),
-      faceRadius: w * 0.10,
-      skinColor: const Color(0xFFF1C8B4),
-      hairColor: const Color(0xFF2C2422),
-      shirtColor: const Color(0xFF2D3748),
-      isGuy: true,
-      hasPeaceSign: slotIndex == 1,
-    );
-
-    // Teman 2: Kanan belakang (cewek berambut panjang cokelat)
-    _drawCharacter(
-      canvas,
-      center: Offset(w * 0.75, h * 0.40),
-      faceRadius: w * 0.10,
-      skinColor: const Color(0xFFFBE0D2),
-      hairColor: const Color(0xFF4A3528),
-      shirtColor: const Color(0xFF4299E1),
-      isGuy: false,
-      hasPeaceSign: slotIndex == 1,
-    );
-
-    // Teman 3: Tengah (cowok tersenyum ceria dengan gigi putih)
-    _drawCharacter(
-      canvas,
-      center: Offset(w * 0.50, h * 0.32),
-      faceRadius: w * 0.11,
-      skinColor: const Color(0xFFE8BAA0),
-      hairColor: const Color(0xFF1A202C),
-      shirtColor: const Color(0xFFE2E8F0),
-      isGuy: true,
-      hasPeaceSign: slotIndex == 1,
-    );
-
-    // Teman 4: Kiri depan (cewek tersenyum manis dengan kacamata tipis)
-    _drawCharacter(
-      canvas,
-      center: Offset(w * 0.38, h * 0.68),
-      faceRadius: w * 0.12,
-      skinColor: const Color(0xFFFDD8CB),
-      hairColor: const Color(0xFF6B4832),
-      shirtColor: const Color(0xFFE53E3E),
-      isGuy: false,
-      hasGlasses: true,
-    );
-
-    // Teman 5: Kanan depan (cewek tersenyum lebar dengan rambut cokelat muda)
-    _drawCharacter(
-      canvas,
-      center: Offset(w * 0.65, h * 0.66),
-      faceRadius: w * 0.12,
-      skinColor: const Color(0xFFF7D5C5),
-      hairColor: const Color(0xFF5D4037),
-      shirtColor: const Color(0xFFED8936),
-      isGuy: false,
-      hasPeaceSign: slotIndex != 0,
-    );
-  }
-
-  void _drawCharacter(
-    Canvas canvas, {
-    required Offset center,
-    required double faceRadius,
-    required Color skinColor,
-    required Color hairColor,
-    required Color shirtColor,
-    required bool isGuy,
-    bool hasGlasses = false,
-    bool hasPeaceSign = false,
-  }) {
-    // Baju / Badan
-    final shirtPaint = Paint()..color = shirtColor;
-    final bodyRect = Rect.fromCenter(
-      center: Offset(center.dx, center.dy + faceRadius * 1.5),
-      width: faceRadius * 2.8,
-      height: faceRadius * 2.0,
-    );
-    canvas.drawOval(bodyRect, shirtPaint);
-
-    // Rambut belakang untuk cewek
-    if (!isGuy) {
-      final hairBackPaint = Paint()..color = hairColor;
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(center.dx, center.dy + faceRadius * 0.3),
-          width: faceRadius * 2.6,
-          height: faceRadius * 2.6,
-        ),
-        hairBackPaint,
-      );
-    }
-
-    // Wajah
-    final skinPaint = Paint()..color = skinColor;
-    canvas.drawOval(
-      Rect.fromCenter(center: center, width: faceRadius * 1.8, height: faceRadius * 2.1),
-      skinPaint,
-    );
-
-    // Rambut depan
-    final hairFrontPaint = Paint()..color = hairColor;
-    final hairPath = Path()
-      ..moveTo(center.dx - faceRadius * 0.9, center.dy - faceRadius * 0.3)
-      ..quadraticBezierTo(center.dx, center.dy - faceRadius * 1.5, center.dx + faceRadius * 0.9, center.dy - faceRadius * 0.3)
-      ..quadraticBezierTo(center.dx, center.dy - faceRadius * 0.7, center.dx - faceRadius * 0.9, center.dy - faceRadius * 0.3)
-      ..close();
-    canvas.drawPath(hairPath, hairFrontPaint);
-
-    // Mata tersenyum lengkung
-    final eyePaint = Paint()
-      ..color = const Color(0xFF222222)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCenter(center: Offset(center.dx - faceRadius * 0.35, center.dy - faceRadius * 0.05), width: faceRadius * 0.35, height: faceRadius * 0.25),
-      math.pi * 0.15,
-      math.pi * 0.7,
-      false,
-      eyePaint,
-    );
-    canvas.drawArc(
-      Rect.fromCenter(center: Offset(center.dx + faceRadius * 0.35, center.dy - faceRadius * 0.05), width: faceRadius * 0.35, height: faceRadius * 0.25),
-      math.pi * 0.15,
-      math.pi * 0.7,
-      false,
-      eyePaint,
-    );
-
-    // Kacamata (jika ada)
-    if (hasGlasses) {
-      final glassesPaint = Paint()
-        ..color = const Color(0xFF4A4A4A)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.3;
-      canvas.drawCircle(Offset(center.dx - faceRadius * 0.35, center.dy), faceRadius * 0.26, glassesPaint);
-      canvas.drawCircle(Offset(center.dx + faceRadius * 0.35, center.dy), faceRadius * 0.26, glassesPaint);
-      canvas.drawLine(Offset(center.dx - faceRadius * 0.09, center.dy), Offset(center.dx + faceRadius * 0.09, center.dy), glassesPaint);
-    }
-
-    // Pipi merah merona
-    final blushPaint = Paint()..color = const Color(0xFFFF8DA1).withValues(alpha: 0.55);
-    canvas.drawCircle(Offset(center.dx - faceRadius * 0.45, center.dy + faceRadius * 0.2), faceRadius * 0.16, blushPaint);
-    canvas.drawCircle(Offset(center.dx + faceRadius * 0.45, center.dy + faceRadius * 0.2), faceRadius * 0.16, blushPaint);
-
-    // Senyuman gigi putih ceria
-    final mouthPath = Path()
-      ..moveTo(center.dx - faceRadius * 0.38, center.dy + faceRadius * 0.28)
-      ..quadraticBezierTo(center.dx, center.dy + faceRadius * 0.75, center.dx + faceRadius * 0.38, center.dy + faceRadius * 0.28)
-      ..close();
-    canvas.drawPath(mouthPath, Paint()..color = Colors.white);
-    canvas.drawPath(
-      mouthPath,
-      Paint()
-        ..color = const Color(0xFFD32F2F)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4,
-    );
-
-    // Peace Sign V ✌️ (jika ada)
-    if (hasPeaceSign) {
-      final handCenter = Offset(center.dx - faceRadius * 0.8, center.dy + faceRadius * 0.2);
-      final handPaint = Paint()..color = skinColor;
-      canvas.drawCircle(handCenter, faceRadius * 0.22, handPaint);
-      // 2 jari V
-      final fingerPaint = Paint()
-        ..color = skinColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(handCenter, Offset(handCenter.dx - 4, handCenter.dy - 12), fingerPaint);
-      canvas.drawLine(handCenter, Offset(handCenter.dx + 4, handCenter.dy - 12), fingerPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SelfieFriendsPainter oldDelegate) =>
-      oldDelegate.slotIndex != slotIndex;
-}

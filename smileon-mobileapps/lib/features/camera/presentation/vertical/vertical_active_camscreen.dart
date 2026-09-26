@@ -32,6 +32,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       0; // 0: Template, 1: Filter, 2: Background, 3: Lainnya
   int _selectedFrameIndex = 0; // 0: Hanfleur, 1: Black SmileOn, 2: Good Times, 3: Better Together, 4: Capture Print Share
   final List<String> _capturedPhotos = [];
+  int? _retakeTargetIndex;
 
   final List<String> _categories = [
     'Template',
@@ -225,18 +226,26 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         final xfile = await _cameraController!.takePicture();
+        final int? retakeIdx = _retakeTargetIndex;
         setState(() {
-          if (_capturedPhotos.length >= 4) {
-            _capturedPhotos.clear();
+          if (retakeIdx != null && retakeIdx < _capturedPhotos.length) {
+            _capturedPhotos[retakeIdx] = xfile.path;
+            _retakeTargetIndex = null;
+          } else {
+            if (_capturedPhotos.length >= 4) {
+              _capturedPhotos.clear();
+            }
+            _capturedPhotos.add(xfile.path);
           }
-          _capturedPhotos.add(xfile.path);
         });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
+                retakeIdx != null
+                    ? 'Foto Frame ${retakeIdx + 1} berhasil diperbarui!'
+                    : 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
               ),
               duration: const Duration(milliseconds: 1000),
               backgroundColor: AppTheme.primaryRose,
@@ -383,6 +392,22 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     }
   }
 
+  void _retakeSinglePhoto(int targetIndex) {
+    setState(() {
+      _retakeTargetIndex = targetIndex;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Silakan jepret foto untuk Frame ${targetIndex + 1}'),
+          backgroundColor: AppTheme.primaryRose,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   // ==============================================================
   // DIALOG FULLSCREEN PREVIEW PHOTOSTRIP (MARGIN LUAR 4PX)
   // ==============================================================
@@ -397,7 +422,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       onRetake: () {
         setState(() {
           _capturedPhotos.clear();
+          _retakeTargetIndex = null;
         });
+      },
+      onRetakePhoto: (targetIndex) {
+        _retakeSinglePhoto(targetIndex);
       },
     );
   }
@@ -685,21 +714,15 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                     Icon(
                       _categoryIcons[index],
                       size: 20,
-                      color: isPink
-                          ? Colors.white
-                          : const Color(0xFF4B4B52),
+                      color: isPink ? Colors.white : const Color(0xFF4B4B52),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _categories[index],
                       style: TextStyle(
-                        color: isPink
-                            ? Colors.white
-                            : const Color(0xFF4B4B52),
+                        color: isPink ? Colors.white : const Color(0xFF4B4B52),
                         fontSize: 11.5,
-                        fontWeight: isPink
-                            ? FontWeight.bold
-                            : FontWeight.w600,
+                        fontWeight: isPink ? FontWeight.bold : FontWeight.w600,
                       ),
                     ),
                   ],
@@ -892,7 +915,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                     }
                   : () {
                       HapticFeedback.mediumImpact();
-                      if (_isSequentialMode) {
+                      if (_retakeTargetIndex != null) {
+                        _takePicture();
+                      } else if (_isSequentialMode) {
                         _startSequentialCapture();
                       } else {
                         _takePicture();
@@ -919,11 +944,13 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                     ? (_sequenceCountdown > 0
                           ? 'Foto ${_capturedPhotos.length + 1}/4 ($_sequenceCountdown s)'
                           : 'Memproses...')
-                    : (_isSequentialMode
-                          ? 'Ambil 4 Foto'
-                          : (_capturedPhotos.isEmpty
-                                ? 'Ambil Foto'
-                                : 'Ambil Foto (${_capturedPhotos.length}/4)')),
+                    : (_retakeTargetIndex != null
+                          ? 'Retake Frame ${_retakeTargetIndex! + 1}'
+                          : (_isSequentialMode
+                                ? 'Ambil 4 Foto'
+                                : (_capturedPhotos.isEmpty
+                                      ? 'Ambil Foto'
+                                      : 'Ambil Foto (${_capturedPhotos.length}/4)'))),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1045,12 +1072,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: const [
         Text(
-          'More Smiles Today ♡',
+          'SmileOn',
           style: TextStyle(
-            fontFamily: 'serif',
-            fontStyle: FontStyle.italic,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontStyle: FontStyle.normal,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
             color: Color(0xFF2B2B30),
           ),
         ),

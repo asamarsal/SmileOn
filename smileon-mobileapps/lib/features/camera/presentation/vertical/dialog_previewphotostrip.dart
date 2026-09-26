@@ -18,6 +18,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
   final List<String> capturedPhotos;
   final Function(int selectedIndex) onFrameSelected;
   final VoidCallback? onRetake;
+  final Function(int targetIndex)? onRetakePhoto;
   final bool initialRoundedBorder;
 
   const DialogPreviewPhotostrip({
@@ -26,6 +27,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     required this.capturedPhotos,
     required this.onFrameSelected,
     this.onRetake,
+    this.onRetakePhoto,
     this.initialRoundedBorder = true,
   });
 
@@ -38,6 +40,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     required List<String> capturedPhotos,
     required Function(int selectedIndex) onFrameSelected,
     VoidCallback? onRetake,
+    Function(int targetIndex)? onRetakePhoto,
     bool isRoundedBorder = true,
   }) {
     HapticFeedback.lightImpact();
@@ -52,6 +55,7 @@ class DialogPreviewPhotostrip extends StatefulWidget {
               capturedPhotos: capturedPhotos,
               onFrameSelected: onFrameSelected,
               onRetake: onRetake,
+              onRetakePhoto: onRetakePhoto,
               initialRoundedBorder: isRoundedBorder,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -832,7 +836,9 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
               _buildPhotoSlotsLayer(frameIndex),
 
               // ------ Layer 3: Frame PNG overlay ----------------------------------------
-              Image.asset(_frameAsset(frameIndex), fit: BoxFit.fill),
+              IgnorePointer(
+                child: Image.asset(_frameAsset(frameIndex), fit: BoxFit.fill),
+              ),
             ],
           ),
         ),
@@ -910,36 +916,40 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
         File(widget.capturedPhotos[index]).existsSync();
 
     if (hasPhoto) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          // Foto asli dari kamera
-          Image.file(File(widget.capturedPhotos[index]), fit: BoxFit.cover),
-          // Badge nomor layar (pojok kiri atas)
-          Positioned(
-            top: 6,
-            left: 6,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: const BoxDecoration(
-                color: AppTheme.primaryRose,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9.0,
-                    fontWeight: FontWeight.w900,
-                    height: 1.0,
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _confirmRetakeSingle(context, index),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Foto asli dari kamera
+            Image.file(File(widget.capturedPhotos[index]), fit: BoxFit.cover),
+            // Badge nomor layar (pojok kiri atas)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryRose,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9.0,
+                      fontWeight: FontWeight.w900,
+                      height: 1.0,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
@@ -1120,7 +1130,7 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
                     children: [
                       // Tombol Ulangi
                       GestureDetector(
-                        onTap: () => _confirmRetake(context),
+                        onTap: () => _confirmRetakeAll(context),
                         child: Container(
                           height: 42,
                           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1250,9 +1260,65 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
     );
   }
 
-  // ------ Konfirmasi Ulangi Foto ----------------------------------------
+  // ------ Konfirmasi Retake Single Frame ---------------------------------
 
-  void _confirmRetake(BuildContext dialogContext) {
+  void _confirmRetakeSingle(BuildContext dialogContext, int photoIndex) {
+    final int frameNumber = photoIndex + 1;
+    showDialog(
+      context: dialogContext,
+      builder: (confirmCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.refresh_rounded, color: AppTheme.primaryRose),
+            const SizedBox(width: 8),
+            Text(
+              'Retake Frame $frameNumber?',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apakah anda ingin foto pada frame $frameNumber dilakukan retake?',
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmCtx),
+            child: const Text('Batal', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(confirmCtx);
+              Navigator.pop(dialogContext);
+              if (widget.onRetakePhoto != null) {
+                widget.onRetakePhoto!(photoIndex);
+              } else {
+                widget.onRetake?.call();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRose,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('Ya, Retake'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------ Konfirmasi Ulangi Semua Foto (Toolbar) -------------------------
+
+  void _confirmRetakeAll(BuildContext dialogContext) {
     showDialog(
       context: dialogContext,
       builder: (confirmCtx) => AlertDialog(
@@ -1263,7 +1329,7 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
             Icon(Icons.refresh_rounded, color: AppTheme.primaryRose),
             SizedBox(width: 8),
             Text(
-              'Ulang Foto?',
+              'Ulang Semua Foto?',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1273,7 +1339,7 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
           ],
         ),
         content: const Text(
-          'Semua foto yang telah diambil akan dihapus dan kamu bisa mengambil sesi foto baru. Apakah kamu yakin?',
+          'Semua foto yang telah diambil akan dihapus dan kamu bisa mengambil sesi foto baru dari awal. Apakah kamu yakin?',
           style: TextStyle(color: Colors.white70, fontSize: 14),
         ),
         actions: [
