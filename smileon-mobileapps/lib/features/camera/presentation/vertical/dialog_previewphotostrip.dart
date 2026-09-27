@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/components/smile_switch.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 
@@ -1170,6 +1171,22 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
                           height: 42,
                           child: ElevatedButton.icon(
                             onPressed: () {
+                              final filledCount = widget.capturedPhotos
+                                  .where((path) =>
+                                      path.isNotEmpty &&
+                                      File(path).existsSync())
+                                  .length;
+                              if (filledCount < 4) {
+                                HapticFeedback.lightImpact();
+                                SmileToast.showWarning(
+                                  context,
+                                  title: 'Foto Belum Lengkap',
+                                  message:
+                                      'Harap lengkapi 4 foto terlebih dahulu sebelum melanjutkan',
+                                );
+                                return;
+                              }
+
                               Navigator.pop(context);
                               Navigator.push(
                                 context,

@@ -15,6 +15,9 @@ class MainCameraFrame extends StatelessWidget {
   final int currentSession;
   final int totalSessions;
   final int timerSeconds;
+  final int countdown;
+  final bool showShutterEffect;
+  final bool shutterFlash;
   final VoidCallback? onToggleCamera;
   final VoidCallback? onToggleTimer;
   final VoidCallback? onFullscreen;
@@ -28,6 +31,9 @@ class MainCameraFrame extends StatelessWidget {
     this.currentSession = 1,
     this.totalSessions = 4,
     this.timerSeconds = 3,
+    this.countdown = 0,
+    this.showShutterEffect = false,
+    this.shutterFlash = false,
     this.onToggleCamera,
     this.onToggleTimer,
     this.onFullscreen,
@@ -270,7 +276,7 @@ class MainCameraFrame extends StatelessWidget {
                     ],
                   ),
                   child: Text(
-                    'Sesi $currentSession/$totalSessions',
+                    'Sesi ${math.min(currentSession, totalSessions)}/$totalSessions',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -285,29 +291,60 @@ class MainCameraFrame extends StatelessWidget {
                 bottom: 14,
                 left: 14,
                 child: GestureDetector(
-                  onTap: onToggleTimer,
-                  child: Container(
+                  onTap: (countdown > 0 || showShutterEffect)
+                      ? null
+                      : onToggleTimer,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF43F5E).withValues(alpha: 0.75),
+                      color: (countdown > 0 || showShutterEffect)
+                          ? const Color(0xFFE11D48)
+                          : const Color(0xFFF43F5E).withValues(alpha: 0.75),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 4,
+                          color: (countdown > 0 || showShutterEffect)
+                              ? const Color(0xFFE11D48).withValues(alpha: 0.5)
+                              : Colors.black.withValues(alpha: 0.15),
+                          blurRadius: (countdown > 0 || showShutterEffect)
+                              ? 8
+                              : 4,
+                          spreadRadius: (countdown > 0 || showShutterEffect)
+                              ? 1
+                              : 0,
                         ),
                       ],
                     ),
-                    child: Text(
-                      '$timerSeconds sec',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (countdown > 0 || showShutterEffect) ...[
+                          Icon(
+                            showShutterEffect
+                                ? Icons.camera_alt_rounded
+                                : Icons.timer_outlined,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          showShutterEffect
+                              ? 'Foto!'
+                              : (countdown > 0
+                                    ? '$countdown sec'
+                                    : '$timerSeconds sec'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -356,6 +393,51 @@ class MainCameraFrame extends StatelessWidget {
                   ),
                 ),
               ),
+
+              // 6. Overlay Center: Angka Hitungan Mundur Transparan (Tanpa Background)
+              if (countdown > 0)
+                Center(
+                  child: IgnorePointer(
+                    child: Text(
+                      '$countdown',
+                      style: TextStyle(
+                        fontSize: 120,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFFD4D4D8).withValues(alpha: 0.55),
+                        letterSpacing: -2,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 7. Overlay Center: Icon Kamera setelah angka 1
+              if (showShutterEffect)
+                Center(
+                  child: IgnorePointer(
+                    child: Icon(
+                      Icons.photo_camera_outlined,
+                      size: 80,
+                      color: const Color(0xFF9E3A57).withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+
+              // 8. Efek Shutter Kedip (White Flash)
+              if (shutterFlash)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

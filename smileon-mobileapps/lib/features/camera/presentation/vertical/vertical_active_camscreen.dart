@@ -26,7 +26,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   bool _isMirrored = false;
   bool _isSequentialMode = false;
   bool _isCapturingSequence = false;
-  int _sequenceCountdown = 0;
+  bool _isCapturingSingle = false;
+  bool _showShutterEffect = false;
+  bool _shutterFlash = false;
+  int _countdown = 0;
   int _timerSeconds = 3;
   int _selectedCategoryIndex =
       0; // 0: Template, 1: Filter, 2: Background, 3: Lainnya
@@ -56,6 +59,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   @override
   void dispose() {
     _isCapturingSequence = false;
+    _isCapturingSingle = false;
+    _showShutterEffect = false;
+    _shutterFlash = false;
     _cameraController?.dispose();
     super.dispose();
   }
@@ -99,9 +105,12 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   }
 
   Future<void> _toggleCamera() async {
-    if (_isCapturingSequence) {
+    if (_isCapturingSequence || _isCapturingSingle) {
       _isCapturingSequence = false;
-      _sequenceCountdown = 0;
+      _isCapturingSingle = false;
+      _countdown = 0;
+      _showShutterEffect = false;
+      _shutterFlash = false;
     }
     if (_isCameraOn) {
       await _cameraController?.dispose();
@@ -223,48 +232,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   }
 
   Future<void> _takePicture() async {
-    if (_cameraController != null && _cameraController!.value.isInitialized) {
-      try {
-        final xfile = await _cameraController!.takePicture();
-        final int? retakeIdx = _retakeTargetIndex;
-        setState(() {
-          if (retakeIdx != null && retakeIdx < _capturedPhotos.length) {
-            _capturedPhotos[retakeIdx] = xfile.path;
-            _retakeTargetIndex = null;
-          } else {
-            if (_capturedPhotos.length >= 4) {
-              _capturedPhotos.clear();
-            }
-            _capturedPhotos.add(xfile.path);
-          }
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                retakeIdx != null
-                    ? 'Foto Frame ${retakeIdx + 1} berhasil diperbarui!'
-                    : 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
-              ),
-              duration: const Duration(milliseconds: 1000),
-              backgroundColor: AppTheme.primaryRose,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-
-        if (_capturedPhotos.length == 4) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              _showPhotostripPreviewDialog();
-            }
-          });
-        }
-      } catch (e) {
-        debugPrint("Error taking picture: $e");
-      }
-    } else {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -275,11 +243,110 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
           ),
         );
       }
+      return;
+    }
+
+    if (_isCapturingSingle || _isCapturingSequence) return;
+
+    setState(() {
+      _isCapturingSingle = true;
+    });
+
+    try {
+      int countdown = _timerSeconds > 0 ? _timerSeconds : 3;
+      while (countdown > 0) {
+        if (!mounted || !_isCapturingSingle) return;
+        setState(() {
+          _countdown = countdown;
+        });
+        HapticFeedback.selectionClick();
+        await Future.delayed(const Duration(seconds: 1));
+        countdown--;
+      }
+
+      if (!mounted || !_isCapturingSingle) return;
+
+      // SETELAH ANGKA 1: Tampilkan icon camera dan efek shutter kedip
+      setState(() {
+        _countdown = 0;
+        _showShutterEffect = true;
+        _shutterFlash = true;
+      });
+      HapticFeedback.heavyImpact();
+
+      // Durasi kedip putih (120ms)
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted || !_isCapturingSingle) return;
+
+      setState(() {
+        _shutterFlash = false;
+      });
+
+      // Tampilkan icon kamera sejenak (250ms)
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted || !_isCapturingSingle) return;
+
+      // Jepret foto
+      final xfile = await _cameraController!.takePicture();
+      if (!mounted || !_isCapturingSingle) return;
+
+      setState(() {
+        _showShutterEffect = false;
+      });
+
+      final int? retakeIdx = _retakeTargetIndex;
+      setState(() {
+        if (retakeIdx != null && retakeIdx < _capturedPhotos.length) {
+          _capturedPhotos[retakeIdx] = xfile.path;
+          _retakeTargetIndex = null;
+        } else {
+          if (_capturedPhotos.length >= 4) {
+            _capturedPhotos.clear();
+          }
+          _capturedPhotos.add(xfile.path);
+        }
+      });
+
+      HapticFeedback.mediumImpact();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              retakeIdx != null
+                  ? 'Foto Frame ${retakeIdx + 1} berhasil diperbarui!'
+                  : 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
+            ),
+            duration: const Duration(milliseconds: 1000),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      if (_capturedPhotos.length == 4) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _showPhotostripPreviewDialog();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error taking picture: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCapturingSingle = false;
+          _countdown = 0;
+          _showShutterEffect = false;
+          _shutterFlash = false;
+        });
+      }
     }
   }
 
   void _toggleCaptureMode() {
-    if (_isCapturingSequence) return;
+    if (_isCapturingSequence || _isCapturingSingle) return;
     HapticFeedback.lightImpact();
     setState(() {
       _isSequentialMode = !_isSequentialMode;
@@ -314,7 +381,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       return;
     }
 
-    if (_isCapturingSequence) return;
+    if (_isCapturingSequence || _isCapturingSingle) return;
 
     setState(() {
       _isCapturingSequence = true;
@@ -333,23 +400,39 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
         while (countdown > 0) {
           if (!mounted || !_isCapturingSequence) break;
           setState(() {
-            _sequenceCountdown = countdown;
+            _countdown = countdown;
           });
+          HapticFeedback.selectionClick();
           await Future.delayed(const Duration(seconds: 1));
           countdown--;
         }
 
         if (!mounted || !_isCapturingSequence) break;
 
+        // SETELAH ANGKA 1: Shutter kedip dan icon camera
         setState(() {
-          _sequenceCountdown = 0;
+          _countdown = 0;
+          _showShutterEffect = true;
+          _shutterFlash = true;
         });
+        HapticFeedback.heavyImpact();
+
+        await Future.delayed(const Duration(milliseconds: 120));
+        if (!mounted || !_isCapturingSequence) break;
+
+        setState(() {
+          _shutterFlash = false;
+        });
+
+        await Future.delayed(const Duration(milliseconds: 250));
+        if (!mounted || !_isCapturingSequence) break;
 
         // Jepret foto
         final xfile = await _cameraController!.takePicture();
         if (!mounted || !_isCapturingSequence) break;
 
         setState(() {
+          _showShutterEffect = false;
           _capturedPhotos.add(xfile.path);
         });
 
@@ -386,7 +469,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       if (mounted) {
         setState(() {
           _isCapturingSequence = false;
-          _sequenceCountdown = 0;
+          _countdown = 0;
+          _showShutterEffect = false;
+          _shutterFlash = false;
         });
       }
     }
@@ -461,63 +546,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                         const SizedBox(height: 18),
 
                         // 2. CANVAS KAMERA UTAMA (WAJIB RASIO 16:9)
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            MainCameraFrame(
-                              cameraController: _cameraController,
-                              isCameraOn: _isCameraOn,
-                              isInitialized: _isInitialized,
-                              isMirrored: _isMirrored,
-                              currentSession: _capturedPhotos.length + 1,
-                              totalSessions: 4,
-                              timerSeconds: _timerSeconds,
-                              onToggleCamera: _toggleCamera,
-                              onToggleTimer: _toggleTimer,
-                              onFullscreen: _showFullscreenCamera,
-                            ),
-                            if (_sequenceCountdown > 0)
-                              Positioned.fill(
-                                child: IgnorePointer(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.35,
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Container(
-                                      width: 76,
-                                      height: 76,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryRose.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppTheme.primaryRose
-                                                .withValues(alpha: 0.5),
-                                            blurRadius: 18,
-                                            spreadRadius: 3,
-                                          ),
-                                        ],
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        '$_sequenceCountdown',
-                                        style: const TextStyle(
-                                          fontSize: 40,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                        MainCameraFrame(
+                          cameraController: _cameraController,
+                          isCameraOn: _isCameraOn,
+                          isInitialized: _isInitialized,
+                          isMirrored: _isMirrored,
+                          currentSession: math.min(_capturedPhotos.length + 1, 4),
+                          totalSessions: 4,
+                          timerSeconds: _timerSeconds,
+                          countdown: _countdown,
+                          showShutterEffect: _showShutterEffect,
+                          shutterFlash: _shutterFlash,
+                          onToggleCamera: _toggleCamera,
+                          onToggleTimer: _toggleTimer,
+                          onFullscreen: _showFullscreenCamera,
                         ),
 
                         const SizedBox(height: 24),
@@ -883,6 +925,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   // 5. PRIMARY BUTTON "Ambil Foto" DENGAN KONTROL KIRI & KANAN
   // ==============================================================
   Widget _buildCaptureActionButton() {
+    final bool isBusy = _isCapturingSequence || _isCapturingSingle;
     return Row(
       children: [
         // TOMBOL KIRI: Mode Berurutan / Satu per Satu
@@ -895,7 +938,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
           tooltip: _isSequentialMode
               ? 'Mode: Foto Otomatis 4x (Berurutan)'
               : 'Mode: Foto Satu per Satu',
-          onTap: _isCapturingSequence ? null : _toggleCaptureMode,
+          onTap: isBusy ? null : _toggleCaptureMode,
         ),
 
         const SizedBox(width: 8),
@@ -905,12 +948,15 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
           child: SizedBox(
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: _isCapturingSequence
+              onPressed: isBusy
                   ? () {
                       HapticFeedback.lightImpact();
                       setState(() {
                         _isCapturingSequence = false;
-                        _sequenceCountdown = 0;
+                        _isCapturingSingle = false;
+                        _countdown = 0;
+                        _showShutterEffect = false;
+                        _shutterFlash = false;
                       });
                     }
                   : () {
@@ -923,7 +969,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                         _takePicture();
                       }
                     },
-              icon: _isCapturingSequence
+              icon: isBusy
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -941,16 +987,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                     ),
               label: Text(
                 _isCapturingSequence
-                    ? (_sequenceCountdown > 0
-                          ? 'Foto ${_capturedPhotos.length + 1}/4 ($_sequenceCountdown s)'
+                    ? (_countdown > 0
+                          ? 'Foto ${math.min(_capturedPhotos.length + 1, 4)}/4 ($_countdown s)'
                           : 'Memproses...')
-                    : (_retakeTargetIndex != null
-                          ? 'Retake Frame ${_retakeTargetIndex! + 1}'
-                          : (_isSequentialMode
-                                ? 'Ambil 4 Foto'
-                                : (_capturedPhotos.isEmpty
-                                      ? 'Ambil Foto'
-                                      : 'Ambil Foto (${_capturedPhotos.length}/4)'))),
+                    : (_isCapturingSingle
+                          ? (_countdown > 0
+                                ? 'Batal ($_countdown s)'
+                                : 'Memproses...')
+                          : (_retakeTargetIndex != null
+                                ? 'Retake Frame ${_retakeTargetIndex! + 1}'
+                                : (_isSequentialMode
+                                      ? 'Ambil 4 Foto'
+                                      : (_capturedPhotos.isEmpty
+                                            ? 'Ambil Foto'
+                                            : 'Ambil Foto (${_capturedPhotos.length}/4)')))),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -961,7 +1011,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isCapturingSequence
+                backgroundColor: isBusy
                     ? const Color(0xFFE11D48)
                     : AppTheme.primaryRose,
                 foregroundColor: Colors.white,

@@ -18,6 +18,10 @@
 
 ---
 
+<p align="center">
+  <img src="picture/smileon_text.gif" alt="SmileOn" width="100%"/>
+</p>
+
 ## 🌟 Overview
 
 **SmileOn** is a digital photobox application designed to make the photo experience simpler, more joyful, and effortlessly shareable. It merges the nostalgia of modern photobox experiences with cloud storage and **onchain payments on Monad**.
