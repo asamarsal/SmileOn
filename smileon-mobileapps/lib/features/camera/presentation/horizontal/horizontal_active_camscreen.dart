@@ -10,6 +10,7 @@ import 'package:smileon/features/camera/presentation/horizontal/step/step1_previ
 import 'package:smileon/features/camera/presentation/horizontal/step/step2_editphoto.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step3_download.dart';
 import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_frame.dart';
+import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_previewframe.dart';
 
 class HorizontalActiveCamScreen extends StatefulWidget {
   const HorizontalActiveCamScreen({super.key});
@@ -36,10 +37,11 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   bool _isCapturingSequence = false;
   bool _isDarkMode = true;
   bool _isRoundedBorder = false;
-  final int _selectedFrameIndex = 0;
+  int _selectedFrameIndex = 0;
   bool _showDummyPhoto = false;
   StateSetter? _fullscreenDialogSetState;
   bool _isDisposed = false;
+  int? _retakeTargetIndex;
 
   void _switchFrameOrDummy() {
     HapticFeedback.lightImpact();
@@ -90,6 +92,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     _showShutterEffect = false;
     _shutterFlash = false;
     _fullscreenDialogSetState = null;
+    _retakeTargetIndex = null;
     _cameraController?.dispose();
     super.dispose();
   }
@@ -358,12 +361,22 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       final xfile = await _cameraController!.takePicture();
       if (!mounted || !_isCapturingSingle) return;
 
+      final int? retakeIdx = _retakeTargetIndex;
       _syncSetState(() {
         _showShutterEffect = false;
-        if (_capturedPhotos.length >= 4) {
-          _capturedPhotos.clear();
+        if (retakeIdx != null) {
+          if (retakeIdx <= _capturedPhotos.length) {
+            _capturedPhotos.insert(retakeIdx, xfile.path);
+          } else {
+            _capturedPhotos.add(xfile.path);
+          }
+          _retakeTargetIndex = null;
+        } else {
+          if (_capturedPhotos.length >= 4) {
+            _capturedPhotos.clear();
+          }
+          _capturedPhotos.add(xfile.path);
         }
-        _capturedPhotos.add(xfile.path);
         _showDummyPhoto = false;
       });
 
@@ -373,7 +386,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
+              retakeIdx != null
+                  ? 'Foto Frame ${retakeIdx + 1} berhasil diperbarui!'
+                  : 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
             ),
             duration: const Duration(milliseconds: 1200),
             backgroundColor: AppTheme.primaryRose,
@@ -394,6 +409,38 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     }
   }
 
+  void _retakePhoto(int index) async {
+    if (index >= 0 && index < _capturedPhotos.length) {
+      _cancelCapture();
+      _syncSetState(() {
+        _capturedPhotos.removeAt(index);
+        _retakeTargetIndex = index;
+      });
+      HapticFeedback.mediumImpact();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Mengambil ulang foto untuk Frame ${index + 1}...'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      // Tunggu popup tertutup penuh lalu mulai countdown jepret foto ulang
+      await Future.delayed(const Duration(milliseconds: 350));
+      if (!mounted) return;
+      if (!_isCameraOn) {
+        await _toggleCamera();
+      }
+      if (mounted &&
+          _cameraController != null &&
+          _cameraController!.value.isInitialized) {
+        _takePicture();
+      }
+    }
+  }
+
   void _showFullscreenCamera() {
     if (!_isCameraOn || _cameraController == null) return;
 
@@ -405,6 +452,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       isCapturingSequence: () => _isCapturingSequence,
       isDarkMode: () => _isDarkMode,
       capturedPhotosCount: () => _capturedPhotos.length,
+      capturedPhotos: () => _capturedPhotos,
       countdown: () => _countdown,
       timerSeconds: () => _timerSeconds,
       showShutterEffect: () => _showShutterEffect,
@@ -418,6 +466,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           _isDarkMode = !_isDarkMode;
         });
       },
+      onRetakePhoto: _retakePhoto,
       onRegisterSync: (syncCallback) {
         _fullscreenDialogSetState = (_) => syncCallback();
       },
@@ -428,6 +477,132 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   void _showFrameSelectionSheet() {
+    int localSelectedCategory = 0;
+    bool isSearching = false;
+    String searchQuery = '';
+    final TextEditingController searchController = TextEditingController();
+
+    final List<String> categories = [
+      'All',
+      'Romance',
+      'Floral',
+      'Vintage',
+      'Noir',
+      'Minimal',
+      'Pastel',
+    ];
+
+    final List<Map<String, dynamic>> allFrames = [
+      {
+        'index': 0,
+        'name': 'Hanfleur Florist',
+        'category': 'Romance',
+        'subCategory': 'Floral',
+        'frameAsset': 'assets/frame/photostrip1/photostrip_frame1.png',
+        'bgAsset': 'assets/frame/photostrip1/photostrip_background1.png',
+        'previewAsset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      },
+      {
+        'index': 1,
+        'name': 'Black SmileOn',
+        'category': 'Noir',
+        'subCategory': 'Minimal',
+        'frameAsset': 'assets/frame/photostrip2/photostrip_frame2.png',
+        'bgAsset': 'assets/frame/photostrip2/photostrip_background2.png',
+        'previewAsset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      },
+      {
+        'index': 2,
+        'name': 'Good Times 35mm',
+        'category': 'Vintage',
+        'subCategory': 'Pastel',
+        'frameAsset': 'assets/frame/photostrip3/photostrip_frame3.png',
+        'bgAsset': 'assets/frame/photostrip3/photostrip_background3.png',
+        'previewAsset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      },
+      {
+        'index': 3,
+        'name': 'A Love in Bloom',
+        'category': 'Floral',
+        'subCategory': 'Romance',
+        'frameAsset': 'assets/frame/photostrip1/photostrip_frame1.png',
+        'bgAsset': 'assets/frame/photostrip1/photostrip_background1.png',
+        'previewAsset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      },
+      {
+        'index': 4,
+        'name': 'Minimal Monochrome',
+        'category': 'Minimal',
+        'subCategory': 'Noir',
+        'frameAsset': 'assets/frame/photostrip2/photostrip_frame2.png',
+        'bgAsset': 'assets/frame/photostrip2/photostrip_background2.png',
+        'previewAsset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      },
+      {
+        'index': 5,
+        'name': 'Sweet Memories 90s',
+        'category': 'Pastel',
+        'subCategory': 'Vintage',
+        'frameAsset': 'assets/frame/photostrip3/photostrip_frame3.png',
+        'bgAsset': 'assets/frame/photostrip3/photostrip_background3.png',
+        'previewAsset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      },
+      {
+        'index': 6,
+        'name': 'Hanfleur Florist',
+        'category': 'Romance',
+        'subCategory': 'Floral',
+        'frameAsset': 'assets/frame/photostrip1/photostrip_frame1.png',
+        'bgAsset': 'assets/frame/photostrip1/photostrip_background1.png',
+        'previewAsset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      },
+      {
+        'index': 7,
+        'name': 'Black SmileOn',
+        'category': 'Noir',
+        'subCategory': 'Minimal',
+        'frameAsset': 'assets/frame/photostrip2/photostrip_frame2.png',
+        'bgAsset': 'assets/frame/photostrip2/photostrip_background2.png',
+        'previewAsset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      },
+      {
+        'index': 8,
+        'name': 'Good Times 35mm',
+        'category': 'Vintage',
+        'subCategory': 'Pastel',
+        'frameAsset': 'assets/frame/photostrip3/photostrip_frame3.png',
+        'bgAsset': 'assets/frame/photostrip3/photostrip_background3.png',
+        'previewAsset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      },
+      {
+        'index': 9,
+        'name': 'Hanfleur Florist',
+        'category': 'Romance',
+        'subCategory': 'Floral',
+        'frameAsset': 'assets/frame/photostrip1/photostrip_frame1.png',
+        'bgAsset': 'assets/frame/photostrip1/photostrip_background1.png',
+        'previewAsset': 'assets/frame/photostrip1/photostrip_preview1.png',
+      },
+      {
+        'index': 10,
+        'name': 'Black SmileOn',
+        'category': 'Noir',
+        'subCategory': 'Minimal',
+        'frameAsset': 'assets/frame/photostrip2/photostrip_frame2.png',
+        'bgAsset': 'assets/frame/photostrip2/photostrip_background2.png',
+        'previewAsset': 'assets/frame/photostrip2/photostrip_preview2.png',
+      },
+      {
+        'index': 11,
+        'name': 'Good Times 35mm',
+        'category': 'Vintage',
+        'subCategory': 'Pastel',
+        'frameAsset': 'assets/frame/photostrip3/photostrip_frame3.png',
+        'bgAsset': 'assets/frame/photostrip3/photostrip_background3.png',
+        'previewAsset': 'assets/frame/photostrip3/photostrip_preview3.png',
+      },
+    ];
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -435,51 +610,450 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       constraints: const BoxConstraints(
         maxWidth: double.infinity,
       ), // Memastikan fullwidth meski di mode horizontal
-      builder: (context) {
-        return Container(
-          width: double.infinity,
-          height:
-              MediaQuery.of(context).size.height *
-              0.9, // 90% dari layar horizontal
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final selectedCategoryName = categories[localSelectedCategory];
+            List<Map<String, dynamic>> filteredFrames =
+                localSelectedCategory == 0
+                ? allFrames
+                : allFrames
+                      .where(
+                        (f) =>
+                            f['category'] == selectedCategoryName ||
+                            f['subCategory'] == selectedCategoryName,
+                      )
+                      .toList();
+
+            if (searchQuery.trim().isNotEmpty) {
+              final query = searchQuery.trim().toLowerCase();
+              filteredFrames = filteredFrames
+                  .where(
+                    (f) =>
+                        (f['name'] as String).toLowerCase().contains(query) ||
+                        (f['category'] as String).toLowerCase().contains(query),
+                  )
+                  .toList();
+            }
+
+            return Container(
+              width: double.infinity,
+              height:
+                  MediaQuery.of(sheetContext).size.height *
+                  0.95, // 95% dari layar horizontal
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pilih Frame',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.text,
-                ),
-              ),
-              const Divider(height: 32),
-              // Nanti diisi dengan grid list frame yang sebenarnya
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Daftar Frame akan ditampilkan di sini...',
-                    style: TextStyle(
-                      color: AppTheme.muted,
-                      fontStyle: FontStyle.italic,
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  // Drag Handle Bar
+                  Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+
+                  // Header: Pilih Frame & Icon Search / Input Bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: isSearching
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppTheme.primaryRose.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: TextField(
+                                    controller: searchController,
+                                    autofocus: true,
+                                    style: const TextStyle(fontSize: 13.5),
+                                    onChanged: (val) {
+                                      setModalState(() {
+                                        searchQuery = val;
+                                      });
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Cari nama atau kategori frame...',
+                                      hintStyle: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      prefixIcon: const Icon(
+                                        Icons.search_rounded,
+                                        size: 18,
+                                        color: AppTheme.primaryRose,
+                                      ),
+                                      suffixIcon: searchQuery.isNotEmpty
+                                          ? GestureDetector(
+                                              onTap: () {
+                                                searchController.clear();
+                                                setModalState(() {
+                                                  searchQuery = '';
+                                                });
+                                              },
+                                              child: const Icon(
+                                                Icons.close_rounded,
+                                                size: 16,
+                                                color: Colors.grey,
+                                              ),
+                                            )
+                                          : null,
+                                      border: InputBorder.none,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(18),
+                                onTap: () {
+                                  searchController.clear();
+                                  setModalState(() {
+                                    isSearching = false;
+                                    searchQuery = '';
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: const Text(
+                                    'Batal',
+                                    style: TextStyle(
+                                      color: AppTheme.primaryRose,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Center(
+                                child: Text(
+                                  'Pilih Frame',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.text,
+                                  ),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      setModalState(() {
+                                        isSearching = true;
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.search_rounded,
+                                        size: 20,
+                                        color: AppTheme.text,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+
+                  const Divider(height: 20),
+
+                  // 1. BAGIAN ATAS: Pill button kategori yang bisa dislide ke kiri / horizontal
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SizedBox(
+                      height: 36,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: categories.length,
+                        itemBuilder: (context, catIdx) {
+                          final bool isCatSelected =
+                              localSelectedCategory == catIdx;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setModalState(() {
+                                    localSelectedCategory = catIdx;
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isCatSelected
+                                        ? AppTheme.primaryRose
+                                        : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isCatSelected
+                                          ? AppTheme.primaryRose
+                                          : Colors.grey.shade300,
+                                      width: 1.2,
+                                    ),
+                                    boxShadow: isCatSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: AppTheme.primaryRose
+                                                  .withValues(alpha: 0.28),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      categories[catIdx],
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: isCatSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w600,
+                                        color: isCatSelected
+                                            ? Colors.white
+                                            : const Color(0xFF4A4A52),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // 2. BAGIAN BAWAH: Daftar Frame yang akan dipilih
+                  Expanded(
+                    child: filteredFrames.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.search_off_rounded,
+                                  size: 48,
+                                  color: Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Tidak ada frame ditemukan',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                            itemCount: filteredFrames.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 16),
+                            itemBuilder: (context, idx) {
+                              final frame = filteredFrames[idx];
+                              final int fIndex = frame['index'] as int;
+                              final bool isSelected =
+                                  _selectedFrameIndex == fIndex;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.mediumImpact();
+                                  _syncSetState(() {
+                                    _selectedFrameIndex = fIndex;
+                                  });
+                                  setModalState(() {});
+                                  ScaffoldMessenger.of(sheetContext)
+                                      .hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(
+                                    sheetContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Frame "${frame['name']}" dipilih!',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: AppTheme.primaryRose,
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(
+                                        milliseconds: 1200,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: AspectRatio(
+                                  aspectRatio: 600.0 / 1800.0,
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 220),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? AppTheme.primaryRose
+                                            : const Color(0xFFE2E2E6),
+                                        width: isSelected ? 2.8 : 1.2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: isSelected
+                                              ? AppTheme.primaryRose.withValues(
+                                                  alpha: 0.35,
+                                                )
+                                              : Colors.black.withValues(
+                                                  alpha: 0.08,
+                                                ),
+                                          blurRadius: isSelected ? 14 : 6,
+                                          offset: const Offset(0, 4),
+                                          spreadRadius: isSelected ? 1 : 0,
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(
+                                        isSelected ? 11.2 : 12.8,
+                                      ),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          // Preview Photostrip Asset
+                                          Image.asset(
+                                            frame['previewAsset'] as String,
+                                            fit: BoxFit.fill,
+                                            errorBuilder: (_, _, _) =>
+                                                Container(
+                                                  color: const Color(
+                                                    0xFFF9F9FB,
+                                                  ),
+                                                  child: const Center(
+                                                    child: Icon(
+                                                      Icons
+                                                          .broken_image_rounded,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ),
+                                          ),
+
+                                          // Selected Checkmark Badge (Pojok Kanan Atas)
+                                          if (isSelected)
+                                            Positioned(
+                                              top: 8,
+                                              right: 8,
+                                              child: Container(
+                                                width: 24,
+                                                height: 24,
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primaryRose,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                            alpha: 0.25,
+                                                          ),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(
+                                                        0,
+                                                        1,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Icon(
+                                                  Icons.check,
+                                                  color: Colors.white,
+                                                  size: 15,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -567,8 +1141,8 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           frameTitle: _selectedFrameIndex == 0
               ? 'Hanfleur Florist'
               : _selectedFrameIndex == 1
-                  ? 'Black SmileOn'
-                  : 'Good Times 35mm',
+              ? 'Black SmileOn'
+              : 'Good Times 35mm',
           initialIndex: _selectedFrameIndex,
           onProceedToEdit: () {
             setState(() {
@@ -677,21 +1251,20 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
             crossAxisAlignment:
                 CrossAxisAlignment.stretch, // Pastikan tinggi penuh
             children: [
+              // Tombol Back di Kiri Atas
+              Align(alignment: Alignment.topLeft, child: _buildBackButton()),
+              const SizedBox(
+                width: 2,
+              ), // Jarak ke kanan dari tombol back ke frame
               // KIRI: Area Kamera Utama & Aksi
               Expanded(
-                child: Stack(
+                child: Column(
                   children: [
-                    Column(
-                      children: [
-                        // Kotak Preview Kamera (Rasio 16:9 presisi di layar mana pun)
-                        Expanded(child: Center(child: _buildCameraPreview())),
-                        const SizedBox(height: 12),
-                        // Deretan Tombol Aksi Bawah (dibatasi tingginya)
-                        _buildBottomActionRow(),
-                      ],
-                    ),
-                    // Tombol Back di Kiri Atas
-                    Positioned(top: 0, left: 0, child: _buildBackButton()),
+                    // Kotak Preview Kamera (Rasio 16:9 presisi di layar mana pun)
+                    Expanded(child: Center(child: _buildCameraPreview())),
+                    const SizedBox(height: 12),
+                    // Deretan Tombol Aksi Bawah (dibatasi tingginya)
+                    _buildBottomActionRow(),
                   ],
                 ),
               ),
@@ -813,9 +1386,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                     width: 82,
                     height: 82,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(
-                        alpha: 0.45,
-                      ),
+                      color: Colors.black.withValues(alpha: 0.45),
                       shape: BoxShape.circle,
                     ),
                     child: Stack(
@@ -827,16 +1398,12 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                           child: CircularProgressIndicator(
                             value:
                                 _countdown /
-                                (_timerSeconds > 0
-                                    ? _timerSeconds
-                                    : 3),
+                                (_timerSeconds > 0 ? _timerSeconds : 3),
                             strokeWidth: 4.5,
-                            valueColor:
-                                const AlwaysStoppedAnimation<
-                                  Color
-                                >(Color(0xFFF43F5E)),
-                            backgroundColor:
-                                Colors.white12,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFFF43F5E),
+                            ),
+                            backgroundColor: Colors.white12,
                           ),
                         ),
                         Text(
@@ -859,8 +1426,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                     child: Icon(
                       Icons.photo_camera_outlined,
                       size: 76,
-                      color: const Color(0xFFF43F5E)
-                          .withValues(alpha: 0.95),
+                      color: const Color(0xFFF43F5E).withValues(alpha: 0.95),
                     ),
                   ),
                 ),
@@ -870,9 +1436,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Container(
-                      color: Colors.white.withValues(
-                        alpha: 0.85,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                 ),
@@ -976,20 +1540,31 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
               Positioned(
                 bottom: 20,
                 left: 20,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTranslucentPill(
-                      child: Text(
-                        '${math.min(_capturedPhotos.length + 1, 4)} dari 4',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    HorizontalExpandedPreviewFrame.show(
+                      context: context,
+                      capturedPhotos: _capturedPhotos,
+                      isDarkMode: _isDarkMode,
+                      onRetakePhoto: _retakePhoto,
+                    );
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTranslucentPill(
+                        child: Text(
+                          '${math.min(_capturedPhotos.length + 1, 4)} dari 4',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -1017,7 +1592,8 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                               width: 64,
                               height: 64,
                               child: CircularProgressIndicator(
-                                value: _countdown /
+                                value:
+                                    _countdown /
                                     (_timerSeconds > 0 ? _timerSeconds : 3),
                                 strokeWidth: 3.5,
                                 valueColor: const AlwaysStoppedAnimation<Color>(
@@ -1027,7 +1603,8 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                               ),
                             ),
                           _InteractiveCircleButton(
-                            icon: (_isCapturingSingle || _isCapturingSequence) &&
+                            icon:
+                                (_isCapturingSingle || _isCapturingSequence) &&
                                     _countdown > 0
                                 ? Icons.close
                                 : Icons.camera_alt_outlined,
@@ -1253,7 +1830,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           aspectRatio: 1 / 3,
           child: _buildPhotostripWidget(isMini: true),
         ),
-        const SizedBox(width: 8), // Gap sangat rapat
+        const SizedBox(width: 16), // Gap sangat rapat
         // SIDEBAR TOOLS
         SizedBox(
           width: 36, // Sangat ramping
@@ -1391,18 +1968,12 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(cardRadius),
           child: _showDummyPhoto
-              ? Image.asset(
-                  previewAsset(_selectedFrameIndex),
-                  fit: BoxFit.fill,
-                )
+              ? Image.asset(previewAsset(_selectedFrameIndex), fit: BoxFit.fill)
               : Stack(
                   fit: StackFit.expand,
                   children: [
                     // Layer 1: Background
-                    Image.asset(
-                      bgAsset(_selectedFrameIndex),
-                      fit: BoxFit.fill,
-                    ),
+                    Image.asset(bgAsset(_selectedFrameIndex), fit: BoxFit.fill),
 
                     // Layer 2: Photo Slots
                     LayoutBuilder(
@@ -1445,7 +2016,8 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   Widget _buildRealPhotoSlot(int index) {
-    final bool hasPhoto = index < _capturedPhotos.length &&
+    final bool hasPhoto =
+        index < _capturedPhotos.length &&
         File(_capturedPhotos[index]).existsSync();
 
     if (hasPhoto) {
@@ -1670,5 +2242,3 @@ class _InteractiveCircleButtonState extends State<_InteractiveCircleButton> {
     );
   }
 }
-
-

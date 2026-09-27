@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_previewframe.dart';
 
 /// Dialog dan layout kamera layar penuh / expanded frame untuk mode horizontal.
 class HorizontalExpandedFrame extends StatefulWidget {
@@ -14,6 +15,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
   final bool Function() isCapturingSequence;
   final bool Function() isDarkMode;
   final int Function() capturedPhotosCount;
+  final List<String> Function() capturedPhotos;
   final int Function() countdown;
   final int Function() timerSeconds;
   final bool Function() showShutterEffect;
@@ -22,7 +24,8 @@ class HorizontalExpandedFrame extends StatefulWidget {
   final VoidCallback onToggleCaptureMode;
   final VoidCallback onTakePicture;
   final VoidCallback onStartSequentialCapture;
-  final VoidCallback onToggleDarkMode;
+  final VoidCallback? onToggleDarkMode;
+  final void Function(int index)? onRetakePhoto;
   final void Function(VoidCallback syncCallback)? onRegisterSync;
   final VoidCallback? onDismiss;
 
@@ -34,6 +37,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
     required this.isCapturingSequence,
     required this.isDarkMode,
     required this.capturedPhotosCount,
+    required this.capturedPhotos,
     required this.countdown,
     required this.timerSeconds,
     required this.showShutterEffect,
@@ -42,7 +46,8 @@ class HorizontalExpandedFrame extends StatefulWidget {
     required this.onToggleCaptureMode,
     required this.onTakePicture,
     required this.onStartSequentialCapture,
-    required this.onToggleDarkMode,
+    this.onToggleDarkMode,
+    this.onRetakePhoto,
     this.onRegisterSync,
     this.onDismiss,
   });
@@ -55,6 +60,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
     required bool Function() isCapturingSequence,
     required bool Function() isDarkMode,
     required int Function() capturedPhotosCount,
+    required List<String> Function() capturedPhotos,
     required int Function() countdown,
     required int Function() timerSeconds,
     required bool Function() showShutterEffect,
@@ -63,7 +69,8 @@ class HorizontalExpandedFrame extends StatefulWidget {
     required VoidCallback onToggleCaptureMode,
     required VoidCallback onTakePicture,
     required VoidCallback onStartSequentialCapture,
-    required VoidCallback onToggleDarkMode,
+    VoidCallback? onToggleDarkMode,
+    void Function(int index)? onRetakePhoto,
     void Function(VoidCallback syncCallback)? onRegisterSync,
     VoidCallback? onDismiss,
   }) {
@@ -79,6 +86,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
           isCapturingSequence: isCapturingSequence,
           isDarkMode: isDarkMode,
           capturedPhotosCount: capturedPhotosCount,
+          capturedPhotos: capturedPhotos,
           countdown: countdown,
           timerSeconds: timerSeconds,
           showShutterEffect: showShutterEffect,
@@ -88,6 +96,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
           onTakePicture: onTakePicture,
           onStartSequentialCapture: onStartSequentialCapture,
           onToggleDarkMode: onToggleDarkMode,
+          onRetakePhoto: onRetakePhoto,
           onRegisterSync: onRegisterSync,
           onDismiss: onDismiss,
         );
@@ -369,74 +378,88 @@ class _HorizontalExpandedFrameState extends State<HorizontalExpandedFrame> {
                 ),
               ),
 
-              // TENGAH KIRI: Indikator Sesi Foto (Contoh: 1 enter - enter 4)
+              // TENGAH KIRI: Indikator Sesi Foto (Klik untuk membuka Preview Foto)
               Positioned(
                 left: 28,
                 top: 0,
                 bottom: 0,
                 child: Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: 40,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? Colors.black.withValues(alpha: 0.45)
-                          : Colors.white.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isDarkMode
-                            ? Colors.white.withValues(alpha: 0.2)
-                            : const Color(0xFFFF94B8).withValues(alpha: 0.5),
-                        width: 1.2,
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      HorizontalExpandedPreviewFrame.show(
+                        context: context,
+                        capturedPhotos: widget.capturedPhotos(),
+                        isDarkMode: isDarkMode,
+                        onRetakePhoto: (index) {
+                          widget.onRetakePhoto?.call(index);
+                          setState(() {});
+                        },
+                      );
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      width: 40,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 6,
                       ),
-                      boxShadow: [
-                        if (!isDarkMode)
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${math.min(capturedCount + 1, 4)}',
-                          style: const TextStyle(
-                            color: Color(0xFFF43F5E),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                            height: 1.1,
-                          ),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? Colors.black.withValues(alpha: 0.45)
+                            : Colors.white.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDarkMode
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : const Color(0xFFFF94B8).withValues(alpha: 0.5),
+                          width: 1.2,
                         ),
-                        Container(
-                          width: 12,
-                          height: 2,
-                          margin: const EdgeInsets.symmetric(vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isDarkMode
-                                ? Colors.white.withValues(alpha: 0.4)
-                                : const Color(0xFF475569),
-                            borderRadius: BorderRadius.circular(1),
+                        boxShadow: [
+                          if (!isDarkMode)
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${math.min(capturedCount + 1, 4)}',
+                            style: const TextStyle(
+                              color: Color(0xFFF43F5E),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              height: 1.1,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '4',
-                          style: TextStyle(
-                            color: isDarkMode
-                                ? Colors.white
-                                : const Color(0xFF1E1E22),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            height: 1.1,
+                          Container(
+                            width: 12,
+                            height: 2,
+                            margin: const EdgeInsets.symmetric(vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? Colors.white.withValues(alpha: 0.4)
+                                  : const Color(0xFF475569),
+                              borderRadius: BorderRadius.circular(1),
+                            ),
                           ),
-                        ),
-                      ],
+                          Text(
+                            '4',
+                            style: TextStyle(
+                              color: isDarkMode
+                                  ? Colors.white
+                                  : const Color(0xFF1E1E22),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -449,7 +472,7 @@ class _HorizontalExpandedFrameState extends State<HorizontalExpandedFrame> {
                 child: GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    widget.onToggleDarkMode();
+                    widget.onToggleDarkMode?.call();
                     setState(() {});
                   },
                   child: AnimatedContainer(

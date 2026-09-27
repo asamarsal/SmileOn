@@ -156,7 +156,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   }
 
   void _showFullscreenCamera() {
-    if (!_isCameraOn || _cameraController == null) return;
+    if (!mounted || !_isCameraOn || _cameraController == null) return;
 
     showDialog(
       context: context,
@@ -681,7 +681,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                               ),
                               const SizedBox(height: 6),
                             ],
-                            _buildFullscreenCapturedPhotosPreview(isBusy),
+                            _buildFullscreenCapturedPhotosPreview(dialogContext, isBusy),
                             if (_capturedPhotos.length >= 4) ...[
                               const SizedBox(height: 16),
                               _buildFullscreenNextButton(dialogContext, isBusy),
@@ -940,9 +940,12 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                                 : () {
                                     HapticFeedback.mediumImpact();
                                     _syncSetState(() {
+                                      _capturedPhotos.removeAt(index);
                                       _retakeTargetIndex = index;
-                                      _clickedPhotoIndex = index;
+                                      _clickedPhotoIndex = null;
                                     });
+                                    _previewPageController?.dispose();
+                                    _previewPageController = null;
                                     _takePicture();
                                   },
                             child: Container(
@@ -1044,12 +1047,16 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     );
   }
 
-  Future<void> _showRetakeConfirmDialog(int index) async {
+  Future<void> _showRetakeConfirmDialog(int index, [BuildContext? parentContext]) async {
     if (index < 0 || index >= _capturedPhotos.length) return;
+    final BuildContext? targetContext = (parentContext != null && parentContext.mounted)
+        ? parentContext
+        : (mounted ? context : null);
+    if (targetContext == null) return;
     HapticFeedback.lightImpact();
 
     final bool? confirm = await showDialog<bool>(
-      context: context,
+      context: targetContext,
       barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (dialogCtx) {
         return BackdropFilter(
@@ -1194,22 +1201,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     if (confirm == true && mounted) {
       if (_isCapturingSingle || _isCapturingSequence) return;
       _syncSetState(() {
+        _capturedPhotos.removeAt(index);
         _retakeTargetIndex = index;
-        _clickedPhotoIndex = index;
+        _clickedPhotoIndex = null;
       });
-      if (_previewPageController != null &&
-          _previewPageController!.hasClients) {
-        _previewPageController!.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
-        );
-      }
+      _previewPageController?.dispose();
+      _previewPageController = null;
       _takePicture();
     }
   }
 
-  Widget _buildFullscreenCapturedPhotosPreview(bool isBusy) {
+  Widget _buildFullscreenCapturedPhotosPreview(
+    BuildContext dialogContext,
+    bool isBusy,
+  ) {
     return Center(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -1223,7 +1228,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
             children: [
               for (int i = 0; i < _capturedPhotos.length; i++) ...[
                 if (i > 0) const SizedBox(width: 10),
-                _buildCapturedPhotoCard(i, isBusy),
+                _buildCapturedPhotoCard(dialogContext, i, isBusy),
               ],
             ],
           ),
@@ -1232,7 +1237,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     );
   }
 
-  Widget _buildCapturedPhotoCard(int index, bool isBusy) {
+  Widget _buildCapturedPhotoCard(
+    BuildContext dialogContext,
+    int index,
+    bool isBusy,
+  ) {
     final String photoPath = _capturedPhotos[index];
     final bool fileExists = File(photoPath).existsSync();
     final bool isActive = _clickedPhotoIndex != null
@@ -1354,7 +1363,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
           right: -5,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: isBusy ? null : () => _showRetakeConfirmDialog(index),
+            onTap: isBusy ? null : () => _showRetakeConfirmDialog(index, dialogContext),
             child: Container(
               width: 20,
               height: 20,
@@ -1449,8 +1458,12 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
 
       final int? retakeIdx = _retakeTargetIndex;
       _syncSetState(() {
-        if (retakeIdx != null && retakeIdx < _capturedPhotos.length) {
-          _capturedPhotos[retakeIdx] = xfile.path;
+        if (retakeIdx != null) {
+          if (retakeIdx <= _capturedPhotos.length) {
+            _capturedPhotos.insert(retakeIdx, xfile.path);
+          } else {
+            _capturedPhotos.add(xfile.path);
+          }
           _retakeTargetIndex = null;
           _clickedPhotoIndex = retakeIdx;
         } else {
@@ -1618,19 +1631,32 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     }
   }
 
-  void _retakeSinglePhoto(int targetIndex) {
-    setState(() {
-      _retakeTargetIndex = targetIndex;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Silakan jepret foto untuk Frame ${targetIndex + 1}'),
-          backgroundColor: AppTheme.primaryRose,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  void _retakeSinglePhoto(int targetIndex) async {
+    if (targetIndex >= 0 && targetIndex < _capturedPhotos.length) {
+      _syncSetState(() {
+        _isCapturingSingle = false;
+        _isCapturingSequence = false;
+        _capturedPhotos.removeAt(targetIndex);
+        _retakeTargetIndex = targetIndex;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Mengambil ulang foto untuk Frame ${targetIndex + 1}...'),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      await Future.delayed(const Duration(milliseconds: 350));
+      if (!mounted) return;
+      if (!_isCameraOn) {
+        await _toggleCamera();
+      }
+      if (mounted && _cameraController != null && _cameraController!.value.isInitialized) {
+        _takePicture();
+      }
     }
   }
 
@@ -1638,6 +1664,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   // DIALOG FULLSCREEN PREVIEW PHOTOSTRIP (MARGIN LUAR 4PX)
   // ==============================================================
   void _showPhotostripPreviewDialog() {
+    if (!mounted) return;
     DialogPreviewPhotostrip.show(
       context: context,
       initialFrameIndex: _selectedFrameIndex,
