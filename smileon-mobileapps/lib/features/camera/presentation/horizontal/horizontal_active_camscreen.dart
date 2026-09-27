@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -8,6 +9,7 @@ import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step1_preview.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step2_editphoto.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step3_download.dart';
+import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_frame.dart';
 
 class HorizontalActiveCamScreen extends StatefulWidget {
   const HorizontalActiveCamScreen({super.key});
@@ -25,7 +27,51 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   bool _isInitialized = false;
   bool _isFullscreen = false;
   int _timerSeconds = 3;
+  int _countdown = 0;
+  bool _isCapturingSingle = false;
+  bool _showShutterEffect = false;
+  bool _shutterFlash = false;
   bool _isMirrored = false;
+  bool _isSequentialMode = false;
+  bool _isCapturingSequence = false;
+  bool _isDarkMode = true;
+  bool _isRoundedBorder = false;
+  final int _selectedFrameIndex = 0;
+  bool _showDummyPhoto = false;
+  StateSetter? _fullscreenDialogSetState;
+  bool _isDisposed = false;
+
+  void _switchFrameOrDummy() {
+    HapticFeedback.lightImpact();
+    _syncSetState(() {
+      _showDummyPhoto = !_showDummyPhoto;
+    });
+  }
+
+  void _syncSetState(VoidCallback fn) {
+    if (_isDisposed || !mounted) return;
+    try {
+      setState(fn);
+    } catch (_) {
+      fn();
+    }
+    if (_isDisposed || !mounted) return;
+    try {
+      _fullscreenDialogSetState?.call(() {});
+    } catch (_) {}
+  }
+
+  void _cancelCapture() {
+    _isCapturingSingle = false;
+    _isCapturingSequence = false;
+    _countdown = 0;
+    _showShutterEffect = false;
+    _shutterFlash = false;
+    if (!_isDisposed && mounted) {
+      _syncSetState(() {});
+    }
+  }
+
   final List<String> _capturedPhotos = [];
   int _activeStep = 0; // 0: Camera, 1: Step 1 (Preview), 2: Step 2 (Edit), 3: Step 3 (Download)
 
@@ -37,6 +83,13 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _isCapturingSingle = false;
+    _isCapturingSequence = false;
+    _countdown = 0;
+    _showShutterEffect = false;
+    _shutterFlash = false;
+    _fullscreenDialogSetState = null;
     _cameraController?.dispose();
     super.dispose();
   }
@@ -50,6 +103,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   Future<void> _toggleCamera() async {
+    _cancelCapture();
     if (_isCameraOn) {
       await _cameraController?.dispose();
       setState(() {
@@ -106,37 +160,142 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   void _toggleMirror() {
-    setState(() {
+    HapticFeedback.lightImpact();
+    _syncSetState(() {
       _isMirrored = !_isMirrored;
     });
   }
 
-  Future<void> _takePicture() async {
-    if (_cameraController != null && _cameraController!.value.isInitialized) {
-      try {
-        final xfile = await _cameraController!.takePicture();
-        setState(() {
-          if (_capturedPhotos.length >= 4) {
-            _capturedPhotos.clear();
-          }
-          _capturedPhotos.add(xfile.path);
+  void _toggleCaptureMode() {
+    if (_isCapturingSequence || _isCapturingSingle) return;
+    HapticFeedback.lightImpact();
+    _syncSetState(() {
+      _isSequentialMode = !_isSequentialMode;
+    });
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isSequentialMode
+              ? 'Mode: Ambil 4 foto otomatis (berurutan)'
+              : 'Mode: Ambil foto satu per satu',
+        ),
+        duration: const Duration(milliseconds: 1200),
+        backgroundColor: AppTheme.primaryRose,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _startSequentialCapture() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nyalakan kamera terlebih dahulu.'),
+            duration: Duration(seconds: 2),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (_isCapturingSequence || _isCapturingSingle) {
+      _cancelCapture();
+      return;
+    }
+
+    _syncSetState(() {
+      _isCapturingSequence = true;
+      if (_capturedPhotos.length >= 4) {
+        _capturedPhotos.clear();
+      }
+    });
+
+    try {
+      final int initialCount = _capturedPhotos.length;
+      for (int i = initialCount; i < 4; i++) {
+        if (!mounted || !_isCapturingSequence) break;
+
+        // Countdown sebelum jepret foto
+        int countdown = _timerSeconds > 0 ? _timerSeconds : 3;
+        while (countdown > 0) {
+          if (!mounted || !_isCapturingSequence) break;
+          _syncSetState(() {
+            _countdown = countdown;
+          });
+          HapticFeedback.selectionClick();
+          await Future.delayed(const Duration(seconds: 1));
+          countdown--;
+        }
+
+        if (!mounted || !_isCapturingSequence) break;
+
+        // SETELAH ANGKA 1: Shutter kedip dan icon camera
+        _syncSetState(() {
+          _countdown = 0;
+          _showShutterEffect = true;
+          _shutterFlash = true;
         });
+        HapticFeedback.heavyImpact();
+
+        await Future.delayed(const Duration(milliseconds: 120));
+        if (!mounted || !_isCapturingSequence) break;
+
+        _syncSetState(() {
+          _shutterFlash = false;
+        });
+
+        await Future.delayed(const Duration(milliseconds: 250));
+        if (!mounted || !_isCapturingSequence) break;
+
+        // Jepret foto
+        final xfile = await _cameraController!.takePicture();
+        if (!mounted || !_isCapturingSequence) break;
+
+        _syncSetState(() {
+          _showShutterEffect = false;
+          _capturedPhotos.add(xfile.path);
+          _showDummyPhoto = false;
+        });
+
+        HapticFeedback.mediumImpact();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
               ),
-              duration: const Duration(milliseconds: 1200),
+              duration: const Duration(milliseconds: 700),
               backgroundColor: AppTheme.primaryRose,
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
-      } catch (e) {
-        debugPrint("Error taking picture: $e");
+
+        // Jeda singkat antar foto sebelum countdown foto berikutnya
+        if (i < 3 && _isCapturingSequence) {
+          await Future.delayed(const Duration(milliseconds: 700));
+        }
       }
-    } else {
+    } catch (e) {
+      debugPrint("Error capturing sequence: $e");
+    } finally {
+      _isCapturingSequence = false;
+      _countdown = 0;
+      _showShutterEffect = false;
+      _shutterFlash = false;
+      if (!_isDisposed && mounted) {
+        _syncSetState(() {});
+      }
+    }
+  }
+
+  Future<void> _takePicture() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -149,42 +308,121 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           ),
         );
       }
+      return;
+    }
+
+    if (_isCapturingSingle || _isCapturingSequence) {
+      _cancelCapture();
+      return;
+    }
+
+    _syncSetState(() {
+      _isCapturingSingle = true;
+    });
+
+    try {
+      int countdown = _timerSeconds > 0 ? _timerSeconds : 3;
+      while (countdown > 0) {
+        if (!mounted || !_isCapturingSingle) return;
+        _syncSetState(() {
+          _countdown = countdown;
+        });
+        HapticFeedback.selectionClick();
+        await Future.delayed(const Duration(seconds: 1));
+        countdown--;
+      }
+
+      if (!mounted || !_isCapturingSingle) return;
+
+      // SETELAH ANGKA 1: Tampilkan icon camera dan efek shutter kedip
+      _syncSetState(() {
+        _countdown = 0;
+        _showShutterEffect = true;
+        _shutterFlash = true;
+      });
+      HapticFeedback.heavyImpact();
+
+      // Durasi kedip putih (120ms)
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted || !_isCapturingSingle) return;
+
+      _syncSetState(() {
+        _shutterFlash = false;
+      });
+
+      // Tampilkan icon kamera sejenak (250ms)
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted || !_isCapturingSingle) return;
+
+      // Jepret foto
+      final xfile = await _cameraController!.takePicture();
+      if (!mounted || !_isCapturingSingle) return;
+
+      _syncSetState(() {
+        _showShutterEffect = false;
+        if (_capturedPhotos.length >= 4) {
+          _capturedPhotos.clear();
+        }
+        _capturedPhotos.add(xfile.path);
+        _showDummyPhoto = false;
+      });
+
+      HapticFeedback.mediumImpact();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
+            ),
+            duration: const Duration(milliseconds: 1200),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error taking picture: $e");
+    } finally {
+      _isCapturingSingle = false;
+      _countdown = 0;
+      _showShutterEffect = false;
+      _shutterFlash = false;
+      if (!_isDisposed && mounted) {
+        _syncSetState(() {});
+      }
     }
   }
 
   void _showFullscreenCamera() {
     if (!_isCameraOn || _cameraController == null) return;
 
-    showDialog(
+    HorizontalExpandedFrame.show(
       context: context,
-      useSafeArea: false,
-      barrierColor: Colors.black.withValues(alpha: 0.3),
-      builder: (context) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(24),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: CameraPreview(_cameraController!),
-                ),
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: _InteractiveCircleButton(
-                    icon: Icons.fullscreen_exit,
-                    size: 48,
-                    onTap: () => Navigator.pop(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      cameraController: _cameraController!,
+      isMirrored: () => _isMirrored,
+      isSequentialMode: () => _isSequentialMode,
+      isCapturingSequence: () => _isCapturingSequence,
+      isDarkMode: () => _isDarkMode,
+      capturedPhotosCount: () => _capturedPhotos.length,
+      countdown: () => _countdown,
+      timerSeconds: () => _timerSeconds,
+      showShutterEffect: () => _showShutterEffect,
+      shutterFlash: () => _shutterFlash,
+      onToggleMirror: _toggleMirror,
+      onToggleCaptureMode: _toggleCaptureMode,
+      onTakePicture: _takePicture,
+      onStartSequentialCapture: _startSequentialCapture,
+      onToggleDarkMode: () {
+        _syncSetState(() {
+          _isDarkMode = !_isDarkMode;
+        });
+      },
+      onRegisterSync: (syncCallback) {
+        _fullscreenDialogSetState = (_) => syncCallback();
+      },
+      onDismiss: () {
+        _fullscreenDialogSetState = null;
       },
     );
   }
@@ -326,7 +564,12 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         body: Step1Preview(
           capturedPhotos: _capturedPhotos,
           selectedThemeColor: _selectedSidebarColor,
-          frameTitle: 'Classic Pink',
+          frameTitle: _selectedFrameIndex == 0
+              ? 'Hanfleur Florist'
+              : _selectedFrameIndex == 1
+                  ? 'Black SmileOn'
+                  : 'Good Times 35mm',
+          initialIndex: _selectedFrameIndex,
           onProceedToEdit: () {
             setState(() {
               _activeStep = 2;
@@ -448,11 +691,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                       ],
                     ),
                     // Tombol Back di Kiri Atas
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      child: _buildBackButton(),
-                    ),
+                    Positioned(top: 0, left: 0, child: _buildBackButton()),
                   ],
                 ),
               ),
@@ -567,6 +806,77 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                   ),
                 ),
 
+              // Countdown Overlay (Lingkaran gelap + progress arc pink + angka seperti gambar)
+              if (_countdown > 0)
+                Center(
+                  child: Container(
+                    width: 82,
+                    height: 82,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(
+                        alpha: 0.45,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 78,
+                          height: 78,
+                          child: CircularProgressIndicator(
+                            value:
+                                _countdown /
+                                (_timerSeconds > 0
+                                    ? _timerSeconds
+                                    : 3),
+                            strokeWidth: 4.5,
+                            valueColor:
+                                const AlwaysStoppedAnimation<
+                                  Color
+                                >(Color(0xFFF43F5E)),
+                            backgroundColor:
+                                Colors.white12,
+                          ),
+                        ),
+                        Text(
+                          '$_countdown',
+                          style: const TextStyle(
+                            fontSize: 38,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Icon Camera setelah angka 1
+              if (_showShutterEffect)
+                Center(
+                  child: IgnorePointer(
+                    child: Icon(
+                      Icons.photo_camera_outlined,
+                      size: 76,
+                      color: const Color(0xFFF43F5E)
+                          .withValues(alpha: 0.95),
+                    ),
+                  ),
+                ),
+
+              // Shutter Flash Kedip (White Flash)
+              if (_shutterFlash)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.white.withValues(
+                        alpha: 0.85,
+                      ),
+                    ),
+                  ),
+                ),
+
               // TOP LEFT: Indicator (Sekarang bisa diklik)
               Positioned(
                 top: 16,
@@ -608,14 +918,16 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildTranslucentPill(
-                        child: const Icon(
-                          Icons.chevron_left,
-                          color: Colors.white70,
-                          size: 16,
+                      if (!_isCameraOn) ...[
+                        _buildTranslucentPill(
+                          child: const Icon(
+                            Icons.chevron_left,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 8),
+                      ],
                       _buildTranslucentPill(
                         child: Text(
                           _isCameraOn ? 'Smile' : 'Camera Off',
@@ -626,14 +938,16 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _buildTranslucentPill(
-                        child: const Icon(
-                          Icons.chevron_right,
-                          color: Colors.white70,
-                          size: 16,
+                      if (!_isCameraOn) ...[
+                        const SizedBox(width: 8),
+                        _buildTranslucentPill(
+                          child: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -658,37 +972,17 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                 ),
               ),
 
-              // BOTTOM LEFT: Timestamp & Count
+              // BOTTOM LEFT: Count
               Positioned(
                 bottom: 20,
                 left: 20,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'PM 09:52:04',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'SEP 09 2026 ♥',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
                     _buildTranslucentPill(
-                      child: const Text(
-                        '1 dari 4',
-                        style: TextStyle(
+                      child: Text(
+                        '${math.min(_capturedPhotos.length + 1, 4)} dari 4',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
@@ -714,15 +1008,45 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                         onTap: () {},
                       ),
                       const SizedBox(width: 16),
-                      _InteractiveCircleButton(
-                        icon: Icons.camera_alt_outlined,
-                        size: 56,
-                        isPrimary: true,
-                        onTap: () {
-                          // Aksi ambil foto/record
-                          HapticFeedback.mediumImpact();
-                          _takePicture();
-                        },
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if ((_isCapturingSingle || _isCapturingSequence) &&
+                              _countdown > 0)
+                            SizedBox(
+                              width: 64,
+                              height: 64,
+                              child: CircularProgressIndicator(
+                                value: _countdown /
+                                    (_timerSeconds > 0 ? _timerSeconds : 3),
+                                strokeWidth: 3.5,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Color(0xFFF43F5E),
+                                ),
+                                backgroundColor: Colors.white24,
+                              ),
+                            ),
+                          _InteractiveCircleButton(
+                            icon: (_isCapturingSingle || _isCapturingSequence) &&
+                                    _countdown > 0
+                                ? Icons.close
+                                : Icons.camera_alt_outlined,
+                            size: 56,
+                            isPrimary: true,
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              if (_isCapturingSingle || _isCapturingSequence) {
+                                _cancelCapture();
+                                return;
+                              }
+                              if (_isSequentialMode) {
+                                _startSequentialCapture();
+                              } else {
+                                _takePicture();
+                              }
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 16),
                       _InteractiveCircleButton(
@@ -764,112 +1088,120 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   Widget _buildBottomActionRow() {
-    return SizedBox(
-      height: 52, // Batasi tinggi agar tidak overflow vertikal
-      child: Row(
-        children: [
-          // Tombol Kiri (Ambil Foto)
-          Expanded(
-            flex: 1,
-            child: ElevatedButton.icon(
-              onPressed: _showFrameSelectionSheet,
-              icon: const Icon(Icons.style_outlined, size: 18),
-              label: const Text(
-                'Frame',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryRose,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Grup Tombol Tengah
-          Expanded(
-            flex: 4,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: _buildWhiteOutlinedButton(
-                    'Ulangi',
-                    Icons.refresh,
-                    onTap: () {
-                      setState(() {
-                        _capturedPhotos.clear();
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Sesi foto direset.'),
-                          duration: Duration(milliseconds: 1000),
-                          backgroundColor: AppTheme.primaryRose,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
+    return Center(
+      child: FractionallySizedBox(
+        widthFactor: 0.85,
+        child: SizedBox(
+          height: 52, // Batasi tinggi agar tidak overflow vertikal
+          child: Row(
+            children: [
+              // Tombol Kiri (Ambil Foto)
+              Expanded(
+                flex: 1,
+                child: ElevatedButton.icon(
+                  onPressed: _showFrameSelectionSheet,
+                  icon: const Icon(Icons.style_outlined, size: 16),
+                  label: const Text(
+                    'Frame',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _buildWhiteOutlinedButton(
-                    'Efek',
-                    Icons.face_retouching_natural,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _buildWhiteOutlinedButton('BG', Icons.auto_awesome),
-                ), // Teks disingkat mencegah horizontal overflow
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Tombol Kanan (Lanjutkan)
-          Expanded(
-            flex: 1,
-            child: ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _activeStep = 1;
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryRose,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Flexible(
-                    child: Text(
-                      'Lanjut',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryRose,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
-                  SizedBox(width: 4),
-                  Icon(Icons.arrow_forward, size: 18),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 6),
+
+              // Grup Tombol Tengah
+              Expanded(
+                flex: 3,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: _buildWhiteOutlinedButton(
+                        'Ulangi',
+                        Icons.refresh,
+                        onTap: () {
+                          setState(() {
+                            _capturedPhotos.clear();
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Sesi foto direset.'),
+                              duration: Duration(milliseconds: 1000),
+                              backgroundColor: AppTheme.primaryRose,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _buildWhiteOutlinedButton(
+                        'Efek',
+                        Icons.face_retouching_natural,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _buildWhiteOutlinedButton(
+                        'BG',
+                        Icons.auto_awesome,
+                      ),
+                    ), // Teks disingkat mencegah horizontal overflow
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Tombol Kanan (Lanjutkan)
+              Expanded(
+                flex: 1,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _activeStep = 1;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryRose,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Flexible(
+                        child: Text(
+                          'Lanjut',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.arrow_forward, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -928,16 +1260,22 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           child: Column(
             children: [
               _buildSidebarToolButton(
-                Icons.camera_alt,
+                Icons.people,
                 color: AppTheme.primaryRose,
                 isPrimary: true,
-                onTap: _takePicture,
+                onTap: _switchFrameOrDummy,
               ),
               const SizedBox(height: 8),
               _buildSidebarToolButton(
                 Icons.stop,
                 color: AppTheme.primaryRose,
                 isPrimary: true,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _syncSetState(() {
+                    _isRoundedBorder = !_isRoundedBorder;
+                  });
+                },
               ),
               const SizedBox(height: 8),
               // Tombol untuk membuka dialog photostrip utuh (menggantikan klik pada frame)
@@ -991,310 +1329,183 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   Widget _buildPhotostripWidget({required bool isMini}) {
+    final double cardRadius = _isRoundedBorder ? 16.0 : 0.0;
+
+    String bgAsset(int idx) {
+      switch (idx) {
+        case 1:
+          return 'assets/frame/photostrip2/photostrip_background2.png';
+        case 2:
+          return 'assets/frame/photostrip3/photostrip_background3.png';
+        case 0:
+        default:
+          return 'assets/frame/photostrip1/photostrip_background1.png';
+      }
+    }
+
+    String frameAsset(int idx) {
+      switch (idx) {
+        case 1:
+          return 'assets/frame/photostrip2/photostrip_frame2.png';
+        case 2:
+          return 'assets/frame/photostrip3/photostrip_frame3.png';
+        case 0:
+        default:
+          return 'assets/frame/photostrip1/photostrip_frame1.png';
+      }
+    }
+
+    String previewAsset(int idx) {
+      switch (idx) {
+        case 1:
+          return 'assets/frame/photostrip2/photostrip_preview2.png';
+        case 2:
+          return 'assets/frame/photostrip3/photostrip_preview3.png';
+        case 0:
+        default:
+          return 'assets/frame/photostrip1/photostrip_preview1.png';
+      }
+    }
+
     return AspectRatio(
-      aspectRatio: 600 / 1800, // Rasio 1:3 (Kanvas acuan 600 x 1800 px)
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final double scale = w / 600.0;
-          final bool isPink = _selectedSidebarColor == AppTheme.pinkCard;
-
-          // Perhitungan proporsional dari kanvas acuan 600 x 1800 px:
-          // 4 frame kecil: 512 x 288 px (rasio 16:9)
-          final double slotWidth = w * (512.0 / 600.0);
-          final double slotHeight = w * (288.0 / 600.0); // Rasio 16:9
-          final double hPadding = w * (44.0 / 600.0); // (600 - 512) / 2 = 44 px
-          // Padding atas diperbesar sesuai permintaan (86 px pada kanvas 600 x 1800 px)
-          final double topPadding = w * (86.0 / 600.0);
-          // Gap antar frame kecil diperbesar (50 px pada kanvas 600 x 1800 px)
-          final double gap = w * (50.0 / 600.0);
-          final double slotRadius = w * (18.0 / 600.0);
-          final double outerRadius = w * (26.0 / 600.0);
-
-          return Container(
-            decoration: BoxDecoration(
-              color: _selectedSidebarColor,
-              borderRadius: BorderRadius.circular(outerRadius),
-              border: Border.all(
-                color: isPink
-                    ? const Color(0xFFF0DDE2)
-                    : const Color(0xFFD6E4F5),
-                width: isMini ? 1.0 : 2.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isMini ? 0.08 : 0.25),
-                  blurRadius: isMini ? 8 : 24,
-                  offset: Offset(0, isMini ? 3 : 10),
-                ),
-              ],
+      aspectRatio: 600.0 / 1800.0,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(cardRadius),
+          boxShadow: [
+            BoxShadow(
+              color: _isDarkMode
+                  ? Colors.black.withValues(alpha: isMini ? 0.3 : 0.60)
+                  : Colors.black.withValues(alpha: isMini ? 0.1 : 0.22),
+              blurRadius: isMini ? 12 : 32,
+              offset: Offset(0, isMini ? 4 : 12),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(outerRadius),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Hiasan Floral Watercolor di Background (tema Hanfleur Florist biru/pink)
-                  CustomPaint(
-                    painter: _PhotostripFloralPainter(
-                      scale: scale,
-                      isMini: isMini,
-                      isPink: isPink,
-                      topPadding: topPadding,
-                      slotHeight: slotHeight,
-                      gap: gap,
-                    ),
-                  ),
-
-                  // Konten Frame: 4 Slot 16:9 + Footer Teks Hanfleur Florist
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(height: topPadding),
-                      _buildPhotoSlotResponsive(
-                        index: 0,
-                        hPadding: hPadding,
-                        width: slotWidth,
-                        height: slotHeight,
-                        radius: slotRadius,
-                        scale: scale,
-                        isMini: isMini,
-                        isPink: isPink,
-                      ),
-                      SizedBox(height: gap),
-                      _buildPhotoSlotResponsive(
-                        index: 1,
-                        hPadding: hPadding,
-                        width: slotWidth,
-                        height: slotHeight,
-                        radius: slotRadius,
-                        scale: scale,
-                        isMini: isMini,
-                        isPink: isPink,
-                      ),
-                      SizedBox(height: gap),
-                      _buildPhotoSlotResponsive(
-                        index: 2,
-                        hPadding: hPadding,
-                        width: slotWidth,
-                        height: slotHeight,
-                        radius: slotRadius,
-                        scale: scale,
-                        isMini: isMini,
-                        isPink: isPink,
-                      ),
-                      SizedBox(height: gap),
-                      _buildPhotoSlotResponsive(
-                        index: 3,
-                        hPadding: hPadding,
-                        width: slotWidth,
-                        height: slotHeight,
-                        radius: slotRadius,
-                        scale: scale,
-                        isMini: isMini,
-                        isPink: isPink,
-                      ),
-                      // Area Footer Hanfleur Florist
-                      Expanded(
-                        child: _buildPhotostripFooter(w, scale, isMini, isPink),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPhotoSlotResponsive({
-    required int index,
-    required double hPadding,
-    required double width,
-    required double height,
-    required double radius,
-    required double scale,
-    required bool isMini,
-    required bool isPink,
-  }) {
-    final themeColor = isPink
-        ? const Color(0xFFB54668)
-        : const Color(0xFF1E5296);
-    final badgeBg = isPink
-        ? const Color(0xFFF06292).withValues(alpha: 0.15)
-        : const Color(0xFF2563EB).withValues(alpha: 0.12);
-    final badgeBorder = isPink
-        ? const Color(0xFFF06292).withValues(alpha: 0.40)
-        : const Color(0xFF2563EB).withValues(alpha: 0.35);
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: hPadding),
-      child: SizedBox(
-        width: width,
-        height: height, // Rasio 512 x 288 px (16:9)
-        child: Container(
-          decoration: BoxDecoration(
-            color: isPink ? const Color(0xFFFAF2F4) : const Color(0xFFF3F7FD),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(
-              color: isPink ? const Color(0xFFE8D3D8) : const Color(0xFFD4E3F4),
-              width: isMini ? 1.0 : 1.5,
-            ),
-            boxShadow: [
+            if (!isMini)
               BoxShadow(
-                color:
-                    (isPink ? const Color(0xFFB54668) : const Color(0xFF1E5296))
-                        .withValues(alpha: 0.06),
-                blurRadius: isMini ? 3 : 8,
-                offset: Offset(0, isMini ? 1 : 2),
+                color: AppTheme.primaryRose.withValues(alpha: 0.10),
+                blurRadius: 24,
+                spreadRadius: 2,
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Badge Angka 1, 2, 3, 4 jelas di setiap frame kecil
-                      Container(
-                        width: isMini ? (height * 0.48) : (height * 0.40),
-                        height: isMini ? (height * 0.48) : (height * 0.40),
-                        decoration: BoxDecoration(
-                          color: badgeBg,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: badgeBorder,
-                            width: isMini ? 1.0 : 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              color: themeColor,
-                              fontSize: isMini
-                                  ? (height * 0.30)
-                                  : (height * 0.24),
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                            ),
-                          ),
-                        ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(cardRadius),
+          child: _showDummyPhoto
+              ? Image.asset(
+                  previewAsset(_selectedFrameIndex),
+                  fit: BoxFit.fill,
+                )
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Layer 1: Background
+                    Image.asset(
+                      bgAsset(_selectedFrameIndex),
+                      fit: BoxFit.fill,
+                    ),
+
+                    // Layer 2: Photo Slots
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double w = constraints.maxWidth;
+                        final double h = constraints.maxHeight;
+                        final double paddingH = w * (44.0 / 600.0);
+                        final double photoW = w - 2.0 * paddingH;
+                        final double paddingTop = h * (80.0 / 1800.0);
+                        final double photoH = h * (288.0 / 1800.0);
+                        final double gap = h * (88.0 / 1800.0);
+
+                        return Stack(
+                          children: [
+                            for (int i = 0; i < 4; i++)
+                              Positioned(
+                                left: paddingH,
+                                top: paddingTop + i * (photoH + gap),
+                                width: photoW,
+                                height: photoH,
+                                child: _buildRealPhotoSlot(i),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+
+                    // Layer 3: Frame Overlay
+                    IgnorePointer(
+                      child: Image.asset(
+                        frameAsset(_selectedFrameIndex),
+                        fit: BoxFit.fill,
                       ),
-                      if (!isMini) ...[
-                        SizedBox(height: 5 * scale),
-                        Text(
-                          'Frame ${index + 1} • 16:9',
-                          style: TextStyle(
-                            color: isPink
-                                ? const Color(0xFF9E4B61)
-                                : const Color(0xFF235A9C),
-                            fontSize: 13 * scale,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
         ),
       ),
     );
   }
 
-  Widget _buildPhotostripFooter(
-    double w,
-    double scale,
-    bool isMini,
-    bool isPink,
-  ) {
-    final heartColor = isPink
-        ? const Color(0xFFF06292)
-        : const Color(0xFF2563EB);
-    final lineColor = isPink
-        ? const Color(0xFFF8BBD0)
-        : const Color(0xFF93C5FD);
+  Widget _buildRealPhotoSlot(int index) {
+    final bool hasPhoto = index < _capturedPhotos.length &&
+        File(_capturedPhotos[index]).existsSync();
 
-    return Padding(
-      padding: EdgeInsets.only(
-        top: w * (12.0 / 600.0),
-        bottom: w * (16.0 / 600.0),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    if (hasPhoto) {
+      return Stack(
+        fit: StackFit.expand,
         children: [
-          // Divider ornamen hati sesuai gambar referensi: --- 💙 ---
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: w * 0.12,
-                height: isMini ? 1.0 : 1.5,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [lineColor.withValues(alpha: 0.1), lineColor],
+          Image.file(File(_capturedPhotos[index]), fit: BoxFit.cover),
+          Positioned(
+            top: 4,
+            left: 4,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryRose,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9.0,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
                   ),
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: w * 0.02),
-                child: Icon(
-                  Icons.favorite,
-                  size: isMini ? (w * 0.045) : (w * 0.05),
-                  color: heartColor,
-                ),
-              ),
-              Container(
-                width: w * 0.12,
-                height: isMini ? 1.0 : 1.5,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [lineColor, lineColor.withValues(alpha: 0.1)],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: w * 0.015),
-          Text(
-            'Hanfleur',
-            style: TextStyle(
-              color: const Color(0xFFB54668),
-              fontSize: isMini ? (w * 0.10) : (w * 0.092),
-              fontWeight: FontWeight.bold,
-              fontStyle: FontStyle.italic,
-              fontFamily: 'serif',
-              height: 1.05,
-              letterSpacing: 0.5,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          SizedBox(height: w * 0.008),
-          Text(
-            'Florist',
-            style: TextStyle(
-              color: const Color(0xFFB54668),
-              fontSize: isMini ? (w * 0.085) : (w * 0.078),
-              fontWeight: FontWeight.bold,
-              fontFamily: 'serif',
-              height: 1.05,
-              letterSpacing: 1.0,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
+      );
+    }
+
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF06292).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: Color(0xFFB54668),
+                    fontSize: 12.0,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1460,643 +1671,4 @@ class _InteractiveCircleButtonState extends State<_InteractiveCircleButton> {
   }
 }
 
-/// Hiasan ornamen bunga watercolor, pita & hati di background photostrip
-/// Meniru gambar referensi Hanfleur Florist (tema biru porselen dan pink pastel)
-class _PhotostripFloralPainter extends CustomPainter {
-  final double scale;
-  final bool isMini;
-  final bool isPink;
-  final double topPadding;
-  final double slotHeight;
-  final double gap;
 
-  _PhotostripFloralPainter({
-    required this.scale,
-    required this.isMini,
-    required this.isPink,
-    required this.topPadding,
-    required this.slotHeight,
-    required this.gap,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    if (isPink) {
-      _paintPinkTheme(canvas, size, w, h);
-    } else {
-      _paintBlueTheme(canvas, size, w, h);
-    }
-  }
-
-  void _paintBlueTheme(Canvas canvas, Size size, double w, double h) {
-    // Palet warna biru royal / porselen sesuai foto referensi
-    final blueDeep = const Color(0xFF1B4E94);
-    final blueMid = const Color(0xFF2E6EBE);
-    final blueLight = const Color(0xFF649CE4);
-    final bluePale = const Color(0xFFB8D5F8);
-    final blueWash = const Color(0xFFE2EDFB);
-    final leafBlue = const Color(0xFF537FA8).withValues(alpha: 0.65);
-    final deepLeaf = const Color(0xFF28557E).withValues(alpha: 0.75);
-
-    // --- 1. SUDUT KIRI ATAS: MAWAR BIRU MEKAR & DEDAUNAN ---
-    // Daun latar
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.16, h * 0.032),
-        width: w * 0.16,
-        height: w * 0.08,
-      ),
-      Paint()..color = deepLeaf,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.03, h * 0.065),
-        width: w * 0.09,
-        height: w * 0.15,
-      ),
-      Paint()..color = leafBlue,
-    );
-
-    // Kelopak mawar biru bertingkat
-    canvas.drawCircle(
-      Offset(w * 0.07, h * 0.024),
-      w * 0.17,
-      Paint()..color = bluePale.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.05, h * 0.032),
-      w * 0.13,
-      Paint()..color = blueLight.withValues(alpha: 0.80),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.09, h * 0.020),
-      w * 0.11,
-      Paint()..color = blueMid.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.06, h * 0.026),
-      w * 0.07,
-      Paint()..color = blueDeep,
-    );
-    canvas.drawCircle(
-      Offset(w * 0.055, h * 0.023),
-      w * 0.035,
-      Paint()..color = blueWash,
-    );
-
-    // Bunga kecil putih/biru di samping mawar
-    canvas.drawCircle(
-      Offset(w * 0.18, h * 0.016),
-      w * 0.045,
-      Paint()..color = Colors.white.withValues(alpha: 0.9),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.18, h * 0.016),
-      w * 0.025,
-      Paint()..color = blueMid,
-    );
-
-    // --- 2. SUDUT KANAN ATAS: 3D BLUE HEART ---
-    final heartCenter1 = Offset(w * 0.90, h * 0.024);
-    final heartPath1 = _createHeartPath(
-      heartCenter1.dx,
-      heartCenter1.dy,
-      w * 0.075,
-    );
-    canvas.drawPath(
-      heartPath1,
-      Paint()
-        ..shader =
-            LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [const Color(0xFF4A89DD), const Color(0xFF17427E)],
-            ).createShader(
-              Rect.fromCircle(center: heartCenter1, radius: w * 0.075),
-            ),
-    );
-    // Kilau 3D pada hati
-    canvas.drawCircle(
-      Offset(heartCenter1.dx - w * 0.022, heartCenter1.dy - w * 0.018),
-      w * 0.018,
-      Paint()..color = Colors.white.withValues(alpha: 0.65),
-    );
-
-    // --- 3. GAP 1 (ANTARA FRAME 1 & 2): BERRIES KIRI & DAHLIA KANAN ---
-    final gap1CenterY = topPadding + slotHeight + gap * 0.50;
-
-    // Sisi Kiri: Ranting Berries Biru
-    final berryStem = Path()
-      ..moveTo(0, gap1CenterY - gap * 0.35)
-      ..cubicTo(
-        w * 0.04,
-        gap1CenterY - gap * 0.1,
-        w * 0.08,
-        gap1CenterY - gap * 0.2,
-        w * 0.14,
-        gap1CenterY + gap * 0.1,
-      );
-    canvas.drawPath(
-      berryStem,
-      Paint()
-        ..color = const Color(0xFF1E5296).withValues(alpha: 0.7)
-        ..strokeWidth = math.max(1.0, 1.8 * scale)
-        ..style = PaintingStyle.stroke,
-    );
-    // Buah berries bulat biru tua
-    final berryOffsets = [
-      Offset(w * 0.03, gap1CenterY - gap * 0.25),
-      Offset(w * 0.06, gap1CenterY + gap * 0.15),
-      Offset(w * 0.09, gap1CenterY - gap * 0.05),
-      Offset(w * 0.12, gap1CenterY - gap * 0.28),
-      Offset(w * 0.14, gap1CenterY + gap * 0.10),
-    ];
-    for (final bo in berryOffsets) {
-      canvas.drawCircle(
-        bo,
-        w * 0.022,
-        Paint()..color = const Color(0xFF194682),
-      );
-      canvas.drawCircle(
-        Offset(bo.dx - w * 0.005, bo.dy - w * 0.005),
-        w * 0.007,
-        Paint()..color = Colors.white.withValues(alpha: 0.8),
-      );
-    }
-
-    // Sisi Kanan: Bunga Dahlia Biru Mekar
-    final dahliaCenter = Offset(w * 0.96, gap1CenterY);
-    _drawDahliaFlower(
-      canvas,
-      dahliaCenter,
-      w * 0.13,
-      blueDeep,
-      blueLight,
-      bluePale,
-    );
-
-    // --- 4. GAP 2 (ANTARA FRAME 2 & 3): BUNGA KIRI & PITA SATIN KANAN ---
-    final gap2CenterY = topPadding + 2 * slotHeight + gap * 1.50;
-
-    // Sisi Kiri: Bunga Putih-Biru dengan Daun
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.02, gap2CenterY - gap * 0.25),
-        width: w * 0.06,
-        height: w * 0.03,
-      ),
-      Paint()..color = deepLeaf,
-    );
-    // Bunga putih tepi biru
-    _drawFlowerBlossom(
-      canvas,
-      Offset(w * 0.04, gap2CenterY),
-      w * 0.065,
-      Colors.white,
-      blueMid,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.03, gap2CenterY + gap * 0.25),
-        width: w * 0.06,
-        height: w * 0.035,
-      ),
-      Paint()..color = leafBlue,
-    );
-
-    // Sisi Kanan: Pita Satin Biru Melingkar
-    final ribbonRightPath = Path()
-      ..moveTo(w * 0.98, gap2CenterY - gap * 0.6)
-      ..cubicTo(
-        w * 0.88,
-        gap2CenterY - gap * 0.2,
-        w * 0.99,
-        gap2CenterY + gap * 0.2,
-        w * 0.92,
-        gap2CenterY + gap * 0.6,
-      );
-    canvas.drawPath(
-      ribbonRightPath,
-      Paint()
-        ..color = const Color(0xFF3370BE).withValues(alpha: 0.85)
-        ..strokeWidth = math.max(3.0, 6.0 * scale)
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // --- 5. GAP 3 (ANTARA FRAME 3 & 4): 3D BLUE HEART KIRI & DEDAUNAN KANAN ---
-    final gap3CenterY = topPadding + 3 * slotHeight + gap * 2.50;
-
-    // Sisi Kiri: 3D Blue Heart
-    final heartCenter2 = Offset(w * 0.07, gap3CenterY);
-    final heartPath2 = _createHeartPath(
-      heartCenter2.dx,
-      heartCenter2.dy,
-      w * 0.065,
-    );
-    canvas.drawPath(
-      heartPath2,
-      Paint()
-        ..shader =
-            LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [const Color(0xFF4A89DD), const Color(0xFF17427E)],
-            ).createShader(
-              Rect.fromCircle(center: heartCenter2, radius: w * 0.065),
-            ),
-    );
-    canvas.drawCircle(
-      Offset(heartCenter2.dx - w * 0.018, heartCenter2.dy - w * 0.015),
-      w * 0.015,
-      Paint()..color = Colors.white.withValues(alpha: 0.7),
-    );
-
-    // Sisi Kanan: Ranting Dedaunan & Kuncup Bunga
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.97, gap3CenterY - gap * 0.25),
-        width: w * 0.06,
-        height: w * 0.03,
-      ),
-      Paint()..color = deepLeaf,
-    );
-    canvas.drawCircle(
-      Offset(w * 0.95, gap3CenterY),
-      w * 0.045,
-      Paint()..color = bluePale,
-    );
-    canvas.drawCircle(
-      Offset(w * 0.95, gap3CenterY),
-      w * 0.025,
-      Paint()..color = blueMid,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.96, gap3CenterY + gap * 0.25),
-        width: w * 0.06,
-        height: w * 0.035,
-      ),
-      Paint()..color = leafBlue,
-    );
-
-    // --- 6. SUDUT BAWAH & PITA BOW BIRU TENGAH ---
-    // Bunga Mawar Biru Kiri Bawah
-    canvas.drawCircle(
-      Offset(w * 0.08, h * 0.94),
-      w * 0.18,
-      Paint()..color = bluePale.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.05, h * 0.95),
-      w * 0.14,
-      Paint()..color = blueLight.withValues(alpha: 0.80),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.10, h * 0.93),
-      w * 0.10,
-      Paint()..color = blueMid.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.07, h * 0.94),
-      w * 0.05,
-      Paint()..color = blueDeep,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.18, h * 0.96),
-        width: w * 0.14,
-        height: w * 0.06,
-      ),
-      Paint()..color = deepLeaf,
-    );
-
-    // Bunga Mawar Biru Kanan Bawah
-    canvas.drawCircle(
-      Offset(w * 0.92, h * 0.94),
-      w * 0.18,
-      Paint()..color = bluePale.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.95, h * 0.95),
-      w * 0.14,
-      Paint()..color = blueLight.withValues(alpha: 0.80),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.90, h * 0.93),
-      w * 0.10,
-      Paint()..color = blueMid.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(w * 0.93, h * 0.94),
-      w * 0.05,
-      Paint()..color = blueDeep,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.82, h * 0.96),
-        width: w * 0.14,
-        height: w * 0.06,
-      ),
-      Paint()..color = deepLeaf,
-    );
-
-    // Pita Bow Biru di Bagian Tengah Bawah
-    _drawRibbonBow(
-      canvas,
-      w * 0.50,
-      h * 0.965,
-      scale,
-      Paint()..color = const Color(0xFF2563EB).withValues(alpha: 0.90),
-      Paint()..color = const Color(0xFF1D4ED8),
-    );
-  }
-
-  void _paintPinkTheme(Canvas canvas, Size size, double w, double h) {
-    final petalPaint1 = Paint()
-      ..color = const Color(0xFFF8BBD0).withValues(alpha: 0.70);
-    final petalPaint2 = Paint()
-      ..color = const Color(0xFFFF80AB).withValues(alpha: 0.50);
-    final petalPaint3 = Paint()
-      ..color = const Color(0xFFF48FB1).withValues(alpha: 0.60);
-    final leafPaint = Paint()
-      ..color = const Color(0xFFA5D6A7).withValues(alpha: 0.65);
-    final deepLeafPaint = Paint()
-      ..color = const Color(0xFF81C784).withValues(alpha: 0.75);
-    final ribbonPaint = Paint()
-      ..color = const Color(0xFFFF80AB).withValues(alpha: 0.55)
-      ..strokeWidth = math.max(1.2, 2.5 * scale)
-      ..style = PaintingStyle.stroke;
-
-    // Sudut Kiri Atas
-    canvas.drawCircle(Offset(w * 0.06, h * 0.024), w * 0.16, petalPaint1);
-    canvas.drawCircle(Offset(w * 0.04, h * 0.034), w * 0.12, petalPaint2);
-    canvas.drawCircle(Offset(w * 0.10, h * 0.020), w * 0.10, petalPaint3);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.15, h * 0.038),
-        width: w * 0.12,
-        height: w * 0.06,
-      ),
-      deepLeafPaint,
-    );
-
-    // Sudut Kanan Atas: Kupu-kupu
-    final butterflyCenter = Offset(w * 0.88, h * 0.024);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(
-          butterflyCenter.dx - w * 0.03,
-          butterflyCenter.dy - h * 0.005,
-        ),
-        width: w * 0.07,
-        height: w * 0.05,
-      ),
-      petalPaint2,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(
-          butterflyCenter.dx + w * 0.03,
-          butterflyCenter.dy - h * 0.005,
-        ),
-        width: w * 0.07,
-        height: w * 0.05,
-      ),
-      petalPaint2,
-    );
-    canvas.drawCircle(Offset(w * 0.96, h * 0.028), w * 0.06, petalPaint1);
-
-    // Gap 1
-    final gap1Y = topPadding + slotHeight + gap * 0.5;
-    canvas.drawCircle(Offset(w * 0.02, gap1Y), w * 0.05, petalPaint3);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.03, gap1Y + gap * 0.2),
-        width: w * 0.06,
-        height: w * 0.03,
-      ),
-      leafPaint,
-    );
-
-    // Gap 2
-    final gap2Y = topPadding + 2 * slotHeight + gap * 1.5;
-    canvas.drawCircle(Offset(w * 0.02, gap2Y), w * 0.055, petalPaint2);
-    canvas.drawCircle(
-      Offset(w * 0.04, gap2Y + gap * 0.15),
-      w * 0.04,
-      petalPaint1,
-    );
-
-    // Gap 3
-    final gap3Y = topPadding + 3 * slotHeight + gap * 2.5;
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(w * 0.025, gap3Y),
-        width: w * 0.05,
-        height: w * 0.03,
-      ),
-      leafPaint,
-    );
-    canvas.drawCircle(Offset(w * 0.98, gap3Y), w * 0.045, petalPaint3);
-
-    // Sudut Bawah
-    canvas.drawCircle(Offset(w * 0.08, h * 0.94), w * 0.18, petalPaint1);
-    canvas.drawCircle(Offset(w * 0.92, h * 0.94), w * 0.18, petalPaint1);
-    final bottomRibbon = Path()
-      ..moveTo(w * 0.10, h * 0.97)
-      ..cubicTo(w * 0.30, h * 0.99, w * 0.70, h * 0.99, w * 0.90, h * 0.97);
-    canvas.drawPath(bottomRibbon, ribbonPaint);
-  }
-
-  Path _createHeartPath(double cx, double cy, double size) {
-    final path = Path();
-    path.moveTo(cx, cy + size * 0.40);
-    path.cubicTo(
-      cx - size * 0.75,
-      cy - size * 0.35,
-      cx - size * 0.65,
-      cy - size * 0.90,
-      cx,
-      cy - size * 0.50,
-    );
-    path.cubicTo(
-      cx + size * 0.65,
-      cy - size * 0.90,
-      cx + size * 0.75,
-      cy - size * 0.35,
-      cx,
-      cy + size * 0.40,
-    );
-    path.close();
-    return path;
-  }
-
-  void _drawDahliaFlower(
-    Canvas canvas,
-    Offset center,
-    double radius,
-    Color deep,
-    Color mid,
-    Color pale,
-  ) {
-    final numPetals = 12;
-    for (int i = 0; i < numPetals; i++) {
-      final angle = (i * 2 * math.pi) / numPetals;
-      final px = center.dx + math.cos(angle) * (radius * 0.6);
-      final py = center.dy + math.sin(angle) * (radius * 0.6);
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(px, py),
-          width: radius * 0.55,
-          height: radius * 0.35,
-        ),
-        Paint()..color = pale.withValues(alpha: 0.8),
-      );
-    }
-    for (int i = 0; i < 8; i++) {
-      final angle = (i * 2 * math.pi) / 8 + 0.3;
-      final px = center.dx + math.cos(angle) * (radius * 0.35);
-      final py = center.dy + math.sin(angle) * (radius * 0.35);
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(px, py),
-          width: radius * 0.4,
-          height: radius * 0.25,
-        ),
-        Paint()..color = mid.withValues(alpha: 0.85),
-      );
-    }
-    canvas.drawCircle(center, radius * 0.25, Paint()..color = deep);
-    canvas.drawCircle(
-      center,
-      radius * 0.12,
-      Paint()..color = Colors.white.withValues(alpha: 0.9),
-    );
-  }
-
-  void _drawFlowerBlossom(
-    Canvas canvas,
-    Offset center,
-    double size,
-    Color petalColor,
-    Color centerColor,
-  ) {
-    for (int i = 0; i < 5; i++) {
-      final angle = (i * 2 * math.pi) / 5;
-      final px = center.dx + math.cos(angle) * (size * 0.45);
-      final py = center.dy + math.sin(angle) * (size * 0.45);
-      canvas.drawCircle(
-        Offset(px, py),
-        size * 0.35,
-        Paint()..color = petalColor,
-      );
-      canvas.drawCircle(
-        Offset(px, py),
-        size * 0.35,
-        Paint()
-          ..color = centerColor.withValues(alpha: 0.4)
-          ..strokeWidth = 1.0
-          ..style = PaintingStyle.stroke,
-      );
-    }
-    canvas.drawCircle(center, size * 0.22, Paint()..color = centerColor);
-  }
-
-  void _drawRibbonBow(
-    Canvas canvas,
-    double cx,
-    double cy,
-    double scale,
-    Paint bowPaint,
-    Paint knotPaint,
-  ) {
-    final loopW = 28.0 * scale;
-    final loopH = 14.0 * scale;
-
-    // Sayap kiri pita
-    final leftLoop = Path()
-      ..moveTo(cx, cy)
-      ..cubicTo(
-        cx - loopW * 0.7,
-        cy - loopH * 1.3,
-        cx - loopW * 1.3,
-        cy + loopH * 0.3,
-        cx,
-        cy,
-      )
-      ..close();
-    canvas.drawPath(leftLoop, bowPaint);
-
-    // Sayap kanan pita
-    final rightLoop = Path()
-      ..moveTo(cx, cy)
-      ..cubicTo(
-        cx + loopW * 0.7,
-        cy - loopH * 1.3,
-        cx + loopW * 1.3,
-        cy + loopH * 0.3,
-        cx,
-        cy,
-      )
-      ..close();
-    canvas.drawPath(rightLoop, bowPaint);
-
-    // Ekor kiri pita
-    final leftTail = Path()
-      ..moveTo(cx - 3 * scale, cy)
-      ..cubicTo(
-        cx - loopW * 0.4,
-        cy + loopH * 0.8,
-        cx - loopW * 0.8,
-        cy + loopH * 1.2,
-        cx - loopW * 0.7,
-        cy + loopH * 1.5,
-      )
-      ..lineTo(cx - loopW * 0.5, cy + loopH * 1.2)
-      ..lineTo(cx - loopW * 0.3, cy + loopH * 1.4)
-      ..close();
-    canvas.drawPath(leftTail, bowPaint);
-
-    // Ekor kanan pita
-    final rightTail = Path()
-      ..moveTo(cx + 3 * scale, cy)
-      ..cubicTo(
-        cx + loopW * 0.4,
-        cy + loopH * 0.8,
-        cx + loopW * 0.8,
-        cy + loopH * 1.2,
-        cx + loopW * 0.7,
-        cy + loopH * 1.5,
-      )
-      ..lineTo(cx + loopW * 0.5, cy + loopH * 1.2)
-      ..lineTo(cx + loopW * 0.3, cy + loopH * 1.4)
-      ..close();
-    canvas.drawPath(rightTail, bowPaint);
-
-    // Simpul tengah
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(cx, cy),
-          width: 9 * scale,
-          height: 11 * scale,
-        ),
-        Radius.circular(3 * scale),
-      ),
-      knotPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _PhotostripFloralPainter oldDelegate) =>
-      oldDelegate.scale != scale ||
-      oldDelegate.isMini != isMini ||
-      oldDelegate.isPink != isPink ||
-      oldDelegate.topPadding != topPadding ||
-      oldDelegate.slotHeight != slotHeight ||
-      oldDelegate.gap != gap;
-}
