@@ -41,6 +41,8 @@ class Step2EditPhotoVertical extends StatefulWidget {
   final VoidCallback? onProceedToDownload;
   final VoidCallback? onRetake;
   final VoidCallback? onClose;
+  final List<double>? filterMatrix;
+  final List<bool>? mirroredStates;
 
   const Step2EditPhotoVertical({
     super.key,
@@ -54,6 +56,8 @@ class Step2EditPhotoVertical extends StatefulWidget {
     this.onProceedToDownload,
     this.onRetake,
     this.onClose,
+    this.filterMatrix,
+    this.mirroredStates,
   });
 
   static Future<void> show(
@@ -64,6 +68,7 @@ class Step2EditPhotoVertical extends StatefulWidget {
     int selectedFrameIndex = 0,
     int initialPhotoIndex = 0,
     VoidCallback? onRetake,
+    List<double>? filterMatrix,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -74,6 +79,7 @@ class Step2EditPhotoVertical extends StatefulWidget {
           selectedFrameIndex: selectedFrameIndex,
           initialPhotoIndex: initialPhotoIndex,
           onRetake: onRetake,
+          filterMatrix: filterMatrix,
           onClose: () => Navigator.of(context).pop(),
         ),
       ),
@@ -147,6 +153,7 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
               selectedThemeColor: widget.selectedThemeColor,
               selectedFrameIndex: _selectedFrameIndex,
               onRetake: widget.onRetake,
+              filterMatrix: widget.filterMatrix,
               onClose: widget.onClose,
             ),
           ),
@@ -170,6 +177,8 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
           selectedThemeColor: widget.selectedThemeColor,
           selectedFrameIndex: _selectedFrameIndex,
           onRetake: widget.onRetake,
+          filterMatrix: widget.filterMatrix,
+          mirroredStates: widget.mirroredStates,
           onClose: widget.onClose,
         ),
       ),
@@ -376,9 +385,28 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
                   child: widget.capturedPhotos.isNotEmpty &&
                           _selectedPhotoIndex < widget.capturedPhotos.length &&
                           File(widget.capturedPhotos[_selectedPhotoIndex]).existsSync()
-                      ? Image.file(
-                          File(widget.capturedPhotos[_selectedPhotoIndex]),
-                          fit: BoxFit.cover,
+                      ? Builder(
+                          builder: (context) {
+                            final bool isMirrored = widget.mirroredStates != null && 
+                                                    widget.mirroredStates!.length > _selectedPhotoIndex && 
+                                                    widget.mirroredStates![_selectedPhotoIndex];
+                            
+                            Widget photoWidget = Image.file(
+                              File(widget.capturedPhotos[_selectedPhotoIndex]),
+                              fit: BoxFit.cover,
+                            );
+
+                            if (isMirrored) {
+                              photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+                            }
+
+                            return widget.filterMatrix != null
+                                ? ColorFiltered(
+                                    colorFilter: ColorFilter.matrix(widget.filterMatrix!),
+                                    child: photoWidget,
+                                  )
+                                : photoWidget;
+                          },
                         )
                       : Container(
                           color: const Color(0xFFFDE8EF),

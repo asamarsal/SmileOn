@@ -12,8 +12,8 @@ class HorizontalExpandedPreviewFrame extends StatefulWidget {
   final List<String> capturedPhotos;
   final bool isDarkMode;
   final int initialIndex;
-
   final void Function(int index)? onRetakePhoto;
+  final List<bool>? mirroredStates;
 
   const HorizontalExpandedPreviewFrame({
     super.key,
@@ -21,6 +21,7 @@ class HorizontalExpandedPreviewFrame extends StatefulWidget {
     required this.isDarkMode,
     this.initialIndex = 0,
     this.onRetakePhoto,
+    this.mirroredStates,
   });
 
   static Future<void> show({
@@ -29,6 +30,7 @@ class HorizontalExpandedPreviewFrame extends StatefulWidget {
     required bool isDarkMode,
     int initialIndex = 0,
     void Function(int index)? onRetakePhoto,
+    List<bool>? mirroredStates,
   }) {
     return showDialog(
       context: context,
@@ -40,6 +42,7 @@ class HorizontalExpandedPreviewFrame extends StatefulWidget {
           isDarkMode: isDarkMode,
           initialIndex: initialIndex,
           onRetakePhoto: onRetakePhoto,
+          mirroredStates: mirroredStates,
         );
       },
     );
@@ -128,6 +131,7 @@ class _HorizontalExpandedPreviewFrameState
         widget.onRetakePhoto!(index);
       } else {
         widget.capturedPhotos.removeAt(index);
+        widget.mirroredStates?.removeAt(index);
       }
       setState(() {
         if (widget.capturedPhotos.isNotEmpty) {
@@ -412,11 +416,21 @@ class _HorizontalExpandedPreviewFrameState
                     final bool fileExists = File(photoPath).existsSync();
 
                     if (fileExists) {
-                      return Image.file(
+                      final bool isMirrored = widget.mirroredStates != null && 
+                                              widget.mirroredStates!.length > index && 
+                                              widget.mirroredStates![index];
+                      
+                      Widget photoWidget = Image.file(
                         File(photoPath),
                         fit: BoxFit.cover,
                         key: ValueKey(photoPath),
                       );
+
+                      if (isMirrored) {
+                        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+                      }
+
+                      return photoWidget;
                     }
                     return Container(
                       color: Colors.black45,
@@ -573,20 +587,33 @@ class _HorizontalExpandedPreviewFrameState
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            // Thumbnail Gambar Foto
                             if (hasPhoto) ...[
-                              Image.file(
-                                File(widget.capturedPhotos[index]),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(
-                                      color: Colors.black26,
-                                      child: const Icon(
-                                        Icons.broken_image,
-                                        size: 16,
-                                        color: Colors.white38,
-                                      ),
-                                    ),
+                              Builder(
+                                builder: (context) {
+                                  final bool isMirrored = widget.mirroredStates != null && 
+                                                          widget.mirroredStates!.length > index && 
+                                                          widget.mirroredStates![index];
+                                  
+                                  Widget photoWidget = Image.file(
+                                    File(widget.capturedPhotos[index]),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Container(
+                                          color: Colors.black26,
+                                          child: const Icon(
+                                            Icons.broken_image,
+                                            size: 16,
+                                            color: Colors.white38,
+                                          ),
+                                        ),
+                                  );
+
+                                  if (isMirrored) {
+                                    photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+                                  }
+
+                                  return photoWidget;
+                                },
                               ),
                               // Dimmer jika tidak terpilih
                               if (!isSelected)

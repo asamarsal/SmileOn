@@ -7,9 +7,10 @@ import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:smileon/core/theme/app_theme.dart';
-import 'package:smileon/features/camera/presentation/vertical/chooseframe_dialog.dart';
 import 'package:smileon/features/camera/presentation/vertical/dialog_previewphotostrip.dart';
 import 'package:smileon/features/camera/presentation/vertical/maincamera_frame.dart';
+import 'package:smileon/features/camera/presentation/vertical/menu/dialog_filter.dart';
+import 'package:smileon/features/camera/presentation/vertical/menu/template_vertical_active_camera.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 
 class VerticalActiveCamScreen extends StatefulWidget {
@@ -35,8 +36,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   int _timerSeconds = 3;
   int _selectedCategoryIndex =
       0; // 0: Template, 1: Filter, 2: Background, 3: Lainnya
+  bool _showFramesCarousel = true;
   int _selectedFrameIndex = 0; // 0: Hanfleur, 1: Black SmileOn, 2: Good Times, 3: Better Together, 4: Capture Print Share
+  int _selectedCameraFilterIndex = 0;
   final List<String> _capturedPhotos = [];
+  final List<bool> _capturedPhotosMirrorState = [];
   int? _retakeTargetIndex;
   int? _clickedPhotoIndex;
   PageController? _previewPageController;
@@ -454,11 +458,21 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                                                 transform: Matrix4.rotationY(
                                                   math.pi,
                                                 ),
-                                                child: CameraPreview(
-                                                  _cameraController!,
-                                                ),
+                                                child: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] != null
+                                                    ? ColorFiltered(
+                                                        colorFilter: ColorFilter.matrix(FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>),
+                                                        child: CameraPreview(_cameraController!),
+                                                      )
+                                                    : CameraPreview(
+                                                        _cameraController!,
+                                                      ),
                                               )
-                                            : CameraPreview(_cameraController!),
+                                            : FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] != null
+                                                ? ColorFiltered(
+                                                    colorFilter: ColorFilter.matrix(FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>),
+                                                    child: CameraPreview(_cameraController!),
+                                                  )
+                                                : CameraPreview(_cameraController!),
                                       ),
                                     ),
 
@@ -892,11 +906,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                         final String lastMod = File(currentPath).existsSync()
                             ? File(currentPath).lastModifiedSync().toString()
                             : '';
-                        return Image.file(
-                          File(currentPath),
-                          key: ValueKey('$currentPath-$lastMod'),
-                          fit: BoxFit.cover,
-                        );
+                        return FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] != null
+                            ? ColorFiltered(
+                                colorFilter: ColorFilter.matrix(FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>),
+                                child: Image.file(
+                                  File(currentPath),
+                                  key: ValueKey('$currentPath-$lastMod'),
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Image.file(
+                                File(currentPath),
+                                key: ValueKey('$currentPath-$lastMod'),
+                                fit: BoxFit.cover,
+                              );
                       }
                       return Container(
                         color: Colors.black54,
@@ -1317,7 +1340,12 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                       fit: StackFit.expand,
                       children: [
                         if (fileExists)
-                          Image.file(File(photoPath), fit: BoxFit.cover)
+                          FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] != null
+                              ? ColorFiltered(
+                                  colorFilter: ColorFilter.matrix(FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>),
+                                  child: Image.file(File(photoPath), fit: BoxFit.cover),
+                                )
+                              : Image.file(File(photoPath), fit: BoxFit.cover)
                         else
                           Container(
                             color: Colors.black45,
@@ -1461,16 +1489,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
         if (retakeIdx != null) {
           if (retakeIdx <= _capturedPhotos.length) {
             _capturedPhotos.insert(retakeIdx, xfile.path);
+            _capturedPhotosMirrorState.insert(retakeIdx, _isMirrored);
           } else {
             _capturedPhotos.add(xfile.path);
+            _capturedPhotosMirrorState.add(_isMirrored);
           }
           _retakeTargetIndex = null;
           _clickedPhotoIndex = retakeIdx;
         } else {
           if (_capturedPhotos.length >= 4) {
             _capturedPhotos.clear();
+            _capturedPhotosMirrorState.clear();
           }
           _capturedPhotos.add(xfile.path);
+          _capturedPhotosMirrorState.add(_isMirrored);
         }
       });
 
@@ -1637,6 +1669,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
         _isCapturingSingle = false;
         _isCapturingSequence = false;
         _capturedPhotos.removeAt(targetIndex);
+        _capturedPhotosMirrorState.removeAt(targetIndex);
         _retakeTargetIndex = targetIndex;
       });
       if (mounted) {
@@ -1669,14 +1702,21 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       context: context,
       initialFrameIndex: _selectedFrameIndex,
       capturedPhotos: _capturedPhotos,
+      filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
+      mirroredStates: _capturedPhotosMirrorState,
       onFrameSelected: (newIndex) {
-        setState(() => _selectedFrameIndex = newIndex);
+        if (mounted) {
+          setState(() => _selectedFrameIndex = newIndex);
+        }
       },
       onRetake: () {
-        setState(() {
-          _capturedPhotos.clear();
-          _retakeTargetIndex = null;
-        });
+        if (mounted) {
+          setState(() {
+            _capturedPhotos.clear();
+            _capturedPhotosMirrorState.clear();
+            _retakeTargetIndex = null;
+          });
+        }
       },
       onRetakePhoto: (targetIndex) {
         _retakeSinglePhoto(targetIndex);
@@ -1719,6 +1759,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                           isCameraOn: _isCameraOn,
                           isInitialized: _isInitialized,
                           isMirrored: _isMirrored,
+                          filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
                           currentSession: math.min(
                             _capturedPhotos.length + 1,
                             4,
@@ -1738,10 +1779,25 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                         // 3. CATEGORY TABS (Template, Filter, Background, Lainnya)
                         _buildCategoryTabs(),
 
-                        const SizedBox(height: 24),
-
-                        // 4. TEMPLATE FRAME CAROUSEL
-                        _buildFramesCarousel(),
+                        if (_showFramesCarousel) ...[
+                          const SizedBox(height: 24),
+                          // 4. TEMPLATE FRAME CAROUSEL (MENU TEMPLATE)
+                          TemplateVerticalActiveCamera(
+                            selectedFrameIndex: _selectedFrameIndex,
+                            onFrameSelected: (newIndex) {
+                              setState(() => _selectedFrameIndex = newIndex);
+                            },
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 24),
+                          Center(
+                            child: Lottie.asset(
+                              'assets/lottie/smileon_loading.json',
+                              height: 48,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
 
                         const SizedBox(height: 24),
 
@@ -1876,10 +1932,15 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                         builder: (context) => Step1PreviewVertical(
                           capturedPhotos: _capturedPhotos,
                           selectedFrameIndex: _selectedFrameIndex,
+                          filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
+                          mirroredStates: _capturedPhotosMirrorState,
                           onRetake: () {
-                            setState(() {
-                              _capturedPhotos.clear();
-                            });
+                            if (mounted) {
+                              setState(() {
+                                _capturedPhotos.clear();
+                                _capturedPhotosMirrorState.clear();
+                              });
+                            }
                             Navigator.pop(context);
                           },
                           onClose: () => Navigator.pop(context),
@@ -1896,8 +1957,30 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                       ),
                     );
                   }
+                } else if (index == 0) {
+                  setState(() {
+                    _showFramesCarousel = !_showFramesCarousel;
+                    _selectedCategoryIndex = 0;
+                  });
+                } else if (index == 1) { // Filter
+                  setState(() {
+                    _selectedCategoryIndex = 1;
+                    _showFramesCarousel = false;
+                  });
+                  FilterDialog.show(
+                    context,
+                    initialFilterIndex: _selectedCameraFilterIndex,
+                    onFilterSelected: (newIndex) {
+                      setState(() {
+                        _selectedCameraFilterIndex = newIndex;
+                      });
+                    },
+                  );
                 } else {
-                  setState(() => _selectedCategoryIndex = index);
+                  setState(() {
+                    _selectedCategoryIndex = index;
+                    _showFramesCarousel = false;
+                  });
                 }
               },
               child: AnimatedContainer(
@@ -1945,150 +2028,6 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
           ),
         );
       }),
-    );
-  }
-
-  // ==============================================================
-  // 4. TEMPLATE FRAMES CAROUSEL & DIALOG
-  // ==============================================================
-  void _showAllFramesDialog() {
-    HapticFeedback.lightImpact();
-    ChooseFrameDialog.show(
-      context: context,
-      initialSelectedIndex: _selectedFrameIndex,
-      onFrameSelected: (newIndex) {
-        setState(() => _selectedFrameIndex = newIndex);
-      },
-    );
-  }
-
-  Widget _buildFramesCarousel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Header di atas kanan frame: Teks "Lihat Semua"
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Pilih Frame',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2E2E32),
-                  letterSpacing: 0.2,
-                ),
-              ),
-              GestureDetector(
-                onTap: _showAllFramesDialog,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryRose.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppTheme.primaryRose.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'Lihat Semua',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryRose,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        size: 10.5,
-                        color: AppTheme.primaryRose,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // Tepat 3 1/2 frame yang muncul di viewport horizontal agar proporsional dan lebih tinggi
-            final double itemWidth = math.max(
-              86.0,
-              (constraints.maxWidth - (3 * 10.0)) / 3.5,
-            );
-            // Rasio photostrip 1:3 (600x1800 px)
-            final double carouselHeight = itemWidth * 3.0;
-
-            return SizedBox(
-              height: carouselHeight,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  for (
-                    int i = 0;
-                    i < VerticalFrameThumbnails.allFrames.length;
-                    i++
-                  )
-                    _buildFrameCardItem(
-                      i,
-                      VerticalFrameThumbnails.buildThumbnail(i),
-                      width: itemWidth,
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFrameCardItem(
-    int index,
-    Widget frameContent, {
-    double width = 86,
-  }) {
-    final isSelected = _selectedFrameIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedFrameIndex = index);
-      },
-      child: Container(
-        width: width,
-        margin: const EdgeInsets.only(right: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryRose : Colors.transparent,
-            width: isSelected ? 2.5 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? AppTheme.primaryRose.withValues(alpha: 0.3)
-                  : Colors.black.withValues(alpha: 0.08),
-              blurRadius: isSelected ? 10 : 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(isSelected ? 13.5 : 15),
-          child: frameContent,
-        ),
-      ),
     );
   }
 

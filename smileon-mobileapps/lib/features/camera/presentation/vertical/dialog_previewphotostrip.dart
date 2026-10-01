@@ -21,6 +21,8 @@ class DialogPreviewPhotostrip extends StatefulWidget {
   final VoidCallback? onRetake;
   final Function(int targetIndex)? onRetakePhoto;
   final bool initialRoundedBorder;
+  final List<double>? filterMatrix;
+  final List<bool>? mirroredStates;
 
   const DialogPreviewPhotostrip({
     super.key,
@@ -30,6 +32,8 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     this.onRetake,
     this.onRetakePhoto,
     this.initialRoundedBorder = true,
+    this.filterMatrix,
+    this.mirroredStates,
   });
 
   /// Menampilkan dialog preview photostrip sebagai full-screen route
@@ -43,6 +47,8 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     VoidCallback? onRetake,
     Function(int targetIndex)? onRetakePhoto,
     bool isRoundedBorder = true,
+    List<double>? filterMatrix,
+    List<bool>? mirroredStates,
   }) {
     HapticFeedback.lightImpact();
     return Navigator.of(context).push(
@@ -58,6 +64,8 @@ class DialogPreviewPhotostrip extends StatefulWidget {
               onRetake: onRetake,
               onRetakePhoto: onRetakePhoto,
               initialRoundedBorder: isRoundedBorder,
+              filterMatrix: filterMatrix,
+              mirroredStates: mirroredStates,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
@@ -917,6 +925,15 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
         File(widget.capturedPhotos[index]).existsSync();
 
     if (hasPhoto) {
+      final bool isMirrored = widget.mirroredStates != null && 
+                              widget.mirroredStates!.length > index && 
+                              widget.mirroredStates![index];
+      
+      Widget photoWidget = Image.file(File(widget.capturedPhotos[index]), fit: BoxFit.cover);
+      if (isMirrored) {
+        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+      }
+
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _confirmRetakeSingle(context, index),
@@ -924,7 +941,12 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
           fit: StackFit.expand,
           children: [
             // Foto asli dari kamera
-            Image.file(File(widget.capturedPhotos[index]), fit: BoxFit.cover),
+            widget.filterMatrix != null
+                ? ColorFiltered(
+                    colorFilter: ColorFilter.matrix(widget.filterMatrix!),
+                    child: photoWidget,
+                  )
+                : photoWidget,
             // Badge nomor layar (pojok kiri atas)
             Positioned(
               top: 6,
@@ -1195,6 +1217,8 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
                                     capturedPhotos: widget.capturedPhotos,
                                     selectedFrameIndex: _activeFrameIndex,
                                     isRoundedBorder: _isRoundedBorder,
+                                    filterMatrix: widget.filterMatrix,
+                                    mirroredStates: widget.mirroredStates,
                                     onClose: () => Navigator.pop(ctx),
                                   ),
                                 ),

@@ -18,6 +18,7 @@ class Step3Download extends StatefulWidget {
   final VoidCallback? onBackToEdit;
   final VoidCallback? onFinishSession;
   final VoidCallback? onClose;
+  final List<bool>? mirroredStates;
 
   const Step3Download({
     super.key,
@@ -29,6 +30,7 @@ class Step3Download extends StatefulWidget {
     this.onBackToEdit,
     this.onFinishSession,
     this.onClose,
+    this.mirroredStates,
   });
 
   static Future<void> show(
@@ -37,6 +39,7 @@ class Step3Download extends StatefulWidget {
     Color? selectedThemeColor,
     String? frameTitle,
     VoidCallback? onFinishSession,
+    List<bool>? mirroredStates,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -47,6 +50,7 @@ class Step3Download extends StatefulWidget {
             selectedThemeColor: selectedThemeColor,
             frameTitle: frameTitle,
             onFinishSession: onFinishSession,
+            mirroredStates: mirroredStates,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -1652,10 +1656,21 @@ class _Step3DownloadState extends State<Step3Download> {
     if (widget.capturedPhotos.isNotEmpty &&
         index < widget.capturedPhotos.length &&
         File(widget.capturedPhotos[index]).existsSync()) {
-      return Image.file(
+      
+      final bool isMirrored = widget.mirroredStates != null && 
+                              widget.mirroredStates!.length > index && 
+                              widget.mirroredStates![index];
+      
+      Widget photoWidget = Image.file(
         File(widget.capturedPhotos[index]),
         fit: BoxFit.cover,
       );
+
+      if (isMirrored) {
+        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+      }
+
+      return photoWidget;
     }
     return Container(
       color: Colors.grey.shade800,

@@ -28,6 +28,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
   final void Function(int index)? onRetakePhoto;
   final void Function(VoidCallback syncCallback)? onRegisterSync;
   final VoidCallback? onDismiss;
+  final List<bool> Function()? mirroredStates;
 
   const HorizontalExpandedFrame({
     super.key,
@@ -50,6 +51,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
     this.onRetakePhoto,
     this.onRegisterSync,
     this.onDismiss,
+    this.mirroredStates,
   });
 
   static Future<void> show({
@@ -73,6 +75,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
     void Function(int index)? onRetakePhoto,
     void Function(VoidCallback syncCallback)? onRegisterSync,
     VoidCallback? onDismiss,
+    List<bool> Function()? mirroredStates,
   }) {
     return showDialog(
       context: context,
@@ -99,6 +102,7 @@ class HorizontalExpandedFrame extends StatefulWidget {
           onRetakePhoto: onRetakePhoto,
           onRegisterSync: onRegisterSync,
           onDismiss: onDismiss,
+          mirroredStates: mirroredStates,
         );
       },
     ).then((_) {
@@ -390,7 +394,8 @@ class _HorizontalExpandedFrameState extends State<HorizontalExpandedFrame> {
                       HorizontalExpandedPreviewFrame.show(
                         context: context,
                         capturedPhotos: widget.capturedPhotos(),
-                        isDarkMode: isDarkMode,
+                        isDarkMode: widget.isDarkMode(),
+                        mirroredStates: widget.mirroredStates?.call(),
                         onRetakePhoto: (index) {
                           widget.onRetakePhoto?.call(index);
                           setState(() {});

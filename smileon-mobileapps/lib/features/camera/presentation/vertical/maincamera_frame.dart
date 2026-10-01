@@ -21,6 +21,7 @@ class MainCameraFrame extends StatelessWidget {
   final VoidCallback? onToggleCamera;
   final VoidCallback? onToggleTimer;
   final VoidCallback? onFullscreen;
+  final List<double>? filterMatrix;
 
   const MainCameraFrame({
     super.key,
@@ -37,6 +38,7 @@ class MainCameraFrame extends StatelessWidget {
     this.onToggleCamera,
     this.onToggleTimer,
     this.onFullscreen,
+    this.filterMatrix,
   });
 
   /// Menampilkan dialog preview kamera fullscreen
@@ -45,6 +47,7 @@ class MainCameraFrame extends StatelessWidget {
     required CameraController? cameraController,
     required bool isCameraOn,
     required bool isMirrored,
+    List<double>? filterMatrix,
   }) {
     if (!isCameraOn ||
         cameraController == null ||
@@ -98,9 +101,19 @@ class MainCameraFrame extends StatelessWidget {
                                 ? Transform(
                                     alignment: Alignment.center,
                                     transform: Matrix4.rotationY(math.pi),
-                                    child: CameraPreview(cameraController),
+                                    child: filterMatrix != null
+                                        ? ColorFiltered(
+                                            colorFilter: ColorFilter.matrix(filterMatrix!),
+                                            child: CameraPreview(cameraController),
+                                          )
+                                        : CameraPreview(cameraController),
                                   )
-                                : CameraPreview(cameraController),
+                                : filterMatrix != null
+                                    ? ColorFiltered(
+                                        colorFilter: ColorFilter.matrix(filterMatrix!),
+                                        child: CameraPreview(cameraController),
+                                      )
+                                    : CameraPreview(cameraController),
                           ),
                         ),
                       ),
@@ -183,9 +196,19 @@ class MainCameraFrame extends StatelessWidget {
                             ? Transform(
                                 alignment: Alignment.center,
                                 transform: Matrix4.rotationY(math.pi),
-                                child: CameraPreview(cameraController!),
+                                child: filterMatrix != null
+                                    ? ColorFiltered(
+                                        colorFilter: ColorFilter.matrix(filterMatrix!),
+                                        child: CameraPreview(cameraController!),
+                                      )
+                                    : CameraPreview(cameraController!),
                               )
-                            : CameraPreview(cameraController!),
+                            : filterMatrix != null
+                                ? ColorFiltered(
+                                    colorFilter: ColorFilter.matrix(filterMatrix!),
+                                    child: CameraPreview(cameraController!),
+                                  )
+                                : CameraPreview(cameraController!),
                       ),
                     ),
                   ),
@@ -364,6 +387,7 @@ class MainCameraFrame extends StatelessWidget {
                         cameraController: cameraController,
                         isCameraOn: isCameraOn,
                         isMirrored: isMirrored,
+                        filterMatrix: filterMatrix,
                       );
                     }
                   },

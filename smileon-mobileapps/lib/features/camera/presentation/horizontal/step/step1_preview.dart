@@ -17,6 +17,7 @@ class Step1Preview extends StatefulWidget {
   final VoidCallback? onProceedToDownload;
   final VoidCallback? onRetake;
   final VoidCallback? onClose;
+  final List<bool>? mirroredStates;
 
   const Step1Preview({
     super.key,
@@ -29,6 +30,7 @@ class Step1Preview extends StatefulWidget {
     this.onProceedToDownload,
     this.onRetake,
     this.onClose,
+    this.mirroredStates,
   });
 
   static Future<void> show(
@@ -38,6 +40,7 @@ class Step1Preview extends StatefulWidget {
     String? frameTitle,
     int initialIndex = 0,
     VoidCallback? onRetake,
+    List<bool>? mirroredStates,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -49,6 +52,7 @@ class Step1Preview extends StatefulWidget {
             frameTitle: frameTitle,
             initialIndex: initialIndex,
             onRetake: onRetake,
+            mirroredStates: mirroredStates,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -1072,10 +1076,21 @@ class _Step1PreviewState extends State<Step1Preview> {
     if (widget.capturedPhotos.isNotEmpty &&
         index < widget.capturedPhotos.length &&
         File(widget.capturedPhotos[index]).existsSync()) {
-      return Image.file(
+      
+      final bool isMirrored = widget.mirroredStates != null && 
+                              widget.mirroredStates!.length > index && 
+                              widget.mirroredStates![index];
+      
+      Widget photoWidget = Image.file(
         File(widget.capturedPhotos[index]),
         fit: BoxFit.cover,
       );
+
+      if (isMirrored) {
+        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+      }
+
+      return photoWidget;
     }
     return CustomPaint(
       painter: _Step1ReferencePainter(photoIndex: index),

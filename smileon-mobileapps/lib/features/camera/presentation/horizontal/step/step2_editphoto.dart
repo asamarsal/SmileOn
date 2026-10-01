@@ -36,6 +36,7 @@ class Step2EditPhoto extends StatefulWidget {
   final VoidCallback? onBackToPreview;
   final VoidCallback? onProceedToDownload;
   final VoidCallback? onClose;
+  final List<bool>? mirroredStates;
 
   const Step2EditPhoto({
     super.key,
@@ -47,6 +48,7 @@ class Step2EditPhoto extends StatefulWidget {
     this.onBackToPreview,
     this.onProceedToDownload,
     this.onClose,
+    this.mirroredStates,
   });
 
   static Future<void> show(
@@ -55,6 +57,7 @@ class Step2EditPhoto extends StatefulWidget {
     Color? selectedThemeColor,
     String? frameTitle,
     int initialPhotoIndex = 0,
+    List<bool>? mirroredStates,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -65,6 +68,7 @@ class Step2EditPhoto extends StatefulWidget {
             selectedThemeColor: selectedThemeColor,
             frameTitle: frameTitle,
             initialPhotoIndex: initialPhotoIndex,
+            mirroredStates: mirroredStates,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -530,10 +534,21 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
     if (widget.capturedPhotos.isNotEmpty &&
         index < widget.capturedPhotos.length &&
         File(widget.capturedPhotos[index]).existsSync()) {
-      return Image.file(
+      
+      final bool isMirrored = widget.mirroredStates != null && 
+                              widget.mirroredStates!.length > index && 
+                              widget.mirroredStates![index];
+      
+      Widget photoWidget = Image.file(
         File(widget.capturedPhotos[index]),
         fit: BoxFit.cover,
       );
+
+      if (isMirrored) {
+        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+      }
+
+      return photoWidget;
     }
     return Container(
       color: Colors.grey.shade800,

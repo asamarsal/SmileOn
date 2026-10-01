@@ -75,6 +75,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   final List<String> _capturedPhotos = [];
+  final List<bool> _capturedPhotosMirrorState = [];
   int _activeStep = 0; // 0: Camera, 1: Step 1 (Preview), 2: Step 2 (Edit), 3: Step 3 (Download)
 
   @override
@@ -214,6 +215,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       _isCapturingSequence = true;
       if (_capturedPhotos.length >= 4) {
         _capturedPhotos.clear();
+        _capturedPhotosMirrorState.clear();
       }
     });
 
@@ -261,6 +263,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         _syncSetState(() {
           _showShutterEffect = false;
           _capturedPhotos.add(xfile.path);
+          _capturedPhotosMirrorState.add(_isMirrored);
           _showDummyPhoto = false;
         });
 
@@ -367,15 +370,19 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         if (retakeIdx != null) {
           if (retakeIdx <= _capturedPhotos.length) {
             _capturedPhotos.insert(retakeIdx, xfile.path);
+            _capturedPhotosMirrorState.insert(retakeIdx, _isMirrored);
           } else {
             _capturedPhotos.add(xfile.path);
+            _capturedPhotosMirrorState.add(_isMirrored);
           }
           _retakeTargetIndex = null;
         } else {
           if (_capturedPhotos.length >= 4) {
             _capturedPhotos.clear();
+            _capturedPhotosMirrorState.clear();
           }
           _capturedPhotos.add(xfile.path);
+          _capturedPhotosMirrorState.add(_isMirrored);
         }
         _showDummyPhoto = false;
       });
@@ -414,6 +421,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       _cancelCapture();
       _syncSetState(() {
         _capturedPhotos.removeAt(index);
+        _capturedPhotosMirrorState.removeAt(index);
         _retakeTargetIndex = index;
       });
       HapticFeedback.mediumImpact();
@@ -453,6 +461,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       isDarkMode: () => _isDarkMode,
       capturedPhotosCount: () => _capturedPhotos.length,
       capturedPhotos: () => _capturedPhotos,
+      mirroredStates: () => _capturedPhotosMirrorState,
       countdown: () => _countdown,
       timerSeconds: () => _timerSeconds,
       showShutterEffect: () => _showShutterEffect,
@@ -1137,6 +1146,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         backgroundColor: const Color(0xFFFCEDF2),
         body: Step1Preview(
           capturedPhotos: _capturedPhotos,
+          mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,
           frameTitle: _selectedFrameIndex == 0
               ? 'Hanfleur Florist'
@@ -1162,6 +1172,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           onRetake: () {
             setState(() {
               _capturedPhotos.clear();
+              _capturedPhotosMirrorState.clear();
               _activeStep = 0;
             });
           },
@@ -1179,6 +1190,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         backgroundColor: const Color(0xFFFCEDF2),
         body: Step2EditPhoto(
           capturedPhotos: _capturedPhotos,
+          mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,
           frameTitle: 'Classic Pink',
           onBackToPreview: () {
@@ -1210,6 +1222,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         backgroundColor: const Color(0xFFFCEDF2),
         body: Step3Download(
           capturedPhotos: _capturedPhotos,
+          mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,
           frameTitle: 'Classic Pink',
           onBackToPreview: () {
@@ -1230,6 +1243,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           onFinishSession: () {
             setState(() {
               _capturedPhotos.clear();
+              _capturedPhotosMirrorState.clear();
               _activeStep = 0;
             });
           },
@@ -1546,6 +1560,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                     HorizontalExpandedPreviewFrame.show(
                       context: context,
                       capturedPhotos: _capturedPhotos,
+                      mirroredStates: _capturedPhotosMirrorState,
                       isDarkMode: _isDarkMode,
                       onRetakePhoto: _retakePhoto,
                     );
@@ -1708,6 +1723,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                         onTap: () {
                           setState(() {
                             _capturedPhotos.clear();
+                            _capturedPhotosMirrorState.clear();
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -2024,7 +2040,19 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.file(File(_capturedPhotos[index]), fit: BoxFit.cover),
+          Builder(
+            builder: (context) {
+              final bool isMirrored = _capturedPhotosMirrorState.length > index && 
+                                      _capturedPhotosMirrorState[index];
+              
+              Widget photoWidget = Image.file(File(_capturedPhotos[index]), fit: BoxFit.cover);
+              if (isMirrored) {
+                photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+              }
+
+              return photoWidget;
+            }
+          ),
           Positioned(
             top: 4,
             left: 4,

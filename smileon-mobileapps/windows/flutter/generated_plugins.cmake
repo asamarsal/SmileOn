@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_webview_window
   firebase_core
   flutter_secure_storage_windows
+  gal
   passkeys_windows
   share_plus
   url_launcher_windows

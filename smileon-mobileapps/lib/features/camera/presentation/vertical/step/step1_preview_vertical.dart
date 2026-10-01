@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
@@ -24,6 +24,8 @@ class Step1PreviewVertical extends StatefulWidget {
   final VoidCallback? onProceedToDownload;
   final VoidCallback? onRetake;
   final VoidCallback? onClose;
+  final List<double>? filterMatrix;
+  final List<bool>? mirroredStates;
 
   const Step1PreviewVertical({
     super.key,
@@ -37,6 +39,8 @@ class Step1PreviewVertical extends StatefulWidget {
     this.onProceedToDownload,
     this.onRetake,
     this.onClose,
+    this.filterMatrix,
+    this.mirroredStates,
   });
 
   static Future<void> show(
@@ -47,6 +51,8 @@ class Step1PreviewVertical extends StatefulWidget {
     int selectedFrameIndex = 0,
     bool isRoundedBorder = true,
     VoidCallback? onRetake,
+    List<double>? filterMatrix,
+    List<bool>? mirroredStates,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -57,6 +63,8 @@ class Step1PreviewVertical extends StatefulWidget {
           selectedFrameIndex: selectedFrameIndex,
           isRoundedBorder: isRoundedBorder,
           onRetake: onRetake,
+          filterMatrix: filterMatrix,
+          mirroredStates: mirroredStates,
           onClose: () => Navigator.of(context).pop(),
         ),
       ),
@@ -156,6 +164,8 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
           frameTitle: _frames[_selectedFrameIndex]['name'],
           selectedFrameIndex: _selectedFrameIndex,
           onRetake: widget.onRetake,
+          filterMatrix: widget.filterMatrix,
+          mirroredStates: widget.mirroredStates,
           onClose: widget.onClose,
         ),
       ),
@@ -176,6 +186,8 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
           frameTitle: _frames[_selectedFrameIndex]['name'],
           selectedFrameIndex: _selectedFrameIndex,
           onRetake: widget.onRetake,
+          filterMatrix: widget.filterMatrix,
+          mirroredStates: widget.mirroredStates,
           onClose: widget.onClose,
         ),
       ),
@@ -594,10 +606,25 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
         File(widget.capturedPhotos[index]).existsSync();
 
     if (hasPhoto) {
-      return Image.file(
+      final bool isMirrored = widget.mirroredStates != null && 
+                              widget.mirroredStates!.length > index && 
+                              widget.mirroredStates![index];
+      
+      Widget photoWidget = Image.file(
         File(widget.capturedPhotos[index]),
         fit: BoxFit.cover,
       );
+
+      if (isMirrored) {
+        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+      }
+
+      return widget.filterMatrix != null
+          ? ColorFiltered(
+              colorFilter: ColorFilter.matrix(widget.filterMatrix!),
+              child: photoWidget,
+            )
+          : photoWidget;
     }
 
     // Slot kosong — placeholder netral
