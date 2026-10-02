@@ -251,11 +251,7 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
               color: Color(0xFF1E1E22),
             ),
           ),
-          _buildCircleButton(
-            icon: Icons.close_rounded,
-            size: 20,
-            onTap: widget.onClose ?? () => Navigator.of(context).maybePop(),
-          ),
+          const SizedBox(width: 40),
         ],
       ),
     );

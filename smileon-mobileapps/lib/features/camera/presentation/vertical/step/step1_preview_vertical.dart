@@ -324,12 +324,7 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
             ),
           ),
 
-          // Circular Close Button
-          _buildCircleButton(
-            icon: Icons.close_rounded,
-            size: 20,
-            onTap: widget.onClose ?? () => Navigator.of(context).maybePop(),
-          ),
+          const SizedBox(width: 40),
         ],
       ),
     );

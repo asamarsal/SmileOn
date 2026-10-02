@@ -1701,9 +1701,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     DialogPreviewPhotostrip.show(
       context: context,
       initialFrameIndex: _selectedFrameIndex,
-      capturedPhotos: _capturedPhotos,
+      capturedPhotos: List<String>.from(_capturedPhotos),
       filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
-      mirroredStates: _capturedPhotosMirrorState,
+      mirroredStates: List<bool>.from(_capturedPhotosMirrorState),
       onFrameSelected: (newIndex) {
         if (mounted) {
           setState(() => _selectedFrameIndex = newIndex);
@@ -1721,7 +1721,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
       onRetakePhoto: (targetIndex) {
         _retakeSinglePhoto(targetIndex);
       },
-    );
+    ).then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -2034,6 +2038,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   // ==============================================================
   // 5. PRIMARY BUTTON "Ambil Foto" DENGAN KONTROL KIRI & KANAN
   // ==============================================================
+  
   Widget _buildCaptureActionButton() {
     final bool isBusy = _isCapturingSequence || _isCapturingSingle;
     return Row(
@@ -2071,7 +2076,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                     }
                   : () {
                       HapticFeedback.mediumImpact();
-                      if (_retakeTargetIndex != null) {
+                      if (_capturedPhotos.length >= 4) {
+                        _retakeTargetIndex = null;
+                        _showPhotostripPreviewDialog();
+                      } else if (_retakeTargetIndex != null) {
                         _takePicture();
                       } else if (_isSequentialMode) {
                         _startSequentialCapture();
@@ -2089,28 +2097,32 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
                       ),
                     )
                   : Icon(
-                      _isSequentialMode
-                          ? Icons.auto_awesome_motion
-                          : Icons.camera_alt,
+                      (_capturedPhotos.length >= 4)
+                          ? Icons.preview_rounded
+                          : (_isSequentialMode
+                              ? Icons.auto_awesome_motion
+                              : Icons.camera_alt),
                       size: 22,
                       color: Colors.white,
                     ),
               label: Text(
-                _isCapturingSequence
-                    ? (_countdown > 0
-                          ? 'Foto ${math.min(_capturedPhotos.length + 1, 4)}/4 ($_countdown s)'
-                          : 'Memproses...')
-                    : (_isCapturingSingle
-                          ? (_countdown > 0
-                                ? 'Batal ($_countdown s)'
-                                : 'Memproses...')
-                          : (_retakeTargetIndex != null
-                                ? 'Retake Frame ${_retakeTargetIndex! + 1}'
-                                : (_isSequentialMode
-                                      ? 'Ambil 4 Foto'
-                                      : (_capturedPhotos.isEmpty
-                                            ? 'Ambil Foto'
-                                            : 'Ambil Foto (${_capturedPhotos.length}/4)')))),
+                (_capturedPhotos.length >= 4 && !isBusy)
+                    ? 'Preview'
+                    : (_isCapturingSequence
+                        ? (_countdown > 0
+                              ? 'Foto ${math.min(_capturedPhotos.length + 1, 4)}/4 ($_countdown s)'
+                              : 'Memproses...')
+                        : (_isCapturingSingle
+                              ? (_countdown > 0
+                                    ? 'Batal ($_countdown s)'
+                                    : 'Memproses...')
+                              : (_retakeTargetIndex != null
+                                    ? 'Retake Frame ${_retakeTargetIndex! + 1}'
+                                    : (_isSequentialMode
+                                          ? 'Ambil 4 Foto'
+                                          : (_capturedPhotos.isEmpty
+                                                ? 'Ambil Foto'
+                                                : 'Ambil Foto (${_capturedPhotos.length}/4)'))))),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,

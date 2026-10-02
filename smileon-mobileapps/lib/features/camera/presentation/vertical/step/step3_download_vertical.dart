@@ -7,6 +7,7 @@ import 'package:smileon/features/camera/presentation/vertical/step/photostrip_re
 import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step2_editphoto_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step3_dialog_previewphotostrip.dart';
+import 'package:smileon/features/camera/presentation/camera_screen.dart';
 
 /// STEP 3: DOWNLOAD & PAYMENT (VERTICAL)
 /// Menyediakan alur akhir untuk vertical photobooth:
@@ -266,6 +267,35 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
     );
   }
 
+  void _confirmExit() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Konfirmasi'),
+        content: const Text('Apakah Anda yakin ingin keluar? Sesi ini akan diakhiri.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => const CameraScreen(initialTabIndex: 1),
+                ),
+                (route) => false, // Bersihkan seluruh stack route agar kembali bersih
+              );
+            },
+            child: const Text('Ya, Keluar', style: TextStyle(color: AppTheme.primaryRose, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _startTimer() {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
@@ -379,7 +409,7 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
           _buildCircleButton(
             icon: Icons.close_rounded,
             size: 20,
-            onTap: widget.onClose ?? () => Navigator.of(context).maybePop(),
+            onTap: _confirmExit,
           ),
         ],
       ),
@@ -1158,7 +1188,7 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: widget.onFinishSession ?? () => Navigator.of(context).pop(),
+            onPressed: _confirmExit,
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFFFFD1DC), width: 1.2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
