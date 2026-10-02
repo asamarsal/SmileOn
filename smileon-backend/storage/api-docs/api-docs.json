@@ -1,0 +1,946 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "SmileOn Backend API",
+        "description": "Dokumentasi resmi untuk backend photobox web3 SmileOn.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://my-default-host.com",
+            "description": "Main API Server"
+        }
+    ],
+    "paths": {
+        "/api/v1/auth/google": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login via Google",
+                "operationId": "69d9a4ed6093451004884b4d9f587710",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/wallet": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login via Web3 Wallet",
+                "operationId": "61c83b02879810414481a27539d2a55f",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/me": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get User Profile",
+                "operationId": "e85a8a66ac4bc3f497def790a05d7158",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update Profile",
+                "operationId": "bd7b1edec4a5362920928162718956c4",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout",
+                "operationId": "c3a99432453da7371c2ff57e8618aff7",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/sessions": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get Active Sessions",
+                "operationId": "746a9f40b3747daf0b5fcf52e9a7950c",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/sessions/{id}": {
+            "delete": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Revoke session",
+                "operationId": "f5913b07cd814e367071085682732195",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/frames": {
+            "get": {
+                "tags": [
+                    "Frames"
+                ],
+                "summary": "List all frames",
+                "operationId": "b41b0b6c5babe705684b83f6fbcb3ba4",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/frames/{uuid}": {
+            "get": {
+                "tags": [
+                    "Frames"
+                ],
+                "summary": "Frame Detail",
+                "operationId": "010582d9d73a452ca16f0c977252dfb1",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/user/frames/save": {
+            "post": {
+                "tags": [
+                    "Frames"
+                ],
+                "summary": "Save favorite frame",
+                "operationId": "3a3fa353e233c98351154725ece7fc4a",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/frames/{uuid}/unsave": {
+            "delete": {
+                "tags": [
+                    "Frames"
+                ],
+                "summary": "Unsave favorite frame",
+                "operationId": "ed43a846394a27b0aadad17af0598e25",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/frames/saved": {
+            "get": {
+                "tags": [
+                    "Frames"
+                ],
+                "summary": "Get favorite frames",
+                "operationId": "545306a7574c285efaa99f4cc6b4cb32",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/frames/{uuid}/report": {
+            "post": {
+                "tags": [
+                    "Frames"
+                ],
+                "summary": "Report a frame",
+                "operationId": "dcf7d79889219c681b7e562aa2fedde0",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/events": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Get organizer events",
+                "operationId": "cf2d9619d47a46a143c4f7d7686f95c3",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Create event",
+                "operationId": "7a2d7da60478131a46839ec0fb2ff4bf",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/events/{uuid}/frames/custom": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Upload custom frame",
+                "operationId": "bfa59b048d148baeb2eeb4c65718722f",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/events/join/{access_code}": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Join event via QR",
+                "operationId": "e9120c78e2b6afd22ad9bd0d686000ab",
+                "parameters": [
+                    {
+                        "name": "access_code",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/events/joined": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "History of joined events",
+                "operationId": "2c48e6de722b742c31b69e58093fac91",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/booths/heartbeat": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Booth telemetry heartbeat",
+                "operationId": "f132ddaedc74db373f50a7bd8d06b8fe",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/booths/revoke": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Revoke booth remotely",
+                "operationId": "5f9db170647095e8d2af08c6678824c3",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/sessions/init": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Initialize session",
+                "operationId": "53e315e382275e6ae9aec170b9cc9cf6",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/sessions/{uuid}/start-photo": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Start public session",
+                "operationId": "1859f7022e395eb9ca79dc332edb4dda",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/sessions/{uuid}/complete": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Complete session",
+                "operationId": "ef7b3b889034147fc36d585a174a7b40",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/sessions/{uuid}/cancel": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Cancel session",
+                "operationId": "5e6f32568d3690c9894d47b3e0ac21f9",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/photos/presigned-url": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Get presigned S3/R2 URL",
+                "operationId": "faee02e712009958a342e2d595e05765",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/photos/complete-upload": {
+            "post": {
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Confirm photo upload",
+                "operationId": "0897c4043ec14423a6706dafea80a045",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/payment-methods": {
+            "get": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "List active payment methods",
+                "operationId": "3aafa4ebbf1b1fabd77912277d208841",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/orders": {
+            "post": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Checkout order",
+                "operationId": "0f9954ae57469572ecb1026332b7cd10",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/webhooks/payment/{provider}": {
+            "post": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Payment Webhook Inbox",
+                "operationId": "103eeb70b8d09235ea66be8b95b6a5e9",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/loyalty/check-in": {
+            "post": {
+                "tags": [
+                    "Loyalty"
+                ],
+                "summary": "Daily check-in",
+                "operationId": "ce1f919492d4dc222fdd8f417ccf3e88",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/loyalty/rewards": {
+            "get": {
+                "tags": [
+                    "Loyalty"
+                ],
+                "summary": "List rewards",
+                "operationId": "bc4bde3dbacd750cd0a6d84d22f98be9",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/loyalty/rewards/{id}/redeem": {
+            "post": {
+                "tags": [
+                    "Loyalty"
+                ],
+                "summary": "Redeem reward",
+                "operationId": "26880e56eff8f43fd97d2883d72bfa5b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/referral": {
+            "get": {
+                "tags": [
+                    "Loyalty"
+                ],
+                "summary": "Get referral code",
+                "operationId": "dee1ab7d065dfa305fd9a6e1ec8812e1",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchandise/products": {
+            "get": {
+                "tags": [
+                    "Merchandise"
+                ],
+                "summary": "List physical products",
+                "operationId": "3bdf869f3c9cba9325455c5c2d60f17e",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/v1/user/shipping-addresses": {
+            "get": {
+                "tags": [
+                    "Merchandise"
+                ],
+                "summary": "List address book",
+                "operationId": "dd969529cbf77a3d156ad4a48c226050",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Merchandise"
+                ],
+                "summary": "Add address",
+                "operationId": "69f413a7eccb9489e3bc0ff1a7e23170",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchandise/calculate-shipping": {
+            "post": {
+                "tags": [
+                    "Merchandise"
+                ],
+                "summary": "Calculate shipping cost",
+                "operationId": "5b99d5af18da6e668436995879fb0e39",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchandise/orders": {
+            "post": {
+                "tags": [
+                    "Merchandise"
+                ],
+                "summary": "Order merchandise",
+                "operationId": "b7a5b2b84120dd28572f1108ff92a9cb",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/nft/mint": {
+            "post": {
+                "tags": [
+                    "Web3"
+                ],
+                "summary": "Mint NFT on-chain",
+                "operationId": "a8fb4ee23041b6ae16e15e60ad883bfa",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/collectibles": {
+            "get": {
+                "tags": [
+                    "Web3"
+                ],
+                "summary": "Digital Collectibles Gallery",
+                "operationId": "b56411f528947b291a7e55334d71dd81",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/events/{uuid}/verify-nft-access": {
+            "post": {
+                "tags": [
+                    "Web3"
+                ],
+                "summary": "Token-gated check-in",
+                "operationId": "0b534cf17a672c82c95085bd9502819a",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/events/{uuid}/claim-nft-perk": {
+            "post": {
+                "tags": [
+                    "Web3"
+                ],
+                "summary": "Claim perk with NFT",
+                "operationId": "834019a46d0f7c356af6cc9fc893fc23",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Auth"
+        },
+        {
+            "name": "Frames",
+            "description": "Frames"
+        },
+        {
+            "name": "Events",
+            "description": "Events"
+        },
+        {
+            "name": "Sessions",
+            "description": "Sessions"
+        },
+        {
+            "name": "Payments",
+            "description": "Payments"
+        },
+        {
+            "name": "Loyalty",
+            "description": "Loyalty"
+        },
+        {
+            "name": "Merchandise",
+            "description": "Merchandise"
+        },
+        {
+            "name": "Web3",
+            "description": "Web3"
+        }
+    ]
+}

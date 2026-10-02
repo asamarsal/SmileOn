@@ -133,6 +133,11 @@ class User extends Authenticatable
         return $this->hasMany(UserShippingAddress::class);
     }
 
+    public function userSavedFrames(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Frame::class, 'user_saved_frames', 'user_id', 'frame_id');
+    }
+
     // ============================================================
     // HELPERS
     // ============================================================

@@ -60,9 +60,9 @@ class FrameController extends Controller
         $request->validate(['frame_uuid' => 'required|string']);
         $frame = Frame::where('uuid', $request->frame_uuid)->firstOrFail();
 
-        $saved = $request->user()->userSavedFrames()->firstOrCreate(['frame_id' => $frame->id]);
+        $changes = $request->user()->userSavedFrames()->syncWithoutDetaching([$frame->id]);
 
-        if (!$saved->wasRecentlyCreated) {
+        if (empty($changes['attached'])) {
             return response()->json(['success' => false, 'message' => 'Frame sudah disimpan.'], 409);
         }
 
@@ -78,7 +78,7 @@ class FrameController extends Controller
 
     public function savedFrames(Request $request): JsonResponse
     {
-        $frames = $request->user()->savedFrames()->with('category:id,name,slug')
+        $frames = $request->user()->userSavedFrames()->with('category:id,name,slug')
             ->orderByDesc('user_saved_frames.created_at')
             ->paginate($request->per_page ?? 20);
         return response()->json(['success' => true, 'data' => $frames]);

@@ -13,18 +13,18 @@ use App\Http\Controllers\Api\V1\Frames\FrameController;
 use App\Http\Controllers\Api\V1\Frames\FrameCategoryController;
 use App\Http\Controllers\Api\V1\Events\EventController;
 use App\Http\Controllers\Api\V1\Booths\BoothController;
-use App\Http\Controllers\Api\V1\Personal\PersonalQrAuthController;
+use App\Http\Controllers\Api\V1\Booths\PersonalQrController;
 use App\Http\Controllers\Api\V1\Sessions\SessionController;
 use App\Http\Controllers\Api\V1\Photos\PhotoController;
-use App\Http\Controllers\Api\V1\Strips\StripController;
-use App\Http\Controllers\Api\V1\Packages\PackageController;
+use App\Http\Controllers\Api\V1\Photos\PhotoStripController;
+use App\Http\Controllers\Api\V1\Orders\PackageController;
 use App\Http\Controllers\Api\V1\Orders\OrderController;
-use App\Http\Controllers\Api\V1\Webhooks\PaymentWebhookController;
-use App\Http\Controllers\Api\V1\Vouchers\VoucherController;
+use App\Http\Controllers\Api\V1\Orders\VoucherController;
 use App\Http\Controllers\Api\V1\Loyalty\LoyaltyController;
+use App\Http\Controllers\Api\V1\Loyalty\ReferralController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
-use App\Http\Controllers\Api\V1\Referral\ReferralController;
 use App\Http\Controllers\Api\V1\Merchandise\MerchandiseController;
+use App\Http\Controllers\Api\V1\Webhooks\PaymentWebhookController;
 use App\Http\Controllers\Api\V1\Nft\NftController;
 
 /*
@@ -56,8 +56,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('me', [AuthController::class, 'me'])->name('me');
             Route::patch('me', [AuthController::class, 'updateProfile'])->name('me.update');
             Route::get('sessions', [AuthController::class, 'sessions'])->name('sessions');
-            Route::delete('sessions/{id}', [AuthController::class, 'revokeSession'])->name('sessions.revoke');
             Route::delete('sessions/other', [AuthController::class, 'revokeOtherSessions'])->name('sessions.other');
+            Route::delete('sessions/{id}', [AuthController::class, 'revokeSession'])->name('sessions.revoke');
         });
     });
 
@@ -106,12 +106,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('storage-syncs/{id}/retry', [AdminStorageSyncController::class, 'retry'])->name('storage-syncs.retry');
         Route::post('storage-syncs/retry-all', [AdminStorageSyncController::class, 'retryAll'])->name('storage-syncs.retry-all');
 
-        // Web3 & NFT
+        // Web3 & NFT Admin
         Route::get('web3/sync-status', [OrderController::class, 'web3SyncStatus'])->name('web3.sync-status');
-        Route::get('nft/collections', [NftController::class, 'adminCollections'])->name('nft.collections');
 
-        // Merchandise Orders
-        Route::get('merchandise/orders', [MerchandiseController::class, 'adminOrders'])->name('merchandise.orders.index');
+        // Merchandise Admin
         Route::patch('merchandise/orders/{uuid}/fulfill', [MerchandiseController::class, 'fulfill'])->name('merchandise.orders.fulfill');
     });
 
@@ -137,7 +135,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('auth:sanctum')->group(function () {
-        Route::apiResource('events', EventController::class);
+        Route::get('events', [EventController::class, 'index'])->name('events.index');
+        Route::post('events', [EventController::class, 'store'])->name('events.store');
+        Route::get('events/{uuid}', [EventController::class, 'show'])->name('events.show');
+        Route::patch('events/{uuid}', [EventController::class, 'update'])->name('events.update');
+        Route::delete('events/{uuid}', [EventController::class, 'destroy'])->name('events.destroy');
         Route::post('events/{uuid}/start', [EventController::class, 'start'])->name('events.start');
         Route::post('events/{uuid}/end', [EventController::class, 'end'])->name('events.end');
         Route::patch('events/{uuid}/watermark', [EventController::class, 'toggleWatermark'])->name('events.watermark');
@@ -149,10 +151,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('events/{uuid}/qr/host', [EventController::class, 'hostQr'])->name('events.qr.host');
         Route::get('events/join/{access_code}', [EventController::class, 'joinEvent'])->name('events.join');
         Route::get('user/events/joined', [EventController::class, 'joinedEvents'])->name('user.events.joined');
-
-        // NFT-gated events
-        Route::post('events/{uuid}/verify-nft-access', [NftController::class, 'verifyAccess'])->name('events.verify-nft');
-        Route::post('events/{uuid}/claim-nft-perk', [NftController::class, 'claimPerk'])->middleware('idempotency')->name('events.claim-nft-perk');
     });
 
     /*
@@ -161,15 +159,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::prefix('booths')->name('booths.')->group(function () {
+        // No auth — booth uses its own token system
         Route::post('pair', [BoothController::class, 'pair'])->name('pair');
         Route::post('token/refresh', [BoothController::class, 'refreshToken'])->name('token.refresh');
-
-        Route::middleware('auth:sanctum')->group(function () {
-            Route::post('heartbeat', [BoothController::class, 'heartbeat'])->name('heartbeat');
-            Route::get('health', [BoothController::class, 'health'])->name('health');
-            Route::post('revoke', [BoothController::class, 'revoke'])->name('revoke');
-            Route::get('config', [BoothController::class, 'config'])->name('config');
-        });
+        Route::post('heartbeat', [BoothController::class, 'heartbeat'])->name('heartbeat');
+        Route::get('health', [BoothController::class, 'health'])->name('health');
+        Route::post('revoke', [BoothController::class, 'revoke'])->name('revoke');
+        Route::get('config', [BoothController::class, 'config'])->name('config');
     });
 
     /*
@@ -178,9 +174,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::prefix('personal')->name('personal.')->group(function () {
-        Route::post('qr-auth/init', [PersonalQrAuthController::class, 'init'])->name('qr-auth.init');
-        Route::post('qr-auth/confirm', [PersonalQrAuthController::class, 'confirm'])->middleware('auth:sanctum')->name('qr-auth.confirm');
-        Route::get('qr-auth/status/{token}', [PersonalQrAuthController::class, 'status'])->name('qr-auth.status');
+        Route::post('qr-auth/init', [PersonalQrController::class, 'init'])->name('qr-auth.init');
+        Route::post('qr-auth/confirm', [PersonalQrController::class, 'confirm'])->middleware('auth:sanctum')->name('qr-auth.confirm');
+        Route::get('qr-auth/status/{token}', [PersonalQrController::class, 'status'])->name('qr-auth.status');
     });
 
     /*
@@ -205,30 +201,33 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     | 4.8 Direct Cloudflare R2 Upload & Photo Management
     |----------------------------------------------------------------------
     */
-    Route::middleware('auth:sanctum')->prefix('photos')->name('photos.')->group(function () {
-        Route::post('presigned-url', [PhotoController::class, 'presignedUrl'])->name('presigned-url');
-        Route::post('complete-upload', [PhotoController::class, 'completeUpload'])->name('complete-upload');
-        Route::get('recent', [PhotoController::class, 'recent'])->name('recent');
-        Route::patch('{uuid}/watermark', [PhotoController::class, 'toggleWatermark'])->name('watermark');
-        Route::delete('{uuid}', [PhotoController::class, 'destroy'])->name('destroy');
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('photos')->name('photos.')->group(function () {
+            Route::post('presigned-url', [PhotoController::class, 'presignedUrl'])->name('presigned-url');
+            Route::post('complete-upload', [PhotoController::class, 'completeUpload'])->name('complete-upload');
+            Route::get('recent', [PhotoController::class, 'recent'])->name('recent');
+            Route::patch('{uuid}/watermark', [PhotoController::class, 'toggleWatermark'])->name('watermark');
+            Route::delete('{uuid}', [PhotoController::class, 'destroy'])->name('destroy');
+        });
+        Route::get('sessions/{uuid}/photos', [PhotoController::class, 'sessionPhotos'])->name('sessions.photos');
     });
-    Route::middleware('auth:sanctum')->get('sessions/{uuid}/photos', [PhotoController::class, 'sessionPhotos'])->name('sessions.photos');
 
     /*
     |----------------------------------------------------------------------
     | 4.9 Photo Strips, Dimensi & Cetak Fisik
     |----------------------------------------------------------------------
     */
-    Route::get('strips/share/{token}', [StripController::class, 'shareView'])->name('strips.share');
+    // Public share link — no auth
+    Route::get('strips/share/{token}', [PhotoStripController::class, 'shareLink'])->name('strips.share');
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::post('sessions/{uuid}/strip', [StripController::class, 'generate'])->name('strips.generate');
-        Route::get('strips/{uuid}', [StripController::class, 'show'])->name('strips.show');
-        Route::patch('strips/{uuid}/watermark', [StripController::class, 'toggleWatermark'])->name('strips.watermark');
-        Route::post('strips/{uuid}/print', [StripController::class, 'printBooth'])->name('strips.print');
-        Route::post('strips/{uuid}/share', [StripController::class, 'createShareLink'])->name('strips.share.create');
-        Route::post('strips/{uuid}/export/email', [StripController::class, 'exportEmail'])->name('strips.export.email');
-        Route::post('strips/{uuid}/export/drive', [StripController::class, 'exportDrive'])->name('strips.export.drive');
+        Route::post('sessions/{uuid}/strip', [PhotoStripController::class, 'generate'])->name('strips.generate');
+        Route::get('strips/{uuid}', [PhotoStripController::class, 'show'])->name('strips.show');
+        Route::patch('strips/{uuid}/watermark', [PhotoStripController::class, 'toggleWatermark'])->name('strips.watermark');
+        Route::post('strips/{uuid}/print', [PhotoStripController::class, 'print'])->name('strips.print');
+        Route::post('strips/{uuid}/share', [PhotoStripController::class, 'createShareLink'])->name('strips.share.create');
+        Route::post('strips/{uuid}/export/email', [PhotoStripController::class, 'exportEmail'])->name('strips.export.email');
+        Route::post('strips/{uuid}/export/drive', [PhotoStripController::class, 'exportDrive'])->name('strips.export.drive');
     });
 
     /*
@@ -252,13 +251,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     /*
     |----------------------------------------------------------------------
-    | Payment Webhooks (no auth — verified via HMAC signature)
+    | Payment Webhooks (no Sanctum auth — verified via HMAC signature)
     |----------------------------------------------------------------------
     */
-    Route::post('webhooks/payment/{provider}', [PaymentWebhookController::class, 'handle'])
-        ->name('webhooks.payment');
-    Route::post('webhooks/payment/monad', [PaymentWebhookController::class, 'monad'])
-        ->name('webhooks.payment.monad');
+    Route::post('webhooks/payment/monad', [PaymentWebhookController::class, 'monad'])->name('webhooks.payment.monad');
+    Route::post('webhooks/payment/{provider}', [PaymentWebhookController::class, 'receive'])->name('webhooks.payment');
 
     /*
     |----------------------------------------------------------------------
@@ -281,8 +278,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('points', [LoyaltyController::class, 'points'])->name('points');
         Route::get('history', [LoyaltyController::class, 'history'])->name('history');
         Route::get('rewards', [LoyaltyController::class, 'rewards'])->name('rewards');
-        Route::post('rewards/{id}/redeem', [LoyaltyController::class, 'redeemReward'])->middleware('idempotency')->name('rewards.redeem');
-        Route::post('check-in', [LoyaltyController::class, 'dailyCheckIn'])->name('check-in');
+        Route::post('rewards/{id}/redeem', [LoyaltyController::class, 'redeem'])->middleware('idempotency')->name('rewards.redeem');
+        Route::post('check-in', [LoyaltyController::class, 'checkIn'])->name('check-in');
     });
 
     /*
@@ -324,18 +321,21 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::delete('user/shipping-addresses/{id}', [MerchandiseController::class, 'destroyAddress'])->name('user.shipping-addresses.destroy');
         Route::post('merchandise/calculate-shipping', [MerchandiseController::class, 'calculateShipping'])->name('merchandise.calculate-shipping');
         Route::post('merchandise/orders', [MerchandiseController::class, 'placeOrder'])->middleware('idempotency')->name('merchandise.orders.store');
-        Route::get('merchandise/orders', [MerchandiseController::class, 'myOrders'])->name('merchandise.orders.index');
-        Route::get('merchandise/orders/{uuid}', [MerchandiseController::class, 'orderDetail'])->name('merchandise.orders.show');
+        Route::get('merchandise/orders', [MerchandiseController::class, 'orders'])->name('merchandise.orders.my');
     });
 
     /*
     |----------------------------------------------------------------------
-    | 4.16 NFT & Digital Collectibles
+    | 4.16 NFT & Digital Collectibles (Monad Blockchain)
     |----------------------------------------------------------------------
     */
+    Route::get('collectibles/{uuid}', [NftController::class, 'show'])->name('collectibles.show');
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('nft/mint', [NftController::class, 'mint'])->middleware('idempotency')->name('nft.mint');
         Route::get('user/collectibles', [NftController::class, 'myCollectibles'])->name('user.collectibles');
-        Route::get('collectibles/{uuid}', [NftController::class, 'show'])->name('collectibles.show');
+        Route::post('events/{uuid}/verify-nft-access', [NftController::class, 'verifyAccess'])->name('events.verify-nft-access');
+        Route::post('events/{uuid}/claim-nft-perk', [NftController::class, 'claimPerk'])->middleware('idempotency')->name('events.claim-nft-perk');
     });
 });
+
