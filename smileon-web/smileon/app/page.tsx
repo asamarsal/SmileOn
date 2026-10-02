@@ -1,596 +1,778 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { 
-  Heart, Camera, Calendar, Image as ImageIcon, Link as LinkIcon,
-  Check, ArrowRight, Mail, ChevronLeft, ChevronRight, Play
-} from "lucide-react";
-import Image from "next/image";
+import React, { useEffect, useState, useRef } from "react";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { Heart, Camera, Calendar, Image as ImageIcon, Link as LinkIcon, Check, ArrowRight, Mail, ChevronLeft, ChevronRight, Star, Sparkles } from "lucide-react";
 
-
+/* ───────── Icon helpers ───────── */
 const InstagramIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
   </svg>
 );
 
-// Reusable Components
-const Section = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <section className={`py-16 md:py-24 px-6 md:px-12 max-w-7xl mx-auto w-full ${className}`}>
-    {children}
-  </section>
+const GooglePlayIcon = () => (
+  <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24">
+    <path fill="#EA4335" d="M3.609 2.233L13.5 12 3.609 21.767A1.5 1.5 0 013 20.5v-17c0-.492.237-.927.609-1.267z" />
+    <path fill="#FBBC04" d="M16.5 9l-2.991 3L3.61 2.233C4.13 1.836 4.81 1.8 5.392 2.118L16.5 9z" />
+    <path fill="#34A853" d="M16.5 15l-11.108 6.882c-.582.318-1.262.282-1.782-.115L13.509 12 16.5 15z" />
+    <path fill="#4285F4" d="M21.5 12c0 .796-.436 1.538-1.148 1.93L17.5 15.5 14.5 12l3-2.5 2.852 1.57A2.155 2.155 0 0121.5 12z" />
+  </svg>
 );
 
-const Badge = ({ children, icon: Icon, active = false }: { children: React.ReactNode, icon?: any, active?: boolean }) => (
-  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase border ${active ? 'bg-white text-black border-white' : 'glass text-gray-300'}`}>
-    {Icon && <Icon className="w-3.5 h-3.5" />}
-    {children}
-  </div>
+const AppleIcon = () => (
+  <svg className="w-6 h-6 shrink-0 fill-white" viewBox="0 0 24 24">
+    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.04 2.26-.8 3.59-.72 1.58.11 2.82.85 3.55 2.11-2.91 1.62-2.45 5.5.47 6.74-.69 1.63-1.6 3.19-2.69 4.04zm-4.71-13.4c.16-2.53 2.16-4.5 4.54-4.88-.41 2.65-2.58 4.47-4.54 4.88z" />
+  </svg>
 );
 
-const AppStoreButton = ({ type }: { type: 'apple' | 'google' }) => (
-  <button className="glass hover:bg-white/10 transition-colors rounded-xl px-4 py-2.5 flex items-center gap-3 border border-white/20">
-    {type === 'apple' ? (
-      <svg className="w-6 h-6 fill-white" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.04 2.26-.8 3.59-.72 1.58.11 2.82.85 3.55 2.11-2.91 1.62-2.45 5.5.47 6.74-.69 1.63-1.6 3.19-2.69 4.04zm-4.71-13.4c.16-2.53 2.16-4.5 4.54-4.88-.41 2.65-2.58 4.47-4.54 4.88z"/></svg>
-    ) : (
-      <svg className="w-6 h-6" viewBox="0 0 24 24"><path fill="#EA4335" d="M3.774 2.057a1.996 1.996 0 00-.774 1.582v16.721c0 .647.3 1.22.774 1.583L13 12 3.774 2.057z"/><path fill="#FBBC04" d="M16.592 15.545l-3.592-3.545 3.592-3.545L21.43 11.2c.76.41.76 1.19 0 1.6l-4.838 2.745z"/><path fill="#34A853" d="M3.774 20.362L13 12l3.592 3.545 4.838 2.745c-.44.25-1.03.31-1.608-.03l-16.048-9.9z" transform="matrix(1 0 0 -1 0 24)"/><path fill="#4285F4" d="M3.774 3.638L13 12l3.592-3.545 4.838-2.745c-.44-.25-1.03-.31-1.608.03l-16.048 9.9z"/></svg>
-    )}
+const MonadIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none">
+    <rect width="20" height="20" rx="4" fill="#6B3FE7" />
+    <path d="M5 14V8l5 4 5-4v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ───────── App Store Buttons ───────── */
+const AppStoreButton = ({ type }: { type: "apple" | "google" }) => (
+  <button className="flex items-center gap-3 bg-[#1c1c1e] border border-white/20 hover:border-white/40 text-white rounded-2xl px-5 py-3 transition-all hover:bg-white/10 group">
+    {type === "google" ? <GooglePlayIcon /> : <AppleIcon />}
     <div className="text-left">
-      <div className="text-[10px] text-gray-400 font-medium">
-        {type === 'apple' ? 'Download on the' : 'Get it on'}
-      </div>
-      <div className="text-sm font-semibold leading-tight">
-        {type === 'apple' ? 'App Store' : 'Google Play'}
-      </div>
+      <div className="text-[10px] text-gray-400 leading-none mb-0.5">{type === "google" ? "Get it on" : "Download on the"}</div>
+      <div className="text-base font-bold leading-tight">{type === "google" ? "Google Play" : "App Store"}</div>
     </div>
-    <ArrowRight className="w-4 h-4 ml-2 text-gray-400" />
+    <ArrowRight className="w-4 h-4 ml-1 text-gray-500 group-hover:text-white transition-colors" />
   </button>
 );
 
+/* ───────── Floating Sparkles ───────── */
+const FloatingStars = () => (
+  <div className="absolute inset-0 pointer-events-none overflow-hidden">
+    {[
+      { top: "12%", left: "8%", size: 14, delay: 0 },
+      { top: "5%", left: "55%", size: 10, delay: 0.5 },
+      { top: "30%", right: "5%", size: 18, delay: 1 },
+      { top: "70%", left: "3%", size: 12, delay: 1.5 },
+      { bottom: "20%", right: "8%", size: 10, delay: 2 },
+      { top: "55%", left: "48%", size: 8, delay: 0.8 },
+      { top: "80%", left: "70%", size: 16, delay: 1.2 },
+    ].map((s, i) => (
+      <motion.div
+        key={i}
+        style={{ position: "absolute", top: s.top, left: s.left, right: (s as any).right, bottom: (s as any).bottom }}
+        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+        transition={{ duration: 2.5 + i * 0.3, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
+      >
+        <Star style={{ width: s.size, height: s.size }} className="fill-white/60 text-white/60" />
+      </motion.div>
+    ))}
+  </div>
+);
+
+/* ───────── Main Page ───────── */
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
   if (!mounted) return null;
 
   return (
-    <div className="relative overflow-hidden selection:bg-brand-pink selection:text-white">
-      {/* Background Effects */}
-      <div className="fixed inset-0 z-[-1] bg-[#0A0510]">
-        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-brand-pink/20 blur-[120px] mix-blend-screen pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-brand-purple/20 blur-[120px] mix-blend-screen pointer-events-none" />
-        <div className="absolute top-[40%] left-[60%] w-[40vw] h-[40vw] rounded-full bg-[#FF3366]/10 blur-[100px] pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 pointer-events-none" />
+    <div className="bg-[#0d0010] text-white min-h-screen overflow-x-hidden">
+
+      {/* ── BG gradient blobs ── */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {/* Left blob */}
+        <div className="absolute top-[-10%] left-[-15%] w-[65vw] h-[65vw] rounded-full bg-[#FF3366]/25 blur-[140px]" />
+        {/* Centre-right blob */}
+        <div className="absolute top-[10%] right-[-10%] w-[55vw] h-[55vw] rounded-full bg-[#CC1144]/20 blur-[120px]" />
+        {/* Bottom dark purple */}
+        <div className="absolute bottom-[-10%] left-[30%] w-[50vw] h-[50vw] rounded-full bg-[#6B3FE7]/15 blur-[100px]" />
+        {/* Cherry blossom petals (pink bokeh) */}
+        {[
+          { top: "15%", left: "2%", size: 180, opacity: 0.12 },
+          { top: "60%", right: "0%", size: 220, opacity: 0.08 },
+          { bottom: "5%", left: "10%", size: 160, opacity: 0.1 },
+        ].map((b, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: b.top,
+              left: (b as any).left,
+              right: (b as any).right,
+              bottom: (b as any).bottom,
+              width: b.size,
+              height: b.size,
+              borderRadius: "50%",
+              background: `radial-gradient(circle, rgba(255,100,160,${b.opacity}) 0%, transparent 70%)`,
+            }}
+          />
+        ))}
       </div>
 
-      {/* Navbar */}
-      <header className="fixed top-0 w-full z-50 glass border-b-0 border-white/5 bg-black/40">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      {/* ══════════════════════════════════════
+          NAVBAR
+      ══════════════════════════════════════ */}
+      <header className="fixed top-0 w-full z-50 backdrop-blur-xl bg-black/30 border-b border-white/5">
+        <div className="max-w-[1400px] mx-auto px-8 h-[68px] flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-2">
-            <Heart className="text-brand-pink fill-brand-pink w-6 h-6" />
-            <span className="text-xl font-bold tracking-tight">SmileOn</span>
+            <Heart className="w-5 h-5 text-[#FF3366] fill-[#FF3366]" />
+            <span className="text-lg font-extrabold tracking-tight">SmileOn</span>
           </div>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-300">
-            <a href="#" className="hover:text-white transition-colors">Product</a>
-            <a href="#" className="hover:text-white transition-colors">Personal</a>
-            <a href="#" className="hover:text-white transition-colors">Events</a>
-            <a href="#" className="hover:text-white transition-colors">Frames</a>
-            <a href="#" className="hover:text-white transition-colors">About</a>
+
+          {/* Nav links */}
+          <nav className="hidden md:flex items-center gap-8 text-[13px] font-medium text-white/70">
+            {["Product","Personal","Events","Frames","About"].map(l => (
+              <a key={l} href="#" className="hover:text-white transition-colors">{l}</a>
+            ))}
           </nav>
+
+          {/* Right CTA */}
           <div className="flex items-center gap-4">
-            <a href="#" className="hidden sm:block text-gray-400 hover:text-white transition-colors">
+            <a href="#" className="text-white/50 hover:text-white transition-colors hidden sm:block">
               <InstagramIcon className="w-5 h-5" />
             </a>
-            <button className="bg-gradient-brand text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:shadow-[0_0_15px_rgba(255,51,102,0.6)] transition-shadow flex items-center gap-2">
-              Download App <ArrowRight className="w-4 h-4" />
+            <button className="bg-gradient-to-r from-[#FF3366] to-[#FF6699] text-white text-[13px] font-bold px-5 py-2 rounded-full flex items-center gap-1.5 hover:shadow-[0_0_20px_rgba(255,51,102,0.5)] transition-shadow">
+              Download App <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="pt-32 pb-16 md:pt-48 md:pb-24 px-6 max-w-7xl mx-auto w-full relative">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
-          <div className="relative z-10">
-            <div className="flex flex-wrap gap-3 mb-6">
-              <Badge active>ONCHAIN PHOTOBOOTH</Badge>
-              <Badge>💠 Built on Monad</Badge>
+      {/* ══════════════════════════════════════
+          HERO SECTION
+      ══════════════════════════════════════ */}
+      <section className="relative z-10 pt-[120px] pb-0 min-h-screen overflow-hidden">
+        <FloatingStars />
+
+        <div className="max-w-[1400px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-8 items-start">
+
+          {/* ── Left copy ── */}
+          <div className="relative z-10 pt-10 pb-24">
+
+            {/* Pill badges */}
+            <div className="flex flex-wrap gap-2 mb-8">
+              <span className="bg-white text-black text-[11px] font-bold tracking-wider px-3.5 py-1.5 rounded-full">ONCHAIN PHOTOBOOTH</span>
+              <span className="border border-white/20 text-white/80 text-[11px] font-semibold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 bg-white/5">
+                <MonadIcon /> Built on Monad
+              </span>
             </div>
-            
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6">
+
+            {/* H1 */}
+            <h1 className="text-[58px] md:text-[70px] font-extrabold leading-[1.05] tracking-tight mb-6">
               Make a moment.<br />
-              Make it <span className="text-gradient">SmileOn.</span>
+              Make it{" "}
+              <span className="bg-gradient-to-r from-[#FF3366] to-[#FF88AA] bg-clip-text text-transparent">SmileOn.</span>
             </h1>
-            
-            <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-lg leading-relaxed">
-              Capture, customize, and share your memories — anytime, anywhere.
+
+            <p className="text-[17px] text-white/60 mb-10 max-w-md leading-relaxed">
+              Capture, customize, and share your memories —<br />anytime, anywhere.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+
+            {/* App buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-10">
               <AppStoreButton type="google" />
               <AppStoreButton type="apple" />
             </div>
 
+            {/* Social proof */}
             <div className="flex items-center gap-4">
-              <div className="flex -space-x-3">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0A0510] bg-gray-600 overflow-hidden">
-                    <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="user" className="w-full h-full object-cover" />
-                  </div>
+              <div className="flex -space-x-2.5">
+                {[20,21,22,23].map(n => (
+                  <img key={n} src={`https://i.pravatar.cc/80?img=${n}`} alt="" className="w-9 h-9 rounded-full border-2 border-[#0d0010] object-cover" />
                 ))}
               </div>
-              <p className="text-sm text-gray-400 max-w-[200px] leading-tight">
+              <p className="text-[13px] text-white/50 max-w-[180px] leading-snug">
                 For couples, friends, creators, events and more.
               </p>
             </div>
 
-            <div className="absolute -left-12 -bottom-16 rotate-[-10deg] opacity-80">
-              <p className="font-caveat text-3xl text-brand-lightpink">Photobooth,<br/>without<br/>the booth. ♡</p>
+            {/* Handwritten annotation */}
+            <div className="absolute -left-2 bottom-4 -rotate-12 opacity-80 hidden lg:block">
+              <p className="font-['Caveat',_cursive] text-2xl text-[#FF88AA] leading-tight">
+                Photobooth,<br />without<br />the booth.
+                <span className="text-[#FF3366]"> ♡</span>
+              </p>
+              {/* hand-drawn arrow */}
+              <svg width="60" height="50" viewBox="0 0 60 50" className="mt-1 text-[#FF88AA] opacity-70">
+                <path d="M10,10 Q30,5 50,30" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M45,26 L52,32 L44,35" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </div>
           </div>
 
-          {/* Right Content - 3D Mockup Area */}
-          <div className="relative h-[600px] w-full hidden lg:block perspective-1000">
-            {/* Ribbon */}
-            <motion.div 
+          {/* ── Right hero visuals ── */}
+          <div className="relative h-[700px] w-full hidden lg:block">
+
+            {/* Ribbon / ring */}
+            <motion.div
+              className="absolute top-[45%] left-[35%] -translate-x-1/2 -translate-y-1/2 w-[500px] h-[600px] rounded-full border border-[#FF3366]/20 border-dashed pointer-events-none"
               animate={{ rotate: 360 }}
-              transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] rounded-full border border-brand-pink/30 border-dashed opacity-50"
+              transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
             />
-            
-            <motion.div 
-              initial={{ y: 20, opacity: 0, rotateY: 15, rotateX: 10, rotateZ: -5 }}
+
+            {/* Pink glow behind phone */}
+            <div className="absolute top-[10%] left-[22%] w-[320px] h-[600px] bg-[#FF3366]/30 blur-[80px] rounded-full pointer-events-none" />
+
+            {/* MAIN PHONE MOCKUP */}
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 1, delay: 0.2 }}
-              className="absolute top-[10%] left-[20%] w-[320px] h-[650px] bg-black rounded-[40px] border-4 border-gray-800 shadow-2xl glow-pink overflow-hidden z-20"
-              style={{ transformStyle: "preserve-3d" }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="absolute top-[2%] left-[18%] w-[270px] h-[560px] rounded-[42px] border-4 border-[#2a2a2a] shadow-[0_0_60px_rgba(255,51,102,0.35)] overflow-hidden z-20 bg-black"
+              style={{ transform: "perspective(1000px) rotateY(-8deg) rotateX(3deg)" }}
             >
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1621252179027-94459d278660?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-80"></div>
-              {/* Phone UI overlay */}
-              <div className="absolute inset-0 flex flex-col justify-between p-6">
-                <div className="flex justify-between items-center text-white">
-                  <ChevronLeft className="w-6 h-6" />
-                  <span className="font-bold">SmileOn</span>
-                  <InstagramIcon className="w-5 h-5" />
+              {/* full-bleed photo */}
+              <img
+                src="https://images.unsplash.com/photo-1529080765917-3db2ac54491f?auto=format&fit=crop&q=80&w=540"
+                alt="couple"
+                className="w-full h-full object-cover"
+              />
+              {/* top UI bar */}
+              <div className="absolute top-0 left-0 right-0 px-5 pt-5 flex items-center justify-between">
+                <span className="text-white/80 text-[11px] font-semibold bg-black/30 backdrop-blur-sm rounded px-2 py-0.5">2/4</span>
+                <span className="text-white font-bold text-[13px] bg-black/30 backdrop-blur-sm rounded px-2 py-0.5">SmileOn</span>
+                <div className="w-5 h-5" />
+              </div>
+              {/* bottom capture bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/90 to-transparent flex flex-col items-center justify-end pb-5 gap-3">
+                <div className="flex items-center gap-4 text-[10px] text-white/60 font-semibold">
+                  <span>Template</span>
+                  <span>Filter</span>
+                  <span className="text-white">Photo</span>
+                  <span>Video</span>
+                  <span>Background</span>
                 </div>
-                <div className="flex justify-center mb-8">
-                  <div className="w-20 h-20 rounded-full border-4 border-brand-pink flex items-center justify-center backdrop-blur-sm bg-white/10">
-                    <div className="w-16 h-16 rounded-full bg-brand-pink shadow-[0_0_20px_#ff3366]"></div>
-                  </div>
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FF3366] to-[#FF88AA] shadow-[0_0_20px_#FF3366] border-4 border-white/30 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-[#FF3366]" />
                 </div>
               </div>
             </motion.div>
 
-            {/* Floating Photostrips */}
-            <motion.div 
-              animate={{ y: [-10, 10, -10], rotate: [-10, -8, -10] }}
+            {/* PHOTOSTRIP — right, large */}
+            <motion.div
+              animate={{ y: [-8, 8, -8], rotate: [4, 6, 4] }}
               transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-[5%] right-[10%] w-[120px] bg-white p-2 rounded-sm shadow-xl z-10 rotate-[-10deg]"
+              className="absolute top-[4%] right-[4%] w-[160px] bg-white rounded-sm shadow-2xl z-30 overflow-hidden"
+              style={{ padding: "6px 6px 20px 6px" }}
             >
-               <div className="flex flex-col gap-2">
-                 <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80&w=200&h=200" className="w-full h-[100px] object-cover grayscale" />
-                 <img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80&w=200&h=200" className="w-full h-[100px] object-cover grayscale" />
-                 <img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80&w=200&h=200" className="w-full h-[100px] object-cover grayscale" />
-                 <div className="text-[10px] text-center text-black font-bold pt-1">SmileOn</div>
-               </div>
-            </motion.div>
-            
-            <motion.div 
-              animate={{ y: [10, -10, 10], rotate: [15, 12, 15] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              className="absolute bottom-[20%] -left-[10%] w-[140px] bg-white p-2 pb-6 rounded-sm shadow-xl z-30 rotate-[15deg]"
-            >
-               <div className="flex flex-col gap-2">
-                 <img src="https://images.unsplash.com/photo-1506869640319-baa18047b8ea?auto=format&fit=crop&q=80&w=200&h=200" className="w-full h-[120px] object-cover" />
-                 <img src="https://images.unsplash.com/photo-1523824922871-d6f1a15151f1?auto=format&fit=crop&q=80&w=200&h=200" className="w-full h-[120px] object-cover" />
-                 <div className="text-xs text-center text-brand-pink font-caveat font-bold pt-2 text-xl">Love</div>
-               </div>
+              {[
+                "https://images.unsplash.com/photo-1529080765917-3db2ac54491f?auto=format&fit=crop&q=80&w=320&h=320",
+                "https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80&w=320&h=320",
+                "https://images.unsplash.com/photo-1506869640319-baa18047b8ea?auto=format&fit=crop&q=80&w=320&h=320",
+                "https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80&w=320&h=320",
+              ].map((src, i) => (
+                <img key={i} src={src} alt="" className="w-full object-cover mb-1" style={{ height: 110 }} />
+              ))}
+              <div className="text-[10px] font-bold text-center text-[#FF3366] py-1" style={{ fontFamily: "Caveat, cursive", fontSize: 13 }}>SmileOn</div>
             </motion.div>
 
-            <div className="absolute right-0 top-[60%] opacity-80">
-              <p className="font-caveat text-3xl text-brand-lightpink text-right">Your<br/>Memories<br/>Live On ♡</p>
+            {/* PHOTOSTRIP — left floating */}
+            <motion.div
+              animate={{ y: [10, -10, 10], rotate: [-12, -10, -12] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+              className="absolute top-[20%] left-[-2%] w-[130px] bg-white rounded-sm shadow-2xl z-10 overflow-hidden"
+              style={{ padding: "6px 6px 16px 6px", rotate: "-12deg" }}
+            >
+              {[
+                "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80&w=260&h=260",
+                "https://images.unsplash.com/photo-1523824922871-d6f1a15151f1?auto=format&fit=crop&q=80&w=260&h=260",
+                "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80&w=260&h=260",
+              ].map((src, i) => (
+                <img key={i} src={src} alt="" className="w-full object-cover mb-1" style={{ height: 90 }} />
+              ))}
+              <div className="text-center py-1" style={{ fontFamily: "Caveat, cursive", fontSize: 12, color: "#FF3366" }}>♡ Love</div>
+            </motion.div>
+
+            {/* 3D CRYSTAL HEART */}
+            <motion.div
+              animate={{ y: [-6, 6, -6], rotate: [0, 5, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+              className="absolute top-[12%] right-[28%] z-30"
+            >
+              <div className="w-24 h-24 relative">
+                <div className="absolute inset-0 rounded-[20px] rotate-45 bg-gradient-to-br from-[#FF88AA]/40 to-[#FF3366]/20 backdrop-blur-sm border border-white/30 shadow-[0_0_30px_rgba(255,51,102,0.4)]" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Heart className="w-10 h-10 text-[#FF3366] fill-[#FF3366] drop-shadow-[0_0_8px_#FF3366]" />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* "Good Memories Onchain" label */}
+            <div className="absolute top-[4%] right-[22%] z-40">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-4 py-2 shadow-xl">
+                <p style={{ fontFamily: "Caveat, cursive", fontSize: 14, color: "#FFB0C8", lineHeight: 1.4 }}>
+                  Good<br/>Memories<br/>Onchain
+                </p>
+              </div>
+            </div>
+
+            {/* "Built on Monad" badge floating */}
+            <motion.div
+              animate={{ y: [-5, 5, -5] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+              className="absolute bottom-[15%] right-[6%] z-30"
+            >
+              <div className="bg-[#110B29] border border-[#6B3FE7]/50 rounded-2xl px-4 py-2.5 flex items-center gap-2 shadow-[0_0_20px_rgba(107,63,231,0.3)]">
+                <MonadIcon />
+                <div>
+                  <div className="text-[8px] text-white/50 font-semibold uppercase tracking-wider">Built on</div>
+                  <div className="text-sm font-extrabold text-white">Monad</div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* "Your Memories Live On" annotation */}
+            <div className="absolute bottom-[35%] right-[0%] z-20 text-right">
+              <p style={{ fontFamily: "Caveat, cursive", fontSize: 18, color: "#FF88AA", lineHeight: 1.4 }}>
+                Your<br/>Memories<br/>Live On<br/>
+                <span className="text-[#FF3366] text-2xl">♡</span>
+              </p>
+            </div>
+
+            {/* RIBBON marquee text */}
+            <div className="absolute bottom-[10%] left-[0%] right-[-5%] z-30 overflow-hidden">
+              <div
+                className="whitespace-nowrap py-2 px-8 text-[11px] font-bold tracking-widest text-black"
+                style={{
+                  background: "linear-gradient(90deg, rgba(255,51,102,0.9) 0%, rgba(255,136,170,0.85) 50%, rgba(255,51,102,0.9) 100%)",
+                  transform: "rotate(-3deg) scaleX(1.2)",
+                  boxShadow: "0 0 30px rgba(255,51,102,0.5)",
+                }}
+              >
+                REAL MOMENTS &nbsp;✦&nbsp; ONCHAIN MEMORIES &nbsp;✦&nbsp; FOR EVERYONE &nbsp;✦&nbsp; REAL MOMENTS &nbsp;✦&nbsp; ONCHAIN MEMORIES &nbsp;✦&nbsp; FOR EVERYONE
+              </div>
             </div>
           </div>
         </div>
-      </main>
+      </section>
 
-      {/* Feature Ribbon */}
-      <div className="border-y border-white/10 bg-black/50 backdrop-blur-md relative z-20">
-        <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      {/* ══════════════════════════════════════
+          FEATURE PILLS ROW
+      ══════════════════════════════════════ */}
+      <section className="relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-md">
+        <div className="max-w-[1400px] mx-auto px-8 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { icon: Camera, title: "Personal Mode", desc: "Take photos with your partner, friends, or yourself." },
-            { icon: Calendar, title: "Event Mode", desc: "Create a photobooth for any event." },
-            { icon: ImageIcon, title: "Creator Frames", desc: "Unique frames by creators and communities." },
-            { icon: LinkIcon, title: "Onchain Ownership", desc: "Your memories, powered by Monad." },
-          ].map((feat, i) => (
-            <div key={i} className="flex gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-brand-pink">
-                <feat.icon className="w-6 h-6" />
+            { Icon: Camera, title: "Personal Mode", desc: "Take photos with your partner, friends, or yourself." },
+            { Icon: Calendar, title: "Event Mode", desc: "Create a photobooth for any event." },
+            { Icon: ImageIcon, title: "Creator Frames", desc: "Unique frames by creators and communities." },
+            { Icon: LinkIcon, title: "Onchain Ownership", desc: "Your memories, powered by Monad." },
+          ].map(({ Icon, title, desc }, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="mt-0.5 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                <Icon className="w-5 h-5 text-[#FF3366]" />
               </div>
               <div>
-                <h3 className="font-bold mb-1">{feat.title}</h3>
-                <p className="text-sm text-gray-400 leading-snug">{feat.desc}</p>
+                <div className="font-bold text-[14px] mb-0.5">{title}</div>
+                <div className="text-[12px] text-white/50 leading-snug">{desc}</div>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Why SmileOn & Personal Mode (Split) */}
-      <Section className="grid lg:grid-cols-2 gap-6 relative z-10">
-        {/* Light Card */}
-        <div className="bg-[#FFF0F5] rounded-3xl p-10 md:p-14 text-black relative overflow-hidden flex flex-col justify-between">
-          <div className="relative z-10 mb-12">
-            <div className="text-brand-pink text-xs font-bold tracking-widest mb-4">WHY SMILEON</div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-6 leading-tight">Photobooths shouldn't belong to a machine.</h2>
-            <p className="text-gray-700 mb-8 text-lg">
+      {/* ══════════════════════════════════════
+          WHY SMILEON  ⟷  PERSONAL MODE  (split card row)
+      ══════════════════════════════════════ */}
+      <section className="relative z-10 py-16 px-8">
+        <div className="max-w-[1400px] mx-auto grid lg:grid-cols-2 gap-5">
+
+          {/* ── Card left: Why SmileOn ── */}
+          <div className="bg-[#FFF2F6] rounded-3xl p-10 text-black flex flex-col min-h-[440px] overflow-hidden relative">
+            <div className="text-[11px] font-extrabold tracking-[0.15em] text-[#FF3366] mb-3 uppercase">Why SmileOn</div>
+            <h2 className="text-[34px] font-extrabold leading-tight mb-4">Photobooths<br />shouldn't belong<br />to a machine.</h2>
+            <p className="text-gray-600 text-[14px] leading-relaxed mb-8 max-w-xs">
               Traditional photobooths are tied to expensive hardware, locations, and setup. SmileOn turns devices people already have into a photobooth experience.
             </p>
-            <button className="bg-brand-pink text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-brand-lightpink transition-colors w-fit">
-              Learn More <ArrowRight className="w-4 h-4" />
+            <button className="bg-[#FF3366] text-white rounded-full px-6 py-2.5 font-bold text-[13px] flex items-center gap-2 w-fit hover:bg-[#e02255] transition-colors mb-auto">
+              Learn More <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Comparison widget */}
+            <div className="mt-10 flex items-center gap-3">
+              {/* Traditional booth column */}
+              <div className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
+                <div className="flex justify-center mb-3">
+                  {/* booth illustration placeholder */}
+                  <div className="w-16 h-20 bg-gray-300 rounded-lg opacity-60 flex items-center justify-center">
+                    <span className="text-[8px] text-gray-500 font-bold text-center leading-tight">BOOTH</span>
+                  </div>
+                </div>
+                <div className="text-[11px] font-bold text-gray-500 text-center mb-2">Traditional Booth</div>
+                {["Machine","Location","Setup","Limited time"].map(s => (
+                  <div key={s} className="flex items-center gap-1.5 text-[12px] text-gray-500 mb-1">
+                    <span className="text-red-400 font-bold">✕</span> {s}
+                  </div>
+                ))}
+              </div>
+
+              {/* Arrow */}
+              <div className="shrink-0 w-8 h-8 rounded-full bg-[#FF3366] flex items-center justify-center shadow-lg">
+                <ArrowRight className="w-4 h-4 text-white" />
+              </div>
+
+              {/* SmileOn column */}
+              <div className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-pink-100 relative overflow-hidden">
+                <div className="flex justify-center mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <Heart className="w-4 h-4 text-[#FF3366] fill-[#FF3366]" />
+                    <span className="text-[12px] font-bold text-[#FF3366]">SmileOn</span>
+                  </div>
+                </div>
+                <div className="text-[11px] font-bold text-[#FF3366] text-center mb-2">SmileOn</div>
+                {["Phone / Tablet","Anywhere","Instant setup","Any moment"].map(s => (
+                  <div key={s} className="flex items-center gap-1.5 text-[12px] text-[#FF3366] mb-1 font-semibold">
+                    <Check className="w-3.5 h-3.5" /> {s}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Card right: Personal Mode ── */}
+          <div className="bg-[#120A1D] rounded-3xl p-10 text-white flex flex-col min-h-[440px] overflow-hidden relative border border-[#FF3366]/10">
+            {/* glow */}
+            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FF3366]/10 blur-[80px] rounded-full pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FF3366]/5 blur-[60px] rounded-full pointer-events-none" />
+
+            <div className="relative z-10">
+              <div className="text-[11px] font-extrabold tracking-[0.15em] text-white/40 mb-3 uppercase">Personal Mode</div>
+              <h2 className="text-[34px] font-extrabold leading-tight mb-4">For the moments<br />you want to keep.</h2>
+              <p className="text-white/50 text-[14px] leading-relaxed mb-8 max-w-xs">
+                Take photos, choose a frame, customize the look, and turn a few seconds into a memory.
+              </p>
+              <button className="border-2 border-[#FF3366] text-[#FF3366] rounded-full px-6 py-2.5 font-bold text-[13px] flex items-center gap-2 w-fit hover:bg-[#FF3366] hover:text-white transition-colors">
+                Explore Personal Mode <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* phone mockup bottom-right */}
+            <div className="absolute -bottom-6 -right-4 w-[240px] h-[340px] bg-black rounded-[32px] border-4 border-[#222] shadow-2xl overflow-hidden z-20" style={{ transform: "perspective(800px) rotateY(-10deg) rotate(-4deg)" }}>
+              {/* top bar */}
+              <div className="px-4 pt-4 pb-2 text-[9px] text-white/40 flex justify-between items-center">
+                <span>Frames</span><span>Filter</span><span>Background</span>
+              </div>
+              {/* frame selector pills */}
+              <div className="flex gap-2 px-3 mb-2 overflow-hidden">
+                {["Romantic","Floral","Minimal","Arcade"].map((f, i) => (
+                  <div key={f} className={`text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${i === 0 ? 'bg-[#FF3366] text-white' : 'bg-white/10 text-white/50'}`}>{f}</div>
+                ))}
+              </div>
+              {/* photos */}
+              <div className="flex gap-1 px-3">
+                {[
+                  "https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80&w=200",
+                  "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80&w=200",
+                ].map((src, i) => (
+                  <div key={i} className="flex-1 rounded-lg overflow-hidden bg-[#FFE4E1]" style={{ paddingTop: 4, paddingBottom: 4, paddingLeft: 2, paddingRight: 2 }}>
+                    <img src={src} alt="" className="w-full rounded" style={{ height: 80, objectFit: "cover" }} />
+                    <img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80&w=200" alt="" className="w-full rounded mt-1" style={{ height: 80, objectFit: "cover" }} />
+                    <img src="https://images.unsplash.com/photo-1506869640319-baa18047b8ea?auto=format&fit=crop&q=80&w=200" alt="" className="w-full rounded mt-1" style={{ height: 80, objectFit: "cover" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          REMAINING SECTIONS (continued scroll)
+      ══════════════════════════════════════ */}
+
+      {/* Gesture Capture & Event Mode */}
+      <section className="relative z-10 py-4 px-8">
+        <div className="max-w-[1400px] mx-auto grid lg:grid-cols-2 gap-5">
+
+          {/* Gesture */}
+          <div className="bg-[#FDF2F8] rounded-3xl p-10 text-black min-h-[420px] relative overflow-hidden">
+            <div className="text-[11px] font-extrabold tracking-[0.15em] text-[#FF3366] mb-3 uppercase">Gesture Capture</div>
+            <h2 className="text-[30px] font-extrabold leading-tight mb-3">Sometimes<br />your hands<br />are the shutter.</h2>
+            <p className="text-gray-600 text-[13px] mb-6 max-w-xs">Raise your hand. SmileOn detects an open palm and triggers a countdown before capturing the photo.</p>
+            <span className="bg-black text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full">Prototype / Coming Soon</span>
+            <div className="mt-8 flex gap-2">
+              {["✋","3","2","1","📸"].map((s, i) => (
+                <div key={i} className="flex-1 aspect-[3/5] rounded-xl overflow-hidden bg-gray-200 relative flex items-center justify-center">
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover opacity-70" />
+                  <div className="absolute text-3xl font-black text-white drop-shadow-lg">{s}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-between text-[10px] text-gray-400 font-semibold px-1">
+              <span>Hand detected</span>
+              <span>Photo captured!</span>
+            </div>
+          </div>
+
+          {/* Event Mode */}
+          <div className="bg-[#100820] rounded-3xl p-10 text-white min-h-[420px] relative overflow-hidden border border-[#FF3366]/10">
+            <div className="absolute top-0 right-0 w-52 h-52 bg-[#FF3366]/15 blur-[70px] rounded-full" />
+            <div className="relative z-10">
+              <div className="text-[11px] font-extrabold tracking-[0.15em] text-white/40 mb-3 uppercase">Event Mode</div>
+              <h2 className="text-[34px] font-extrabold leading-tight mb-4">One event.<br />Hundreds of<br />memories.</h2>
+              <p className="text-white/50 text-[13px] mb-8 max-w-xs">Create a photobooth experience for weddings, birthdays, campus events, communities, and brands—without bringing a dedicated booth.</p>
+              <button className="bg-[#FF3366] text-white rounded-full px-6 py-2.5 font-bold text-[13px] flex items-center gap-2 w-fit hover:bg-[#e02255] transition-colors">
+                Explore Event Mode <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {/* Wedding card */}
+            <div className="absolute -bottom-4 -right-4 w-[300px] bg-white rounded-2xl p-4 shadow-2xl text-black z-20" style={{ transform: "rotate(-4deg)" }}>
+              <div className="text-[11px] font-bold text-gray-700 mb-3">Hana &amp; Simo Wedding</div>
+              <div className="flex gap-4 mb-3">
+                <div><div className="text-2xl font-black text-[#FF3366]">300</div><div className="text-[9px] text-gray-400 font-bold uppercase">Photo Credits</div></div>
+                <div><div className="text-2xl font-black">248</div><div className="text-[9px] text-gray-400 font-bold uppercase">Photos Taken</div></div>
+              </div>
+              <div className="flex items-center gap-3 border-t border-gray-100 pt-3">
+                <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center text-[8px] font-bold text-gray-400">QR CODE</div>
+                <div className="text-[10px] font-bold text-gray-600">Scan to Join</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Multi-Device */}
+      <section className="relative z-10 py-16 px-8 bg-white/3 backdrop-blur-sm border-y border-white/5">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-white/30 mb-3 uppercase">Multi-Device Experience</div>
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+            <h2 className="text-[40px] font-extrabold leading-tight">One experience.<br />Multiple devices.</h2>
+            <button className="bg-[#FF3366] text-white rounded-full px-6 py-2.5 font-bold text-[13px] flex items-center gap-2 w-fit">
+              See How It Works <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          
-          <div className="relative h-64 bg-white/50 rounded-2xl border border-pink-100 flex items-center p-6 gap-4">
-            <div className="w-1/2 grayscale opacity-50 flex flex-col gap-2 text-sm font-semibold">
-              <div className="p-2 border border-gray-200 rounded">x Machine</div>
-              <div className="p-2 border border-gray-200 rounded">x Location</div>
-              <div className="p-2 border border-gray-200 rounded">x Setup</div>
-            </div>
-            <div className="absolute left-1/2 -translate-x-1/2 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center z-10 text-brand-pink">
-              <ArrowRight className="w-5 h-5" />
-            </div>
-            <div className="w-1/2 text-brand-pink flex flex-col gap-2 text-sm font-bold pl-6">
-              <div className="flex gap-2 items-center"><Check className="w-4 h-4"/> Phone / Tablet</div>
-              <div className="flex gap-2 items-center"><Check className="w-4 h-4"/> Anywhere</div>
-              <div className="flex gap-2 items-center"><Check className="w-4 h-4"/> Instant setup</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dark Card */}
-        <div className="bg-[#120A1D] rounded-3xl p-10 md:p-14 border border-brand-pink/20 relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-pink/10 blur-[80px] rounded-full"></div>
-           <div className="relative z-10">
-            <div className="text-gray-400 text-xs font-bold tracking-widest mb-4">PERSONAL MODE</div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-6 leading-tight">For the moments you want to keep.</h2>
-            <p className="text-gray-400 mb-8 text-lg max-w-sm">
-              Take photos, choose a frame, customize the look, and turn a few seconds into a memory.
-            </p>
-            <button className="border-2 border-brand-pink text-brand-pink px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-brand-pink hover:text-white transition-colors w-fit mb-12">
-              Explore Personal Mode <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="absolute right-[-10%] bottom-[-10%] w-[300px] h-[400px] bg-black rounded-3xl border-4 border-gray-800 shadow-2xl rotate-[-5deg] overflow-hidden">
-             <div className="flex gap-2 h-full overflow-hidden p-4 pt-12">
-               <div className="w-1/2 h-full bg-[#FFE4E1] rounded-lg p-1 flex flex-col gap-1 relative shadow-sm">
-                 <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80&w=200&h=300" className="w-full h-[30%] object-cover rounded" />
-                 <img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80&w=200&h=300" className="w-full h-[30%] object-cover rounded" />
-                 <img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80&w=200&h=300" className="w-full h-[30%] object-cover rounded" />
-                 <span className="text-[10px] text-center text-pink-500 font-caveat font-bold mt-1">Romantic</span>
-               </div>
-               <div className="w-1/2 h-full bg-[#1A1A2E] rounded-lg p-1 flex flex-col gap-1 relative shadow-sm mt-4">
-                 <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80&w=200&h=300" className="w-full h-[30%] object-cover rounded grayscale" />
-                 <img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80&w=200&h=300" className="w-full h-[30%] object-cover rounded grayscale" />
-                 <img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80&w=200&h=300" className="w-full h-[30%] object-cover rounded grayscale" />
-                 <span className="text-[10px] text-center text-blue-300 font-caveat font-bold mt-1">Midnight</span>
-               </div>
-             </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* Gesture & Event Split */}
-      <Section className="grid lg:grid-cols-2 gap-6 pt-0">
-        {/* Gesture Capture */}
-        <div className="bg-[#FDF2F8] rounded-3xl p-10 text-black relative">
-           <div className="text-pink-500 text-xs font-bold tracking-widest mb-4">GESTURE CAPTURE</div>
-           <h2 className="text-3xl font-extrabold mb-4">Sometimes your hands are the shutter.</h2>
-           <p className="text-gray-700 mb-8 max-w-md">Raise your hand. SmileOn detects an open palm and triggers a countdown before capturing the photo.</p>
-           <Badge active>Prototype / Coming Soon</Badge>
-           
-           <div className="mt-12 flex items-center justify-between gap-2 overflow-hidden">
-             {[5,3,2,1].map((step, i) => (
-                <div key={i} className="flex-1 aspect-[3/4] bg-gray-200 rounded-lg relative overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80" className="w-full h-full object-cover opacity-80" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <span className="text-4xl font-bold text-white/80">{step === 5 ? '✋' : step}</span>
+          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pb-4" style={{ scrollbarWidth: "none" }}>
+            {[
+              { label: "1. Guests join with their phone", phone: true, content: "QR" },
+              null,
+              { label: "2. Take photos on tablet", tablet: true },
+              null,
+              { label: "3. Preview on phone", phone: true, content: "photo" },
+              null,
+              { label: "4. Get your photostrip!", strip: true },
+            ].map((step, i) =>
+              step === null ? (
+                <ArrowRight key={i} className="text-[#FF3366] shrink-0 w-5 h-5" />
+              ) : (step as any).strip ? (
+                <div key={i} className="flex flex-col items-center shrink-0">
+                  <div className="w-20 h-52 bg-white rounded-sm shadow-2xl p-1.5 rotate-[4deg] mb-4">
+                    {["photo-1522228115018-d838bcce5c3a","photo-1516585427167-9f4af9627e6c","photo-1529333166437-7750a6dd5a70","photo-1506869640319-baa18047b8ea"].map((id, j) => (
+                      <img key={j} src={`https://images.unsplash.com/${id}?auto=format&fit=crop&q=80`} alt="" className="w-full object-cover mb-0.5" style={{height:44}} />
+                    ))}
                   </div>
+                  <div className="text-[12px] font-bold text-center text-white/80">{(step as any).label}</div>
                 </div>
-             ))}
-           </div>
-        </div>
-
-        {/* Event Mode */}
-        <div className="bg-[#1A0B2E] rounded-3xl p-10 relative overflow-hidden">
-           <div className="text-gray-400 text-xs font-bold tracking-widest mb-4">EVENT MODE</div>
-           <h2 className="text-3xl font-extrabold mb-4">One event.<br/>Hundreds of memories.</h2>
-           <p className="text-gray-400 mb-8 max-w-sm">Create a photobooth experience for weddings, birthdays, campus events, communities, and brands—without bringing a dedicated booth.</p>
-           <button className="bg-brand-pink text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-brand-lightpink transition-colors w-fit">
-              Explore Event Mode <ArrowRight className="w-4 h-4" />
-           </button>
-
-           <div className="absolute right-[-10%] bottom-[-10%] w-[350px] h-[220px] bg-white rounded-2xl p-4 shadow-2xl rotate-[-5deg] flex">
-             <div className="w-2/3 pr-4 border-r border-gray-100 text-black flex flex-col justify-center">
-                <h4 className="font-bold text-lg mb-4">Hana & Simo Wedding</h4>
-                <div className="flex gap-4">
-                  <div>
-                    <div className="text-2xl font-black text-brand-pink">300</div>
-                    <div className="text-[10px] text-gray-500 uppercase font-bold">Photo Credits</div>
+              ) : (step as any).tablet ? (
+                <div key={i} className="flex flex-col items-center shrink-0">
+                  <div className="w-56 h-40 bg-black rounded-2xl border-4 border-[#222] overflow-hidden mb-4 relative shadow-xl">
+                    <img src="https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover opacity-80" />
+                    <div className="absolute inset-x-0 bottom-2 flex justify-center">
+                      <div className="w-10 h-10 rounded-full bg-[#FF3366] shadow-[0_0_15px_#FF3366] border-2 border-white/50" />
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-2xl font-black">248</div>
-                    <div className="text-[10px] text-gray-500 uppercase font-bold">Photos Taken</div>
+                  <div className="text-[12px] font-bold text-center text-white/80">{(step as any).label}</div>
+                </div>
+              ) : (
+                <div key={i} className="flex flex-col items-center shrink-0">
+                  <div className="w-24 h-48 bg-black rounded-2xl border-4 border-[#222] overflow-hidden mb-4 shadow-xl flex flex-col">
+                    <div className="flex-1 bg-white rounded flex flex-col items-center justify-center gap-2 p-2 m-1">
+                      {(step as any).content === "QR" ? (
+                        <>
+                          <div className="font-bold text-[#FF3366] text-[11px]">Ready!</div>
+                          <div className="w-10 h-10 bg-gray-200 rounded" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-[9px] text-gray-400">Photo 2/4</div>
+                          <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" alt="" className="w-full object-cover rounded" style={{ height: 60 }} />
+                        </>
+                      )}
+                    </div>
                   </div>
+                  <div className="text-[12px] font-bold text-center text-white/80">{(step as any).label}</div>
                 </div>
-             </div>
-             <div className="w-1/3 pl-4 flex flex-col items-center justify-center text-black">
-                <div className="w-16 h-16 bg-gray-200 mb-2 rounded flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-gray-500">QR CODE</span>
-                </div>
-                <div className="text-[10px] font-bold">Scan to Join</div>
-             </div>
-           </div>
-        </div>
-      </Section>
-
-      {/* Multi-Device Experience */}
-      <Section className="border-y border-white/5 bg-white/5 relative z-10 mt-12 text-center md:text-left">
-        <div className="text-gray-400 text-xs font-bold tracking-widest mb-4">MULTI-DEVICE EXPERIENCE</div>
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-          <div className="max-w-xl">
-            <h2 className="text-4xl font-extrabold mb-4">One experience.<br/>Multiple devices.</h2>
-            <p className="text-gray-400 text-lg">Use a tablet as the camera, let guests join with their phones, and see the memories come to life on screen.</p>
+              )
+            )}
           </div>
-          <button className="bg-brand-pink text-white px-6 py-3 rounded-full font-bold flex items-center justify-center gap-2 w-fit mx-auto md:mx-0">
-             See How It Works <ArrowRight className="w-4 h-4" />
-          </button>
         </div>
+      </section>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 overflow-x-auto no-scrollbar pb-8">
-           {/* Step 1 */}
-           <div className="flex flex-col items-center min-w-[150px]">
-             <div className="w-24 h-48 bg-black rounded-xl border-4 border-gray-800 p-2 mb-4 relative">
-               <div className="bg-white text-black h-full rounded flex flex-col items-center justify-center p-2 text-center">
-                 <span className="font-bold text-brand-pink mb-2">Ready!</span>
-                 <div className="w-12 h-12 bg-gray-200 mb-2"></div>
-               </div>
-             </div>
-             <div className="text-sm font-bold text-center">1. Guests join<br/>with their phone</div>
-           </div>
+      {/* Frame Carousel */}
+      <section className="bg-white text-black py-16 px-8 relative z-10">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-gray-400 mb-3 uppercase">Choose Your Frame</div>
+          <h2 className="text-[38px] font-extrabold mb-2">Your memory deserves a frame.</h2>
+          <p className="text-gray-500 text-[14px] mb-10">A variety of beautiful photostrip frames for every moment, mood, and event.</p>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 items-end" style={{ scrollbarWidth: "none" }}>
+            <button className="shrink-0 w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100"><ChevronLeft className="w-4 h-4"/></button>
+            {[
+              { name: "Romantic Love", bg: "#FFE4E1", color: "#FF3366" },
+              { name: "Floral", bg: "#FFF0F5", color: "#FF6699" },
+              { name: "Minimal", bg: "#F8F8F8", color: "#333" },
+              { name: "Arcade", bg: "#1A1A2E", color: "#00FFCC", dark: true },
+              { name: "Pink Diary", bg: "#FFD6E7", color: "#CC0044" },
+              { name: "Midnight", bg: "#0D0D2B", color: "#88AAFF", dark: true },
+              { name: "Film", bg: "#2C2C2C", color: "#CCCCCC", dark: true },
+              { name: "Pastel", bg: "#E8F4F8", color: "#5599CC" },
+            ].map((f, i) => (
+              <div key={i} className="flex flex-col items-center shrink-0 hover:scale-105 transition-transform cursor-pointer">
+                <div className="w-28 h-72 rounded-xl overflow-hidden shadow-lg mb-2" style={{ background: f.bg, padding: 6 }}>
+                  {["photo-1522228115018-d838bcce5c3a","photo-1516585427167-9f4af9627e6c","photo-1529333166437-7750a6dd5a70","photo-1506869640319-baa18047b8ea"].map((id, j) => (
+                    <img key={j} src={`https://images.unsplash.com/${id}?auto=format&fit=crop&q=80`} alt="" className={`w-full object-cover rounded mb-1 ${f.dark ? '' : ''}`} style={{ height: 59, filter: f.dark ? 'brightness(0.85)' : undefined }} />
+                  ))}
+                  <div style={{ color: f.color, fontFamily: "Caveat, cursive", fontSize: 13, textAlign: "center", fontWeight: "bold", marginTop: 2 }}>{f.name}</div>
+                </div>
+                <span className="text-[12px] font-bold text-gray-700">{f.name}</span>
+              </div>
+            ))}
+            <button className="shrink-0 w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100"><ChevronRight className="w-4 h-4"/></button>
+          </div>
+        </div>
+      </section>
 
-           <ArrowRight className="text-brand-pink hidden md:block" />
-
-           {/* Step 2 */}
-           <div className="flex flex-col items-center min-w-[250px]">
-             <div className="w-64 h-40 bg-black rounded-xl border-4 border-gray-800 p-2 mb-4 relative">
-                <img src="https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80" className="w-full h-full object-cover rounded opacity-80" />
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-brand-pink border-2 border-white"></div>
-             </div>
-             <div className="text-sm font-bold text-center">2. Take photos<br/>on tablet</div>
-           </div>
-
-           <ArrowRight className="text-brand-pink hidden md:block" />
-
-           {/* Step 3 */}
-           <div className="flex flex-col items-center min-w-[150px]">
-             <div className="w-24 h-48 bg-black rounded-xl border-4 border-gray-800 p-2 mb-4 relative">
-                <div className="h-full bg-gray-900 rounded flex flex-col pt-4 items-center">
-                  <span className="text-[10px]">Photo 2/4</span>
-                  <div className="w-16 h-24 bg-gray-800 mt-2">
-                    <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" className="w-full h-full object-cover opacity-80" />
+      {/* Creator Economy & Viral */}
+      <section className="relative z-10 py-16 px-8 bg-[#FAF5FF]">
+        <div className="max-w-[1400px] mx-auto grid lg:grid-cols-2 gap-5">
+          <div className="bg-[#FFF0F8] rounded-3xl p-10 text-black">
+            <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#8C40F0] mb-3 uppercase">Made By Creators</div>
+            <h2 className="text-[30px] font-extrabold mb-3">Frames can become<br/>a creative economy.</h2>
+            <p className="text-gray-600 text-[13px] mb-6 max-w-xs">Creators can design photostrip frames for communities, couples, events, and culture—and earn when their frames are used.</p>
+            <button className="bg-[#FF3366] text-white rounded-full px-5 py-2 font-bold text-[12px] mb-8">Coming Next</button>
+            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 text-center">
+              {["Create Frame","Share to Community","People Use It","Creator Earns"].map((s,i,a) => (
+                <React.Fragment key={s}>
+                  <div className="flex flex-col items-center gap-1 flex-1">
+                    <div className="w-12 h-14 bg-white rounded-lg shadow-sm border border-pink-100" />
+                    <span>{s}</span>
                   </div>
-                </div>
-             </div>
-             <div className="text-sm font-bold text-center">3. Preview on<br/>phone</div>
-           </div>
-
-           <ArrowRight className="text-brand-pink hidden md:block" />
-
-           {/* Step 4 */}
-           <div className="flex flex-col items-center min-w-[150px] relative">
-             <div className="w-20 h-56 bg-white p-2 rounded-sm shadow-xl mb-4 rotate-[5deg]">
-               <div className="flex flex-col gap-1 h-full">
-                 <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" className="w-full h-[23%] object-cover" />
-                 <img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80" className="w-full h-[23%] object-cover" />
-                 <img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80" className="w-full h-[23%] object-cover" />
-                 <img src="https://images.unsplash.com/photo-1506869640319-baa18047b8ea?auto=format&fit=crop&q=80" className="w-full h-[23%] object-cover" />
-               </div>
-             </div>
-             <div className="text-sm font-bold text-center">4. Get your<br/>photostrip!</div>
-             
-             <div className="absolute right-[-80px] top-[20px] hidden lg:block">
-               <span className="font-caveat text-xl text-brand-pink">So many<br/>memories ♡</span>
-             </div>
-           </div>
-        </div>
-      </Section>
-
-      {/* Choose Your Frame */}
-      <Section className="bg-white text-black py-24 max-w-none px-0 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 mb-12">
-          <div className="text-gray-500 text-xs font-bold tracking-widest mb-4">CHOOSE YOUR FRAME</div>
-          <h2 className="text-4xl font-extrabold mb-4">Your memory deserves a frame.</h2>
-          <p className="text-gray-600 max-w-md">A variety of beautiful photostrip frames for every moment, mood, and event.</p>
-        </div>
-        
-        <div className="flex gap-8 overflow-x-auto px-6 md:px-12 pb-12 pt-4 no-scrollbar items-center">
-          <button className="w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center shrink-0 hover:bg-gray-100"><ChevronLeft/></button>
-          
-          {['Romantic Love', 'Floral', 'Minimal', 'Arcade', 'Pink Diary', 'Midnight', 'Film', 'Pastel'].map((frame, i) => (
-             <div key={i} className="flex flex-col items-center shrink-0">
-                <div className={`w-32 h-80 rounded-lg p-2 shadow-lg mb-4 flex flex-col gap-2
-                  ${i % 2 === 0 ? 'bg-[#FFE4E1]' : 'bg-[#F0F8FF]'}
-                  ${i === 3 ? 'bg-[#1A1A2E]' : ''}
-                `}>
-                  <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" className="w-full h-[22%] object-cover rounded" />
-                  <img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80" className="w-full h-[22%] object-cover rounded" />
-                  <img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80" className="w-full h-[22%] object-cover rounded" />
-                  <img src="https://images.unsplash.com/photo-1506869640319-baa18047b8ea?auto=format&fit=crop&q=80" className="w-full h-[22%] object-cover rounded" />
-                </div>
-                <span className={`font-bold text-sm ${i === 3 ? 'text-gray-800' : 'text-gray-800'}`}>{frame}</span>
-             </div>
-          ))}
-
-          <button className="w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center shrink-0 hover:bg-gray-100"><ChevronRight/></button>
-        </div>
-      </Section>
-
-      {/* Creator & Viral */}
-      <Section className="grid lg:grid-cols-2 gap-6 bg-[#FAFAFA] text-black max-w-none pt-0">
-        <div className="max-w-7xl mx-auto w-full col-span-full grid lg:grid-cols-2 gap-6">
-          <div className="bg-[#FFF0F5] rounded-3xl p-10">
-            <div className="text-brand-purple text-xs font-bold tracking-widest mb-4">MADE BY CREATORS</div>
-            <h2 className="text-3xl font-extrabold mb-4">Frames can become a creative economy.</h2>
-            <p className="text-gray-700 mb-8 max-w-sm">Creators can design photostrip frames for communities, couples, events, and culture—and earn when their frames are used.</p>
-            <button className="bg-brand-pink text-white px-6 py-2 rounded-full font-bold w-fit mb-12">Coming Next</button>
-            
-            <div className="flex justify-between items-center text-[10px] font-bold text-center text-gray-800">
-               <div><div className="w-16 h-20 bg-white rounded shadow-sm mb-2"></div>Create Frame</div>
-               <ArrowRight className="text-gray-300 w-4 h-4"/>
-               <div><div className="w-16 h-20 bg-white rounded shadow-sm mb-2"></div>Share</div>
-               <ArrowRight className="text-gray-300 w-4 h-4"/>
-               <div><div className="w-16 h-20 bg-white rounded shadow-sm mb-2"></div>People Use It</div>
-               <ArrowRight className="text-gray-300 w-4 h-4"/>
-               <div><div className="w-16 h-20 bg-white rounded shadow-sm mb-2"></div>Creator Earns</div>
+                  {i < a.length-1 && <ArrowRight className="w-3 h-3 text-gray-300 shrink-0"/>}
+                </React.Fragment>
+              ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-10 shadow-xl shadow-gray-200/50 flex flex-col justify-between">
-            <div>
-              <h2 className="text-3xl font-extrabold mb-4">Every photo can tell someone else to try SmileOn.</h2>
-              <p className="text-gray-600 mb-8">Create. Customize. Share. Discover. Try. Create again.</p>
-            </div>
-            
-            <div className="relative h-64 flex items-end justify-center">
-               {/* TikTok / IG Icons floating */}
-               <div className="absolute top-10 left-10 w-12 h-12 bg-black rounded-xl text-white flex items-center justify-center rotate-[-10deg] shadow-lg">
-                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.89-4.63V9.32a6.34 6.34 0 0 0-6.33 6.36 6.36 6.36 0 1 0 11.2-4.08v-4.5a8.23 8.23 0 0 0 4.66 1.45V6.69z"/></svg>
-               </div>
-               <div className="absolute bottom-10 right-10 w-12 h-12 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 rounded-xl text-white flex items-center justify-center rotate-[10deg] shadow-lg">
-                 <InstagramIcon className="w-6 h-6" />
-               </div>
-
-               <div className="flex gap-4 items-end">
-                 <div className="w-24 h-48 bg-gray-100 rounded rotate-[-5deg] shadow-md border-4 border-white overflow-hidden"><img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" className="w-full h-full object-cover" /></div>
-                 <div className="w-24 h-56 bg-gray-100 rounded z-10 shadow-xl border-4 border-white overflow-hidden"><img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80" className="w-full h-full object-cover" /></div>
-                 <div className="w-24 h-48 bg-gray-100 rounded rotate-[5deg] shadow-md border-4 border-white overflow-hidden"><img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80" className="w-full h-full object-cover" /></div>
-               </div>
+          <div className="bg-white rounded-3xl p-10 text-black shadow-xl">
+            <h2 className="text-[30px] font-extrabold mb-3">Every photo can tell<br/>someone else to try SmileOn.</h2>
+            <p className="text-gray-500 text-[13px] mb-8">Create. Customize. Share. Discover. Try. Create again.</p>
+            <div className="relative h-56 flex items-end justify-center">
+              <div className="absolute top-0 left-6 w-10 h-10 bg-black rounded-xl flex items-center justify-center shadow-lg rotate-[-8deg]">
+                <svg className="w-5 h-5 text-white fill-white" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.89-4.63V9.32a6.34 6.34 0 0 0-6.33 6.36 6.36 6.36 0 1 0 11.2-4.08v-4.5a8.23 8.23 0 0 0 4.66 1.45V6.69z"/></svg>
+              </div>
+              <div className="absolute top-0 right-6 w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex items-center justify-center shadow-lg rotate-[8deg]">
+                <InstagramIcon className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex gap-3 items-end">
+                <div className="w-20 h-44 bg-pink-50 rounded rotate-[-5deg] shadow border-4 border-white overflow-hidden"><img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover" /></div>
+                <div className="w-20 h-52 bg-pink-50 rounded z-10 shadow-xl border-4 border-white overflow-hidden"><img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover" /></div>
+                <div className="w-20 h-44 bg-pink-50 rounded rotate-[5deg] shadow border-4 border-white overflow-hidden"><img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover" /></div>
+              </div>
             </div>
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* Why Onchain */}
-      <Section className="bg-[#FAF7FC] text-black py-24 max-w-none">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6">
-             <div className="max-w-xl">
-               <div className="inline-block bg-brand-pink/10 text-brand-pink text-xs font-bold tracking-widest px-3 py-1 rounded mb-4">WHY ONCHAIN?</div>
-               <h2 className="text-4xl font-extrabold mb-4">Blockchain,<br/>where it actually helps.</h2>
-               <p className="text-gray-600 text-lg">SmileOn keeps the blockchain underneath the experience, so people can focus on their memories instead of wallets and transactions.</p>
-             </div>
-             <button className="bg-[#110B29] text-white px-6 py-3 rounded-full font-bold flex items-center gap-3 w-fit">
-               <div className="w-6 h-6 bg-brand-purple rounded-md flex items-center justify-center text-xs">M</div>
-               Built on Monad
-             </button>
+      <section className="relative z-10 py-16 px-8 bg-[#F8F4FF]">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+            <div className="max-w-2xl">
+              <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#FF3366] mb-3 uppercase">Why Onchain?</div>
+              <h2 className="text-[38px] font-extrabold text-black mb-4">Blockchain,<br/>where it actually helps.</h2>
+              <p className="text-gray-600 text-[14px]">SmileOn keeps the blockchain underneath the experience, so people can focus on their memories instead of wallets and transactions.</p>
+            </div>
+            <button className="bg-[#110B29] text-white rounded-full px-5 py-2.5 font-bold text-[13px] flex items-center gap-2 shrink-0">
+              <MonadIcon /> Built on Monad
+            </button>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-5 text-black">
             {[
-              { title: "01. Payments", desc: "Simple onchain payments for premium experiences and event credits." },
-              { title: "02. Digital Ownership", desc: "Memories can become persistent digital objects instead of disappearing into a gallery." },
-              { title: "03. Creator Economy", desc: "Future creator experiences can use programmable ownership and monetization." }
-            ].map((item, i) => (
-               <div key={i} className="bg-white rounded-2xl p-8 shadow-sm border border-purple-100 flex gap-4">
-                 <div className="w-12 h-12 bg-brand-pink/10 text-brand-pink rounded-xl flex items-center justify-center shrink-0">
-                    <Check className="w-6 h-6" />
-                 </div>
-                 <div>
-                   <h3 className="font-bold mb-2">{item.title}</h3>
-                   <p className="text-sm text-gray-600 leading-relaxed">{item.desc}</p>
-                 </div>
-               </div>
+              { n: "01", title: "Payments", desc: "Simple onchain payments for premium experiences and event credits." },
+              { n: "02", title: "Digital Ownership", desc: "Memories can become persistent digital objects instead of disappearing into a gallery." },
+              { n: "03", title: "Creator Economy", desc: "Future creator experiences can use programmable ownership and monetization." },
+            ].map(p => (
+              <div key={p.n} className="bg-white rounded-2xl p-7 shadow-sm border border-purple-100 flex gap-4">
+                <div className="w-11 h-11 bg-[#FF3366]/10 rounded-xl flex items-center justify-center shrink-0">
+                  <Check className="w-5 h-5 text-[#FF3366]" />
+                </div>
+                <div>
+                  <div className="font-extrabold mb-1">{p.n}. {p.title}</div>
+                  <div className="text-[12px] text-gray-500 leading-relaxed">{p.desc}</div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
-      </Section>
+      </section>
 
-      {/* Bottom CTA */}
-      <Section className="py-24 max-w-none relative overflow-hidden bg-[#120A1D]">
-        <div className="absolute inset-0 bg-gradient-brand opacity-20 blur-[100px] pointer-events-none"></div>
-        
-        <div className="max-w-7xl mx-auto px-6 relative z-10 grid md:grid-cols-3 gap-12 items-center">
-          
-          <div className="relative h-64 hidden md:block">
-            <div className="absolute left-0 top-0 w-32 h-64 bg-white p-2 pb-8 rounded shadow-2xl rotate-[-15deg] z-10"><img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" className="w-full h-full object-cover rounded-sm" /></div>
-            <div className="absolute left-16 top-8 w-32 h-64 bg-[#FFE4E1] p-2 pb-8 rounded shadow-2xl rotate-[5deg] z-20"><img src="https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80" className="w-full h-full object-cover rounded-sm grayscale" /></div>
+      {/* CTA Banner */}
+      <section className="relative z-10 py-24 px-8 bg-[#0D0010] overflow-hidden">
+        <div className="absolute inset-0 bg-[#FF3366]/15 blur-[120px] pointer-events-none" />
+        <div className="max-w-[1400px] mx-auto relative z-10 grid md:grid-cols-3 gap-8 items-center">
+          <div className="hidden md:flex items-center gap-3 relative h-64">
+            <div className="absolute left-0 top-0 w-32 h-60 bg-white rounded p-2 pb-6 shadow-2xl rotate-[-12deg] z-10 overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover rounded" />
+            </div>
+            <div className="absolute left-14 top-6 w-32 h-60 bg-[#FFE4E1] rounded p-2 pb-6 shadow-2xl rotate-[4deg] z-20 overflow-hidden">
+              <img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80" alt="" className="w-full h-full object-cover rounded" />
+            </div>
           </div>
 
           <div className="text-center">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Your next memory<br/>is one tap away.</h2>
-            <p className="text-xl text-gray-300 mb-10">Bring SmileOn with you.</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <h2 className="text-[42px] font-extrabold leading-tight mb-4">Your next memory<br/>is one tap away.</h2>
+            <p className="text-white/50 text-[15px] mb-8">Bring SmileOn with you.</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <AppStoreButton type="google" />
               <AppStoreButton type="apple" />
             </div>
           </div>
 
-          <div className="relative h-64 hidden md:flex items-center justify-center">
-             <div className="w-64 h-48 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 glow-pink relative flex items-center justify-center">
-               <div className="w-24 h-24 rounded-2xl bg-gradient-brand rotate-[45deg] flex items-center justify-center shadow-lg">
-                 <Heart className="w-12 h-12 text-white fill-white rotate-[-45deg]" />
-               </div>
-             </div>
-             <div className="absolute right-[-40px] bottom-[-20px]">
-               <span className="font-caveat text-3xl text-brand-lightpink text-right">Capture<br/>Print<br/>Share ♡</span>
-             </div>
+          <div className="hidden md:flex items-center justify-center relative h-64">
+            <motion.div
+              animate={{ y: [-6, 6, -6] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-56 h-44 bg-white/5 backdrop-blur-md rounded-2xl border border-white/15 glow-pink flex items-center justify-center shadow-[0_0_40px_rgba(255,51,102,0.25)]"
+            >
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FF3366] to-[#FF88AA] rotate-45 flex items-center justify-center shadow-lg">
+                <Heart className="w-10 h-10 text-white fill-white -rotate-45" />
+              </div>
+            </motion.div>
+            <div className="absolute -right-4 -bottom-4">
+              <p style={{ fontFamily: "Caveat, cursive", fontSize: 22, color: "#FF88AA", lineHeight: 1.4 }}>
+                Capture<br/>Print<br/>Share ♡
+              </p>
+            </div>
           </div>
-
         </div>
-      </Section>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-black py-12 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
-          
-          <div className="flex flex-col items-center md:items-start">
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="text-brand-pink fill-brand-pink w-6 h-6" />
-              <span className="text-xl font-bold tracking-tight">SmileOn</span>
+      <footer className="bg-black border-t border-white/10 py-10 px-8 relative z-10">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Heart className="w-5 h-5 text-[#FF3366] fill-[#FF3366]" />
+              <span className="font-extrabold text-[16px]">SmileOn</span>
             </div>
-            <p className="text-xs text-gray-500 mb-4">Capture. Print. Share.</p>
-            <p className="text-[10px] text-gray-600">© 2026 SmileOn. All rights reserved.</p>
+            <div className="text-[11px] text-white/30 mb-1">Capture. Print. Share.</div>
+            <div className="text-[10px] text-white/20">© 2026 SmileOn. All rights reserved.</div>
           </div>
-
-          <nav className="flex flex-wrap justify-center gap-6 text-xs font-semibold text-gray-400">
-            <a href="#" className="hover:text-white transition-colors">Product</a>
-            <a href="#" className="hover:text-white transition-colors">Personal</a>
-            <a href="#" className="hover:text-white transition-colors">Events</a>
-            <a href="#" className="hover:text-white transition-colors">Frames</a>
-            <a href="#" className="hover:text-white transition-colors">About</a>
+          <nav className="flex gap-6 text-[12px] font-semibold text-white/40">
+            {["Product","Personal","Events","Frames","About"].map(l => (
+              <a key={l} href="#" className="hover:text-white transition-colors">{l}</a>
+            ))}
           </nav>
-
-          <div className="flex flex-col items-center md:items-end gap-4">
-            <div className="flex gap-4">
-              <a href="#" className="text-gray-500 hover:text-white flex items-center gap-2 text-xs">
-                <InstagramIcon className="w-4 h-4" /> @smileon.app
-              </a>
-              <a href="#" className="text-gray-500 hover:text-white flex items-center gap-2 text-xs">
-                <Mail className="w-4 h-4" /> smileonapps@gmail.com
-              </a>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-4 text-[11px] text-white/40">
+              <a href="#" className="flex items-center gap-1.5 hover:text-white transition-colors"><InstagramIcon className="w-3.5 h-3.5" /> @smileon.app</a>
+              <a href="#" className="flex items-center gap-1.5 hover:text-white transition-colors"><Mail className="w-3.5 h-3.5" /> smileonapps@gmail.com</a>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-gray-500">
-              <div className="w-4 h-4 bg-brand-purple rounded-sm flex items-center justify-center text-white font-bold">M</div>
-              Built on Monad
+            <div className="flex items-center gap-1.5 text-[10px] text-white/25">
+              <MonadIcon /> Built on Monad
             </div>
           </div>
-
         </div>
       </footer>
 
