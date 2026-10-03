@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { Heart, Camera, Calendar, Image as ImageIcon, Link as LinkIcon, Check, ArrowRight, Mail, ChevronLeft, ChevronRight, Star, Sparkles } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart, Camera, Calendar, Image as ImageIcon, Link as LinkIcon, Check, ArrowRight, Mail, ChevronLeft, ChevronRight } from "lucide-react";
 
-/* ───────── Icon helpers ───────── */
+import Navbar from "@/app/landingpage/navbar";
+import TopContent from "@/app/landingpage/topcontent";
+
+/* ───────── Icon helpers (used in sections below) ───────── */
 const InstagramIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
@@ -35,7 +38,7 @@ const MonadIcon = () => (
   </svg>
 );
 
-/* ───────── App Store Buttons ───────── */
+/* ───────── App Store Buttons (used in CTA + Footer sections) ───────── */
 const AppStoreButton = ({ type }: { type: "apple" | "google" }) => (
   <button className="flex items-center gap-3 bg-[#1c1c1e] border border-white/20 hover:border-white/40 text-white rounded-2xl px-5 py-3 transition-all hover:bg-white/10 group">
     {type === "google" ? <GooglePlayIcon /> : <AppleIcon />}
@@ -47,30 +50,6 @@ const AppStoreButton = ({ type }: { type: "apple" | "google" }) => (
   </button>
 );
 
-/* ───────── Floating Sparkles ───────── */
-const FloatingStars = () => (
-  <div className="absolute inset-0 pointer-events-none overflow-hidden">
-    {[
-      { top: "12%", left: "8%", size: 14, delay: 0 },
-      { top: "5%", left: "55%", size: 10, delay: 0.5 },
-      { top: "30%", right: "5%", size: 18, delay: 1 },
-      { top: "70%", left: "3%", size: 12, delay: 1.5 },
-      { bottom: "20%", right: "8%", size: 10, delay: 2 },
-      { top: "55%", left: "48%", size: 8, delay: 0.8 },
-      { top: "80%", left: "70%", size: 16, delay: 1.2 },
-    ].map((s, i) => (
-      <motion.div
-        key={i}
-        style={{ position: "absolute", top: s.top, left: s.left, right: (s as any).right, bottom: (s as any).bottom }}
-        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
-        transition={{ duration: 2.5 + i * 0.3, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
-      >
-        <Star style={{ width: s.size, height: s.size }} className="fill-white/60 text-white/60" />
-      </motion.div>
-    ))}
-  </div>
-);
-
 /* ───────── Main Page ───────── */
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -78,21 +57,22 @@ export default function Home() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-[#0d0010] text-white min-h-screen overflow-x-hidden">
+    <div className="bg-[#020002] text-white min-h-screen overflow-x-hidden">
 
       {/* ── BG gradient blobs ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        {/* Left blob */}
-        <div className="absolute top-[-10%] left-[-15%] w-[65vw] h-[65vw] rounded-full bg-[#FF3366]/25 blur-[140px]" />
-        {/* Centre-right blob */}
-        <div className="absolute top-[10%] right-[-10%] w-[55vw] h-[55vw] rounded-full bg-[#CC1144]/20 blur-[120px]" />
-        {/* Bottom dark purple */}
-        <div className="absolute bottom-[-10%] left-[30%] w-[50vw] h-[50vw] rounded-full bg-[#6B3FE7]/15 blur-[100px]" />
-        {/* Cherry blossom petals (pink bokeh) */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-black">
+        {/* Top left subtle glow */}
+        <div className="absolute top-[-20%] left-[-10%] w-[35vw] h-[35vw] rounded-full bg-[#FF3366]/10 blur-[130px]" />
+        {/* Center right (behind stage) glow */}
+        <div className="absolute top-[10%] right-[-10%] w-[45vw] h-[50vw] rounded-full bg-[#FF3366]/15 blur-[150px]" />
+        {/* Bottom left subtle glow */}
+        <div className="absolute bottom-[-15%] left-[5%] w-[35vw] h-[35vw] rounded-full bg-[#6B3FE7]/10 blur-[130px]" />
+        
+        {/* Cherry blossom petals (pink bokeh) - reduced opacity */}
         {[
-          { top: "15%", left: "2%", size: 180, opacity: 0.12 },
-          { top: "60%", right: "0%", size: 220, opacity: 0.08 },
-          { bottom: "5%", left: "10%", size: 160, opacity: 0.1 },
+          { top: "15%", left: "2%", size: 180, opacity: 0.05 },
+          { top: "60%", right: "0%", size: 220, opacity: 0.04 },
+          { bottom: "5%", left: "10%", size: 160, opacity: 0.05 },
         ].map((b, i) => (
           <div
             key={i}
@@ -112,266 +92,14 @@ export default function Home() {
       </div>
 
       {/* ══════════════════════════════════════
-          NAVBAR
+          NAVBAR  — landingpage/navbar
       ══════════════════════════════════════ */}
-      <header className="fixed top-0 w-full z-50 backdrop-blur-xl bg-black/30 border-b border-white/5">
-        <div className="max-w-[1400px] mx-auto px-8 h-[68px] flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-[#FF3366] fill-[#FF3366]" />
-            <span className="text-lg font-extrabold tracking-tight">SmileOn</span>
-          </div>
-
-          {/* Nav links */}
-          <nav className="hidden md:flex items-center gap-8 text-[13px] font-medium text-white/70">
-            {["Product","Personal","Events","Frames","About"].map(l => (
-              <a key={l} href="#" className="hover:text-white transition-colors">{l}</a>
-            ))}
-          </nav>
-
-          {/* Right CTA */}
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-white/50 hover:text-white transition-colors hidden sm:block">
-              <InstagramIcon className="w-5 h-5" />
-            </a>
-            <button className="bg-gradient-to-r from-[#FF3366] to-[#FF6699] text-white text-[13px] font-bold px-5 py-2 rounded-full flex items-center gap-1.5 hover:shadow-[0_0_20px_rgba(255,51,102,0.5)] transition-shadow">
-              Download App <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* ══════════════════════════════════════
-          HERO SECTION
+          HERO SECTION  — landingpage/topcontent
       ══════════════════════════════════════ */}
-      <section className="relative z-10 pt-[120px] pb-0 min-h-screen overflow-hidden">
-        <FloatingStars />
-
-        <div className="max-w-[1400px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-8 items-start">
-
-          {/* ── Left copy ── */}
-          <div className="relative z-10 pt-10 pb-24">
-
-            {/* Pill badges */}
-            <div className="flex flex-wrap gap-2 mb-8">
-              <span className="bg-white text-black text-[11px] font-bold tracking-wider px-3.5 py-1.5 rounded-full">ONCHAIN PHOTOBOOTH</span>
-              <span className="border border-white/20 text-white/80 text-[11px] font-semibold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 bg-white/5">
-                <MonadIcon /> Built on Monad
-              </span>
-            </div>
-
-            {/* H1 */}
-            <h1 className="text-[58px] md:text-[70px] font-extrabold leading-[1.05] tracking-tight mb-6">
-              Make a moment.<br />
-              Make it{" "}
-              <span className="bg-gradient-to-r from-[#FF3366] to-[#FF88AA] bg-clip-text text-transparent">SmileOn.</span>
-            </h1>
-
-            <p className="text-[17px] text-white/60 mb-10 max-w-md leading-relaxed">
-              Capture, customize, and share your memories —<br />anytime, anywhere.
-            </p>
-
-            {/* App buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-10">
-              <AppStoreButton type="google" />
-              <AppStoreButton type="apple" />
-            </div>
-
-            {/* Social proof */}
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-2.5">
-                {[20,21,22,23].map(n => (
-                  <img key={n} src={`https://i.pravatar.cc/80?img=${n}`} alt="" className="w-9 h-9 rounded-full border-2 border-[#0d0010] object-cover" />
-                ))}
-              </div>
-              <p className="text-[13px] text-white/50 max-w-[180px] leading-snug">
-                For couples, friends, creators, events and more.
-              </p>
-            </div>
-
-            {/* Handwritten annotation */}
-            <div className="absolute -left-2 bottom-4 -rotate-12 opacity-80 hidden lg:block">
-              <p className="font-['Caveat',_cursive] text-2xl text-[#FF88AA] leading-tight">
-                Photobooth,<br />without<br />the booth.
-                <span className="text-[#FF3366]"> ♡</span>
-              </p>
-              {/* hand-drawn arrow */}
-              <svg width="60" height="50" viewBox="0 0 60 50" className="mt-1 text-[#FF88AA] opacity-70">
-                <path d="M10,10 Q30,5 50,30" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                <path d="M45,26 L52,32 L44,35" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-
-          {/* ── Right hero visuals ── */}
-          <div className="relative h-[700px] w-full hidden lg:block">
-
-            {/* Ribbon / ring */}
-            <motion.div
-              className="absolute top-[45%] left-[35%] -translate-x-1/2 -translate-y-1/2 w-[500px] h-[600px] rounded-full border border-[#FF3366]/20 border-dashed pointer-events-none"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
-            />
-
-            {/* Pink glow behind phone */}
-            <div className="absolute top-[10%] left-[22%] w-[320px] h-[600px] bg-[#FF3366]/30 blur-[80px] rounded-full pointer-events-none" />
-
-            {/* MAIN PHONE MOCKUP */}
-            <motion.div
-              initial={{ y: 30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="absolute top-[2%] left-[18%] w-[270px] h-[560px] rounded-[42px] border-4 border-[#2a2a2a] shadow-[0_0_60px_rgba(255,51,102,0.35)] overflow-hidden z-20 bg-black"
-              style={{ transform: "perspective(1000px) rotateY(-8deg) rotateX(3deg)" }}
-            >
-              {/* full-bleed photo */}
-              <img
-                src="https://images.unsplash.com/photo-1529080765917-3db2ac54491f?auto=format&fit=crop&q=80&w=540"
-                alt="couple"
-                className="w-full h-full object-cover"
-              />
-              {/* top UI bar */}
-              <div className="absolute top-0 left-0 right-0 px-5 pt-5 flex items-center justify-between">
-                <span className="text-white/80 text-[11px] font-semibold bg-black/30 backdrop-blur-sm rounded px-2 py-0.5">2/4</span>
-                <span className="text-white font-bold text-[13px] bg-black/30 backdrop-blur-sm rounded px-2 py-0.5">SmileOn</span>
-                <div className="w-5 h-5" />
-              </div>
-              {/* bottom capture bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/90 to-transparent flex flex-col items-center justify-end pb-5 gap-3">
-                <div className="flex items-center gap-4 text-[10px] text-white/60 font-semibold">
-                  <span>Template</span>
-                  <span>Filter</span>
-                  <span className="text-white">Photo</span>
-                  <span>Video</span>
-                  <span>Background</span>
-                </div>
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FF3366] to-[#FF88AA] shadow-[0_0_20px_#FF3366] border-4 border-white/30 flex items-center justify-center">
-                  <div className="w-6 h-6 rounded-full bg-[#FF3366]" />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* PHOTOSTRIP — right, large */}
-            <motion.div
-              animate={{ y: [-8, 8, -8], rotate: [4, 6, 4] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-[4%] right-[4%] w-[160px] bg-white rounded-sm shadow-2xl z-30 overflow-hidden"
-              style={{ padding: "6px 6px 20px 6px" }}
-            >
-              {[
-                "https://images.unsplash.com/photo-1529080765917-3db2ac54491f?auto=format&fit=crop&q=80&w=320&h=320",
-                "https://images.unsplash.com/photo-1522228115018-d838bcce5c3a?auto=format&fit=crop&q=80&w=320&h=320",
-                "https://images.unsplash.com/photo-1506869640319-baa18047b8ea?auto=format&fit=crop&q=80&w=320&h=320",
-                "https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?auto=format&fit=crop&q=80&w=320&h=320",
-              ].map((src, i) => (
-                <img key={i} src={src} alt="" className="w-full object-cover mb-1" style={{ height: 110 }} />
-              ))}
-              <div className="text-[10px] font-bold text-center text-[#FF3366] py-1" style={{ fontFamily: "Caveat, cursive", fontSize: 13 }}>SmileOn</div>
-            </motion.div>
-
-            {/* PHOTOSTRIP — left floating */}
-            <motion.div
-              animate={{ y: [10, -10, 10], rotate: [-12, -10, -12] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-              className="absolute top-[20%] left-[-2%] w-[130px] bg-white rounded-sm shadow-2xl z-10 overflow-hidden"
-              style={{ padding: "6px 6px 16px 6px", rotate: "-12deg" }}
-            >
-              {[
-                "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&q=80&w=260&h=260",
-                "https://images.unsplash.com/photo-1523824922871-d6f1a15151f1?auto=format&fit=crop&q=80&w=260&h=260",
-                "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80&w=260&h=260",
-              ].map((src, i) => (
-                <img key={i} src={src} alt="" className="w-full object-cover mb-1" style={{ height: 90 }} />
-              ))}
-              <div className="text-center py-1" style={{ fontFamily: "Caveat, cursive", fontSize: 12, color: "#FF3366" }}>♡ Love</div>
-            </motion.div>
-
-            {/* 3D CRYSTAL HEART */}
-            <motion.div
-              animate={{ y: [-6, 6, -6], rotate: [0, 5, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute top-[12%] right-[28%] z-30"
-            >
-              <div className="w-24 h-24 relative">
-                <div className="absolute inset-0 rounded-[20px] rotate-45 bg-gradient-to-br from-[#FF88AA]/40 to-[#FF3366]/20 backdrop-blur-sm border border-white/30 shadow-[0_0_30px_rgba(255,51,102,0.4)]" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Heart className="w-10 h-10 text-[#FF3366] fill-[#FF3366] drop-shadow-[0_0_8px_#FF3366]" />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* "Good Memories Onchain" label */}
-            <div className="absolute top-[4%] right-[22%] z-40">
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-4 py-2 shadow-xl">
-                <p style={{ fontFamily: "Caveat, cursive", fontSize: 14, color: "#FFB0C8", lineHeight: 1.4 }}>
-                  Good<br/>Memories<br/>Onchain
-                </p>
-              </div>
-            </div>
-
-            {/* "Built on Monad" badge floating */}
-            <motion.div
-              animate={{ y: [-5, 5, -5] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
-              className="absolute bottom-[15%] right-[6%] z-30"
-            >
-              <div className="bg-[#110B29] border border-[#6B3FE7]/50 rounded-2xl px-4 py-2.5 flex items-center gap-2 shadow-[0_0_20px_rgba(107,63,231,0.3)]">
-                <MonadIcon />
-                <div>
-                  <div className="text-[8px] text-white/50 font-semibold uppercase tracking-wider">Built on</div>
-                  <div className="text-sm font-extrabold text-white">Monad</div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* "Your Memories Live On" annotation */}
-            <div className="absolute bottom-[35%] right-[0%] z-20 text-right">
-              <p style={{ fontFamily: "Caveat, cursive", fontSize: 18, color: "#FF88AA", lineHeight: 1.4 }}>
-                Your<br/>Memories<br/>Live On<br/>
-                <span className="text-[#FF3366] text-2xl">♡</span>
-              </p>
-            </div>
-
-            {/* RIBBON marquee text */}
-            <div className="absolute bottom-[10%] left-[0%] right-[-5%] z-30 overflow-hidden">
-              <div
-                className="whitespace-nowrap py-2 px-8 text-[11px] font-bold tracking-widest text-black"
-                style={{
-                  background: "linear-gradient(90deg, rgba(255,51,102,0.9) 0%, rgba(255,136,170,0.85) 50%, rgba(255,51,102,0.9) 100%)",
-                  transform: "rotate(-3deg) scaleX(1.2)",
-                  boxShadow: "0 0 30px rgba(255,51,102,0.5)",
-                }}
-              >
-                REAL MOMENTS &nbsp;✦&nbsp; ONCHAIN MEMORIES &nbsp;✦&nbsp; FOR EVERYONE &nbsp;✦&nbsp; REAL MOMENTS &nbsp;✦&nbsp; ONCHAIN MEMORIES &nbsp;✦&nbsp; FOR EVERYONE
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════
-          FEATURE PILLS ROW
-      ══════════════════════════════════════ */}
-      <section className="relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-md">
-        <div className="max-w-[1400px] mx-auto px-8 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { Icon: Camera, title: "Personal Mode", desc: "Take photos with your partner, friends, or yourself." },
-            { Icon: Calendar, title: "Event Mode", desc: "Create a photobooth for any event." },
-            { Icon: ImageIcon, title: "Creator Frames", desc: "Unique frames by creators and communities." },
-            { Icon: LinkIcon, title: "Onchain Ownership", desc: "Your memories, powered by Monad." },
-          ].map(({ Icon, title, desc }, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <div className="mt-0.5 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                <Icon className="w-5 h-5 text-[#FF3366]" />
-              </div>
-              <div>
-                <div className="font-bold text-[14px] mb-0.5">{title}</div>
-                <div className="text-[12px] text-white/50 leading-snug">{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <TopContent />
 
       {/* ══════════════════════════════════════
           WHY SMILEON  ⟷  PERSONAL MODE  (split card row)
