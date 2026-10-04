@@ -4,8 +4,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'dart:io' show Platform;
+import 'package:hand_detection/hand_detection.dart' as hd;
+
 import 'package:flutter/services.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step1_preview.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step2_editphoto.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step3_download.dart';
@@ -22,6 +26,10 @@ class HorizontalActiveCamScreen extends StatefulWidget {
 
 class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   Color _selectedSidebarColor = Colors.white;
+  hd.HandDetector? _handDetector;
+  bool _isProcessingML = false;
+  DateTime? _lastMLFrame;
+  bool _isGestureTriggered = false;
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   bool _isCameraOn = false;
@@ -94,6 +102,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     _shutterFlash = false;
     _fullscreenDialogSetState = null;
     _retakeTargetIndex = null;
+    _handDetector?.dispose();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -176,31 +185,24 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     _syncSetState(() {
       _isSequentialMode = !_isSequentialMode;
     });
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isSequentialMode
-              ? 'Mode: Ambil 4 foto otomatis (berurutan)'
-              : 'Mode: Ambil foto satu per satu',
-        ),
-        duration: const Duration(milliseconds: 1200),
-        backgroundColor: AppTheme.primaryRose,
-        behavior: SnackBarBehavior.floating,
-      ),
+    SmileToast.showInfo(
+      context,
+      title: 'Info',
+      message: _isSequentialMode
+          ? 'Mode: Ambil 4 foto otomatis (berurutan)'
+          : 'Mode: Ambil foto satu per satu',
+      duration: const Duration(milliseconds: 1200),
     );
   }
 
   Future<void> _startSequentialCapture() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nyalakan kamera terlebih dahulu.'),
-            duration: Duration(seconds: 2),
-            backgroundColor: AppTheme.primaryRose,
-            behavior: SnackBarBehavior.floating,
-          ),
+        SmileToast.showError(
+          context,
+          title: 'Error',
+          message: 'Nyalakan kamera terlebih dahulu.',
+          duration: const Duration(seconds: 2),
         );
       }
       return;
@@ -270,15 +272,11 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         HapticFeedback.mediumImpact();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
-              ),
-              duration: const Duration(milliseconds: 700),
-              backgroundColor: AppTheme.primaryRose,
-              behavior: SnackBarBehavior.floating,
-            ),
+          SmileToast.showSuccess(
+            context,
+            title: 'Berhasil',
+            message: 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
+            duration: const Duration(milliseconds: 700),
           );
         }
 
@@ -300,18 +298,115 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     }
   }
 
+
+  Future<void> _initHandDetector() async {
+    try {
+      _handDetector = await hd.HandDetector.create(
+        maxDetections: 1,
+        detectorConf: 0.4,
+        enableGestures: true,
+        gestureMinConfidence: 0.4,
+      );
+      if (_cameraController != null && _cameraController!.value.isInitialized) {
+        _cameraController!.startImageStream((CameraImage image) {
+          _processCameraImage(image);
+        });
+      }
+    } catch (e) {
+      debugPrint("ML HandDetector Error: $e");
+    }
+  }
+
+  hd.CameraFrameRotation? _rotationFor(int degrees) {
+    switch (degrees % 360) {
+      case 90: return hd.CameraFrameRotation.cw90;
+      case 180: return hd.CameraFrameRotation.cw180;
+      case 270: return hd.CameraFrameRotation.cw270;
+      default: return null;
+    }
+  }
+
+  Future<void> _processCameraImage(CameraImage image) async {
+    if (_isProcessingML || _handDetector == null || !mounted || _isGestureTriggered || _isCapturingSingle || _isCapturingSequence || _countdown > 0) return;
+    
+    final now = DateTime.now();
+    if (_lastMLFrame != null && now.difference(_lastMLFrame!) < const Duration(milliseconds: 300)) {
+      return;
+    }
+    _lastMLFrame = now;
+    _isProcessingML = true;
+
+    try {
+      final hands = await _handDetector!.detectFromCameraImage(
+        image,
+        rotation: _rotationFor(_cameraController?.description.sensorOrientation ?? 0),
+        isBgra: Platform.isMacOS,
+        maxDim: 256,
+      );
+
+      if (hands.isNotEmpty) {
+        final hand = hands.first;
+        debugPrint("ML Detected Hand! Gesture: ${hand.gesture?.type}, Score: ${hand.gesture?.confidence}");
+        
+        // Cek gestur tangan terbuka, victory, thumbs up (sebagai alternatif jika openPalm gagal dikenali)
+        if (hand.gesture != null) {
+          final gType = hand.gesture!.type;
+          if (gType == hd.GestureType.openPalm || gType == hd.GestureType.victory || gType == hd.GestureType.pointingUp || gType == hd.GestureType.thumbUp) {
+            _triggerGesture();
+          }
+        } else {
+          debugPrint("ML Hand recognized but gesture is null. Landmarks count: ${hand.landmarks.length}");
+        }
+      }
+    } catch (e) {
+      // Ignore
+    } finally {
+      if (mounted) {
+        _isProcessingML = false;
+      }
+    }
+  }
+
+  void _triggerGesture() async {
+    if (_isGestureTriggered || _isCapturingSingle || _isCapturingSequence || _countdown > 0) return;
+    _syncSetState(() { _isGestureTriggered = true; });
+    
+    SmileToast.showSuccess(context, title: 'Gestur Dikenali', message: 'Memulai hitung mundur...', duration: const Duration(seconds: 1));
+    HapticFeedback.heavyImpact();
+
+    // Stop stream temporarily to allow takePicture
+    try {
+      await _cameraController!.stopImageStream();
+    } catch(e) {}
+    
+    if (_isSequentialMode) {
+      await _startSequentialCapture();
+    } else {
+      await _takePicture();
+    }
+
+    // Restart stream
+    if (_isCameraOn && mounted && _cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        _cameraController!.startImageStream((image) => _processCameraImage(image));
+      } catch(e) {}
+    }
+    
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _syncSetState(() { _isGestureTriggered = false; });
+      }
+    });
+  }
+
   Future<void> _takePicture() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Nyalakan kamera terlebih dahulu untuk mengambil foto.',
-            ),
-            duration: Duration(seconds: 2),
-            backgroundColor: AppTheme.primaryRose,
-            behavior: SnackBarBehavior.floating,
-          ),
+        SmileToast.showError(
+          context,
+          title: 'Error',
+          message: 'Nyalakan kamera terlebih dahulu untuk mengambil foto.',
+          duration: const Duration(seconds: 2),
         );
       }
       return;
@@ -390,17 +485,13 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       HapticFeedback.mediumImpact();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              retakeIdx != null
-                  ? 'Foto Frame ${retakeIdx + 1} berhasil diperbarui!'
-                  : 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
-            ),
-            duration: const Duration(milliseconds: 1200),
-            backgroundColor: AppTheme.primaryRose,
-            behavior: SnackBarBehavior.floating,
-          ),
+        SmileToast.showSuccess(
+          context,
+          title: 'Berhasil',
+          message: retakeIdx != null
+              ? 'Foto Frame ${retakeIdx + 1} berhasil diperbarui!'
+              : 'Foto ${_capturedPhotos.length}/4 berhasil diambil!',
+          duration: const Duration(milliseconds: 1200),
         );
       }
     } catch (e) {
@@ -426,13 +517,11 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
       });
       HapticFeedback.mediumImpact();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Mengambil ulang foto untuk Frame ${index + 1}...'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: AppTheme.primaryRose,
-            behavior: SnackBarBehavior.floating,
-          ),
+        SmileToast.showInfo(
+          context,
+          title: 'Info',
+          message: 'Mengambil ulang foto untuk Frame ${index + 1}...',
+          duration: const Duration(seconds: 2),
         );
       }
       // Tunggu popup tertutup penuh lalu mulai countdown jepret foto ulang
@@ -927,38 +1016,11 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                                     _selectedFrameIndex = fIndex;
                                   });
                                   setModalState(() {});
-                                  ScaffoldMessenger.of(sheetContext)
-                                      .hideCurrentSnackBar();
-                                  ScaffoldMessenger.of(
+                                  SmileToast.showSuccess(
                                     sheetContext,
-                                  ).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.check_circle_rounded,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Frame "${frame['name']}" dipilih!',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: AppTheme.primaryRose,
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: const Duration(
-                                        milliseconds: 1200,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
+                                    title: 'Berhasil',
+                                    message: 'Frame "${frame['name']}" dipilih!',
+                                    duration: const Duration(milliseconds: 1200),
                                   );
                                 },
                                 child: AspectRatio(
@@ -1393,42 +1455,25 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                   ),
                 ),
 
-              // Countdown Overlay (Lingkaran gelap + progress arc pink + angka seperti gambar)
+              // Countdown Overlay: Angka Hitungan Mundur Transparan (Tanpa Background)
               if (_countdown > 0)
                 Center(
-                  child: Container(
-                    width: 82,
-                    height: 82,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 78,
-                          height: 78,
-                          child: CircularProgressIndicator(
-                            value:
-                                _countdown /
-                                (_timerSeconds > 0 ? _timerSeconds : 3),
-                            strokeWidth: 4.5,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFFF43F5E),
-                            ),
-                            backgroundColor: Colors.white12,
+                  child: IgnorePointer(
+                    child: Text(
+                      '$_countdown',
+                      style: TextStyle(
+                        fontSize: 120,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFFD4D4D8).withValues(alpha: 0.55),
+                        letterSpacing: -2,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                        Text(
-                          '$_countdown',
-                          style: const TextStyle(
-                            fontSize: 38,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1725,13 +1770,11 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                             _capturedPhotos.clear();
                             _capturedPhotosMirrorState.clear();
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Sesi foto direset.'),
-                              duration: Duration(milliseconds: 1000),
-                              backgroundColor: AppTheme.primaryRose,
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          SmileToast.showInfo(
+                            context,
+                            title: 'Info',
+                            message: 'Sesi foto direset.',
+                            duration: const Duration(milliseconds: 1000),
                           );
                         },
                       ),

@@ -18,13 +18,15 @@ class SmileToast {
     required String message,
     String? title,
     Duration duration = const Duration(seconds: 3),
+    Alignment alignment = Alignment.topCenter,
   }) {
     show(
       context,
       message: message,
-      title: title ?? 'Berhasil Disalin',
+      title: title ?? 'Berhasil Disimpan',
       type: SmileToastType.success,
       duration: duration,
+      alignment: alignment,
     );
   }
 
@@ -34,6 +36,7 @@ class SmileToast {
     required String message,
     String? title,
     Duration duration = const Duration(seconds: 3),
+    Alignment alignment = Alignment.topCenter,
   }) {
     show(
       context,
@@ -41,6 +44,7 @@ class SmileToast {
       title: title ?? 'Gagal Memproses',
       type: SmileToastType.error,
       duration: duration,
+      alignment: alignment,
     );
   }
 
@@ -50,6 +54,7 @@ class SmileToast {
     required String message,
     String? title,
     Duration duration = const Duration(seconds: 3),
+    Alignment alignment = Alignment.topCenter,
   }) {
     show(
       context,
@@ -57,6 +62,7 @@ class SmileToast {
       title: title ?? 'Peringatan',
       type: SmileToastType.warning,
       duration: duration,
+      alignment: alignment,
     );
   }
 
@@ -66,6 +72,7 @@ class SmileToast {
     required String message,
     String? title,
     Duration duration = const Duration(seconds: 3),
+    Alignment alignment = Alignment.topCenter,
   }) {
     show(
       context,
@@ -73,6 +80,7 @@ class SmileToast {
       title: title ?? 'Informasi',
       type: SmileToastType.info,
       duration: duration,
+      alignment: alignment,
     );
   }
 
@@ -83,6 +91,7 @@ class SmileToast {
     String? title,
     SmileToastType type = SmileToastType.info,
     Duration duration = const Duration(seconds: 3),
+    Alignment alignment = Alignment.topCenter,
   }) {
     _currentOverlay?.remove();
     _currentOverlay = null;
@@ -96,6 +105,7 @@ class SmileToast {
         title: title,
         message: message,
         type: type,
+        alignment: alignment,
         onDismiss: () {
           if (_currentOverlay == overlayEntry) {
             _currentOverlay?.remove();
@@ -121,6 +131,7 @@ class _SmileToastWidget extends StatefulWidget {
   final String? title;
   final String message;
   final SmileToastType type;
+  final Alignment alignment;
   final VoidCallback onDismiss;
 
   const _SmileToastWidget({
@@ -128,6 +139,7 @@ class _SmileToastWidget extends StatefulWidget {
     required this.message,
     required this.type,
     required this.onDismiss,
+    this.alignment = Alignment.topCenter,
   });
 
   @override
@@ -148,9 +160,13 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
       duration: const Duration(milliseconds: 260),
     );
 
+    final isBottom = widget.alignment == Alignment.bottomCenter ||
+        widget.alignment == Alignment.bottomLeft ||
+        widget.alignment == Alignment.bottomRight;
+
     _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -0.35),
+      begin: Offset(0, isBottom ? 0.35 : -0.35),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
@@ -208,113 +224,130 @@ class _SmileToastWidgetState extends State<_SmileToastWidget>
   @override
   Widget build(BuildContext context) {
     final style = _getStyle();
-    final topPadding = MediaQuery.of(context).padding.top + 12;
+    final mediaQuery = MediaQuery.of(context);
+    final topPadding = mediaQuery.padding.top + 12;
+    final bottomPadding = mediaQuery.padding.bottom + 16;
+
+    final isBottom = widget.alignment == Alignment.bottomCenter ||
+        widget.alignment == Alignment.bottomLeft ||
+        widget.alignment == Alignment.bottomRight;
+    final isTop = widget.alignment == Alignment.topCenter ||
+        widget.alignment == Alignment.topLeft ||
+        widget.alignment == Alignment.topRight;
 
     return Positioned(
-      top: topPadding,
-      left: 16,
-      right: 16,
-      child: Material(
-        color: Colors.transparent,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: GestureDetector(
-              onTap: _dismiss,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: style.surfaceColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: style.surfaceColor.withValues(alpha: 0.38),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.28),
-                    width: 1.2,
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Solid White Badge dengan Ikon Warna Bold Senada
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        style.iconData,
-                        size: 20,
-                        color: style.iconColor,
+      top: isTop ? topPadding : (isBottom ? null : 0),
+      bottom: isBottom ? bottomPadding : (isTop ? null : 0),
+      left: 0,
+      right: 0,
+      child: Align(
+        alignment: widget.alignment,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 440),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: GestureDetector(
+                  onTap: _dismiss,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: style.surfaceColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: style.surfaceColor.withValues(alpha: 0.38),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.10),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                        width: 1.2,
                       ),
                     ),
-                    const SizedBox(width: 14),
-
-                    // Text Info
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (widget.title != null) ...[
-                            Text(
-                              widget.title!,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.1,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Solid White Badge dengan Ikon Warna Bold Senada
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                          ],
-                          Text(
-                            widget.message,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: Colors.white.withValues(alpha: 0.95),
-                              height: 1.3,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            style.iconData,
+                            size: 20,
+                            color: style.iconColor,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
 
-                    // Clean Minimal Dismiss Icon
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                      onPressed: _dismiss,
+                        // Text Info
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (widget.title != null) ...[
+                                Text(
+                                  widget.title!,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.1,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                              ],
+                              Text(
+                                widget.message,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: Colors.white.withValues(alpha: 0.95),
+                                  height: 1.3,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Clean Minimal Dismiss Icon
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                          onPressed: _dismiss,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

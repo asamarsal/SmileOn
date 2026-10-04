@@ -108,13 +108,13 @@ const SPARKLES = [
    TOP CONTENT  —  Hero section + integrated feature row
 ───────────────────────────────────────────────────── */
 export default function TopContent() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
   useGSAP(() => {
     // Parallax scroll animations for the right stage elements
     const tl = gsap.timeline({
       scrollTrigger: {
-        trigger: containerRef.current,
+        trigger: ".gsap-stage-container",
         start: "top 25%", // start when top of container hits 25% of viewport
         end: "bottom top", // end when bottom of container hits top of viewport
         scrub: 1, // smooth scrubbing, takes 1 second to "catch up" to scrollbar
@@ -131,10 +131,32 @@ export default function TopContent() {
     tl.to(".gsap-ring-1", { rotate: 25 }, 0);
     tl.to(".gsap-ring-2", { rotate: -25 }, 0);
     tl.to(".gsap-phone", { y: -30 }, 0);
-  }, { scope: containerRef });
+
+    // Initial Entry for feature cards (Slide in from right)
+    gsap.fromTo(
+      ".gsap-feature-card",
+      { x: 100, opacity: 0 },
+      { x: 0, opacity: 1, duration: 1, stagger: 0.15, ease: "power3.out", delay: 0.5 }
+    );
+
+    // Scatter effect on scroll down for feature cards
+    const tlCards = gsap.timeline({
+      scrollTrigger: {
+        trigger: ".gsap-feature-cards-container",
+        start: "top 15%",  // Start scattering only when near the top of the screen
+        end: "bottom top", // Finish scattering when it scrolls off screen
+        scrub: 1,
+      },
+    });
+    // First two cards scatter left, last two scatter right
+    tlCards.to(".gsap-feature-card-left", { x: -200, opacity: 0, ease: "power1.inOut" }, 0);
+    tlCards.to(".gsap-feature-card-right", { x: 200, opacity: 0, ease: "power1.inOut" }, 0);
+
+  }, { scope: sectionRef });
 
   return (
     <section
+      ref={sectionRef}
       className="relative z-10 pt-[105px] md:pt-[120px] pb-12 overflow-hidden"
       aria-label="Hero"
     >
@@ -240,7 +262,7 @@ export default function TopContent() {
         </motion.div>
 
         {/* ── Right Column: 3D Visual Collage Stage ─────── */}
-        <div ref={containerRef} className="relative h-[620px] lg:h-[660px] w-full" aria-hidden="true">
+        <div className="gsap-stage-container relative h-[620px] lg:h-[660px] w-full" aria-hidden="true">
 
           {/* 1. Orbiting Rings (parallax via GSAP) */}
           <div
@@ -385,7 +407,7 @@ export default function TopContent() {
       {/* ══════════════════════════════════════════════════
           FEATURE PILLS / CARDS (Integrated at base of hero)
       ══════════════════════════════════════════════════ */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-8 mt-6 lg:mt-8">
+      <div className="gsap-feature-cards-container max-w-[1400px] mx-auto px-6 md:px-8 mt-6 lg:mt-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
@@ -413,7 +435,7 @@ export default function TopContent() {
             <motion.div
               key={i}
               whileHover={{ y: -3, borderColor: "rgba(255, 51, 102, 0.4)" }}
-              className="relative flex items-start gap-4 p-4 md:p-5 rounded-2xl bg-white/[0.04] backdrop-blur-xl border border-white/10 hover:bg-white/[0.07] transition-all group shadow-[0_8px_30px_rgba(0,0,0,0.3)]"
+              className={`gsap-feature-card ${i < 2 ? 'gsap-feature-card-left' : 'gsap-feature-card-right'} relative flex items-start gap-4 p-4 md:p-5 rounded-2xl bg-white/[0.04] backdrop-blur-xl border border-white/10 hover:bg-white/[0.07] transition-all group shadow-[0_8px_30px_rgba(0,0,0,0.3)]`}
             >
               <div className="w-11 h-11 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0 text-[#FF4D8D] group-hover:scale-105 group-hover:text-[#FF3366] transition-all">
                 <Icon className="w-5 h-5" />

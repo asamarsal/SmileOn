@@ -8,6 +8,7 @@ import 'package:smileon/features/camera/presentation/vertical/step/step1_preview
 import 'package:smileon/features/camera/presentation/vertical/step/step2_editphoto_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step3_dialog_previewphotostrip.dart';
 import 'package:smileon/features/camera/presentation/camera_screen.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 
 /// STEP 3: DOWNLOAD & PAYMENT (VERTICAL)
 /// Menyediakan alur akhir untuk vertical photobooth:
@@ -178,7 +179,12 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
 
   Future<void> _downloadStrip() async {
     if (widget.capturedPhotos.isEmpty) {
-      _showSnack('Tidak ada foto untuk diunduh!', isError: true);
+      SmileToast.showWarning(
+        context,
+        title: 'Peringatan',
+        message: 'Tidak ada foto untuk diunduh!',
+        alignment: Alignment.topCenter,
+      );
       return;
     }
     setState(() => _isDownloadingStrip = true);
@@ -196,11 +202,21 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
       await PhotostripRenderer.saveToGallery(bytes);
       if (!mounted) return;
       setState(() => _isDownloadingStrip = false);
-      _showSnack('Fotostrip tanpa watermark tersimpan! ✨');
+      SmileToast.showSuccess(
+        context,
+        title: 'Berhasil Disimpan',
+        message: 'Fotostrip tanpa watermark tersimpan! ✨',
+        alignment: Alignment.topCenter,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isDownloadingStrip = false);
-      _showSnack('Gagal: $e', isError: true);
+      SmileToast.showError(
+        context,
+        title: 'Gagal Menyimpan',
+        message: 'Gagal: $e',
+        alignment: Alignment.topCenter,
+      );
     }
   }
 

@@ -196,44 +196,25 @@ class _HorizontalExpandedFrameState extends State<HorizontalExpandedFrame> {
                                   )
                                 : CameraPreview(widget.cameraController),
 
-                            // Countdown Overlay (Lingkaran gelap + progress arc pink + angka seperti di vertical)
+                            // Countdown Overlay: Angka Hitungan Mundur Transparan (Tanpa Background)
                             if (widget.countdown() > 0)
                               Center(
-                                child: Container(
-                                  width: 82,
-                                  height: 82,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.45),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 78,
-                                        height: 78,
-                                        child: CircularProgressIndicator(
-                                          value: widget.countdown() /
-                                              (widget.timerSeconds() > 0
-                                                  ? widget.timerSeconds()
-                                                  : 3),
-                                          strokeWidth: 4.5,
-                                          valueColor:
-                                              const AlwaysStoppedAnimation<
-                                                Color
-                                              >(Color(0xFFF43F5E)),
-                                          backgroundColor: Colors.white12,
+                                child: IgnorePointer(
+                                  child: Text(
+                                    '${widget.countdown()}',
+                                    style: TextStyle(
+                                      fontSize: 120,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFFD4D4D8).withValues(alpha: 0.55),
+                                      letterSpacing: -2,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black.withValues(alpha: 0.3),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 4),
                                         ),
-                                      ),
-                                      Text(
-                                        '${widget.countdown()}',
-                                        style: const TextStyle(
-                                          fontSize: 38,
-                                          fontWeight: FontWeight.w900,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
