@@ -142,6 +142,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
             _isCameraOn = true;
             _isInitialized = true;
           });
+          _initHandDetector();
         } catch (e) {
           debugPrint("Error initializing camera: $e");
         }
@@ -318,11 +319,13 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   }
 
   hd.CameraFrameRotation? _rotationFor(int degrees) {
-    switch (degrees % 360) {
+    // Kompensasi rotasi 90 derajat karena aplikasi dalam mode horizontal (landscape)
+    int adjustedDegrees = (degrees + 270) % 360;
+    switch (adjustedDegrees) {
       case 90: return hd.CameraFrameRotation.cw90;
       case 180: return hd.CameraFrameRotation.cw180;
       case 270: return hd.CameraFrameRotation.cw270;
-      default: return null;
+      default: return null; // 0 derajat
     }
   }
 

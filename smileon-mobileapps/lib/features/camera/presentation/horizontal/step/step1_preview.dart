@@ -426,6 +426,30 @@ class _Step1PreviewState extends State<Step1Preview> {
     );
   }
 
+  String _bgAsset(int idx) {
+    switch (idx) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_background2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_background3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_background1.png';
+    }
+  }
+
+  String _frameAsset(int idx) {
+    switch (idx) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_frame2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_frame3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_frame1.png';
+    }
+  }
+
   // --- KIRI: PHOTOSTRIP SECTION ---
   Widget _buildPhotostripSection() {
     return AspectRatio(
@@ -433,15 +457,8 @@ class _Step1PreviewState extends State<Step1Preview> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
-
           final outerRadius = w * (24.0 / 600.0);
           final slotRadius = w * (14.0 / 600.0);
-          final slotWidth = w * (480.0 / 600.0);
-          final slotHeight = slotWidth * (9.0 / 16.0);
-          final slotHMargin = (w - slotWidth) / 2;
-          final topPadding = w * (115.0 / 600.0);
-          final gap = w * (22.0 / 600.0);
 
           return Container(
             decoration: BoxDecoration(
@@ -460,28 +477,49 @@ class _Step1PreviewState extends State<Step1Preview> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CustomPaint(
-                    size: Size(w, h),
-                    painter: const _RetroStripBackgroundPainter(),
+                  // Layer 1: Background
+                  Image.asset(_bgAsset(widget.initialIndex), fit: BoxFit.fill),
+                  
+                  // Layer 2: Photo Slots
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double w = constraints.maxWidth;
+                      final double h = constraints.maxHeight;
+                      final double paddingH = w * (44.0 / 600.0);
+                      final double photoW = w - 2.0 * paddingH;
+                      final double paddingTop = h * (80.0 / 1800.0);
+                      final double photoH = h * (288.0 / 1800.0);
+                      final double gap = h * (88.0 / 1800.0);
+
+                      return Stack(
+                        children: [
+                          for (int i = 0; i < 4; i++)
+                            Positioned(
+                              left: paddingH,
+                              top: paddingTop + i * (photoH + gap),
+                              width: photoW,
+                              height: photoH,
+                              child: _buildStripSlot(
+                                index: i,
+                                width: photoW,
+                                height: photoH,
+                                hMargin: 0,
+                                radius: slotRadius,
+                                isSelected: _selectedIndex == i,
+                                w: w,
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildStripHeader(w, topPadding),
-                      for (int i = 0; i < 4; i++) ...[
-                        if (i > 0) SizedBox(height: gap),
-                        _buildStripSlot(
-                          index: i,
-                          width: slotWidth,
-                          height: slotHeight,
-                          hMargin: slotHMargin,
-                          radius: slotRadius,
-                          isSelected: _selectedIndex == i,
-                          w: w,
-                        ),
-                      ],
-                      Expanded(child: _buildStripFooter(w)),
-                    ],
+
+                  // Layer 3: Frame Overlay
+                  IgnorePointer(
+                    child: Image.asset(
+                      _frameAsset(widget.initialIndex),
+                      fit: BoxFit.fill,
+                    ),
                   ),
                 ],
               ),
@@ -593,14 +631,13 @@ class _Step1PreviewState extends State<Step1Preview> {
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFFFF1744)
-                        : const Color(0xFFD32F2F),
-                    width: isSelected ? 3.0 : 2.0,
+                        : Colors.transparent,
+                    width: isSelected ? 3.0 : 0.0,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFFFF1744)
-                                .withValues(alpha: 0.6),
+                            color: const Color(0xFFFF1744).withValues(alpha: 0.6),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -617,18 +654,6 @@ class _Step1PreviewState extends State<Step1Preview> {
                   ),
                 ),
               ),
-              if (index == 1)
-                Positioned(
-                  right: -w * 0.065,
-                  bottom: -w * 0.035,
-                  child: _buildDateNightSticker(w),
-                ),
-              if (index == 2)
-                Positioned(
-                  left: -w * 0.055,
-                  bottom: -w * 0.035,
-                  child: _buildArrowSticker(w),
-                ),
             ],
           ),
         ),
