@@ -19,6 +19,7 @@ class Step3Download extends StatefulWidget {
   final VoidCallback? onFinishSession;
   final VoidCallback? onClose;
   final List<bool>? mirroredStates;
+  final int initialIndex;
 
   const Step3Download({
     super.key,
@@ -31,6 +32,7 @@ class Step3Download extends StatefulWidget {
     this.onFinishSession,
     this.onClose,
     this.mirroredStates,
+    this.initialIndex = 0,
   });
 
   static Future<void> show(
@@ -40,6 +42,7 @@ class Step3Download extends StatefulWidget {
     String? frameTitle,
     VoidCallback? onFinishSession,
     List<bool>? mirroredStates,
+    int initialIndex = 0,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -51,6 +54,7 @@ class Step3Download extends StatefulWidget {
             frameTitle: frameTitle,
             onFinishSession: onFinishSession,
             mirroredStates: mirroredStates,
+            initialIndex: initialIndex,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -1577,6 +1581,30 @@ class _Step3DownloadState extends State<Step3Download> {
     );
   }
 
+  String _bgAsset(int idx) {
+    switch (idx) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_background2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_background3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_background1.png';
+    }
+  }
+
+  String _frameAsset(int idx) {
+    switch (idx) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_frame2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_frame3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_frame1.png';
+    }
+  }
+
   // --- KIRI: PHOTOSTRIP PREVIEW ---
   Widget _buildPhotostripSection() {
     return AspectRatio(
@@ -1586,11 +1614,6 @@ class _Step3DownloadState extends State<Step3Download> {
           final w = constraints.maxWidth;
           final outerRadius = w * (24.0 / 600.0);
           final slotRadius = w * (14.0 / 600.0);
-          final slotWidth = w * (480.0 / 600.0);
-          final slotHeight = slotWidth * (9.0 / 16.0);
-          final slotHMargin = (w - slotWidth) / 2;
-          final topPadding = w * (80.0 / 600.0);
-          final gap = w * (22.0 / 600.0);
 
           return Container(
             decoration: BoxDecoration(
@@ -1606,41 +1629,53 @@ class _Step3DownloadState extends State<Step3Download> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(outerRadius),
-              child: Column(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  SizedBox(height: topPadding),
-                  for (int i = 0; i < 4; i++) ...[
-                    if (i > 0) SizedBox(height: gap),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: slotHMargin),
-                      child: Container(
-                        width: slotWidth,
-                        height: slotHeight,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(slotRadius),
-                          border: Border.all(
-                            color: const Color(0xFFD32F2F),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(slotRadius),
-                          child: _buildPhotoThumbnail(i),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'SmileOn Photostrip',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: w * 0.045,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
+                  // Layer 1: Background
+                  Image.asset(_bgAsset(widget.initialIndex), fit: BoxFit.fill),
+                  
+                  // Layer 2: Photo Slots
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double w = constraints.maxWidth;
+                      final double h = constraints.maxHeight;
+                      final double paddingH = w * (44.0 / 600.0);
+                      final double photoW = w - 2.0 * paddingH;
+                      final double paddingTop = h * (80.0 / 1800.0);
+                      final double photoH = h * (288.0 / 1800.0);
+                      final double gap = h * (88.0 / 1800.0);
+
+                      return Stack(
+                        children: [
+                          for (int i = 0; i < 4; i++)
+                            Positioned(
+                              left: paddingH,
+                              top: paddingTop + i * (photoH + gap),
+                              width: photoW,
+                              height: photoH,
+                              child: Container(
+                                width: photoW,
+                                height: photoH,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(slotRadius),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(slotRadius),
+                                  child: _buildPhotoThumbnail(i),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // Layer 3: Frame Overlay
+                  IgnorePointer(
+                    child: Image.asset(
+                      _frameAsset(widget.initialIndex),
+                      fit: BoxFit.fill,
                     ),
                   ),
                 ],

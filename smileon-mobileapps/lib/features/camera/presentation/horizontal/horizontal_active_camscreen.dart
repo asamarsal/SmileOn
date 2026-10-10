@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'dart:io' show Platform;
 import 'package:hand_detection/hand_detection.dart' as hd;
 
 import 'package:flutter/services.dart';
@@ -14,6 +13,7 @@ import 'package:smileon/features/camera/presentation/horizontal/step/step1_previ
 import 'package:smileon/features/camera/presentation/horizontal/step/step2_editphoto.dart';
 import 'package:smileon/features/camera/presentation/horizontal/step/step3_download.dart';
 import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_frame.dart';
+import 'package:smileon/features/camera/presentation/horizontal/horizontal_selected_preview_photostrip.dart';
 import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_previewframe.dart';
 
 class HorizontalActiveCamScreen extends StatefulWidget {
@@ -380,7 +380,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     // Stop stream temporarily to allow takePicture
     try {
       await _cameraController!.stopImageStream();
-    } catch(e) {}
+    } catch(e) {
+      // Abaikan error jika stream tidak berjalan
+    }
     
     if (_isSequentialMode) {
       await _startSequentialCapture();
@@ -392,7 +394,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     if (_isCameraOn && mounted && _cameraController != null && _cameraController!.value.isInitialized) {
       try {
         _cameraController!.startImageStream((image) => _processCameraImage(image));
-      } catch(e) {}
+      } catch(e) {
+        // Abaikan error jika stream sudah berjalan
+      }
     }
     
     Future.delayed(const Duration(seconds: 2), () {
@@ -1290,6 +1294,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,
           frameTitle: 'Classic Pink',
+          initialIndex: _selectedFrameIndex,
           onBackToPreview: () {
             setState(() {
               _activeStep = 1;
@@ -1806,9 +1811,62 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
                 flex: 1,
                 child: ElevatedButton(
                   onPressed: () {
-                    setState(() {
-                      _activeStep = 1;
-                    });
+                    if (_capturedPhotos.length < 4) {
+                      SmileToast.showInfo(
+                        context,
+                        title: 'Info',
+                        message: 'Selesaikan 4 foto terlebih dahulu sebelum lanjut.',
+                        duration: const Duration(milliseconds: 1500),
+                      );
+                      return;
+                    }
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: _isDarkMode ? const Color(0xFF1E1E24) : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: Text(
+                          'Konfirmasi',
+                          style: TextStyle(
+                            color: _isDarkMode ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        content: Text(
+                          'Apakah anda yakin untuk melanjutkan?',
+                          style: TextStyle(
+                            color: _isDarkMode ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'Batal',
+                              style: TextStyle(
+                                color: _isDarkMode ? Colors.white54 : Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              setState(() {
+                                _activeStep = 1;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryRose,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text('Ya, Lanjut'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryRose,
@@ -2082,8 +2140,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
         index < _capturedPhotos.length &&
         File(_capturedPhotos[index]).existsSync();
 
+    Widget content;
     if (hasPhoto) {
-      return Stack(
+      content = Stack(
         fit: StackFit.expand,
         children: [
           Builder(
@@ -2124,35 +2183,58 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           ),
         ],
       );
-    }
-
-    return Container(
-      color: Colors.white,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF06292).withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: const TextStyle(
-                    color: Color(0xFFB54668),
-                    fontSize: 12.0,
-                    fontWeight: FontWeight.w900,
+    } else {
+      content = Container(
+        color: Colors.white,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF06292).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Color(0xFFB54668),
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        if (_capturedPhotos.isNotEmpty) {
+          HorizontalSelectedPreviewPhotostrip.show(
+            context: context,
+            capturedPhotos: _capturedPhotos,
+            isDarkMode: _isDarkMode,
+            initialIndex: index,
+            mirroredStates: _capturedPhotosMirrorState,
+            onToggleTheme: () {
+              setState(() {
+                _isDarkMode = !_isDarkMode;
+              });
+            },
+            onRetakePhoto: (retakeIndex) {
+              _retakePhoto(retakeIndex);
+            },
+          );
+        }
+      },
+      child: content,
     );
   }
 
