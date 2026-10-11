@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
@@ -604,6 +605,7 @@ class _LastPhotoActivityScreenState
 
     return GestureDetector(
       onTap: () => _showSessionStudioSheet(item),
+      onLongPress: () => _showDeleteSessionDialog(item),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -819,8 +821,11 @@ class _LastPhotoActivityScreenState
   Widget _buildFeedCard(_DisplaySessionItem item) {
     final isFav = _favoriteIds.contains(item.id);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
+    return GestureDetector(
+      onTap: () => _showSessionStudioSheet(item),
+      onLongPress: () => _showDeleteSessionDialog(item),
+      child: Container(
+        padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -1046,6 +1051,276 @@ class _LastPhotoActivityScreenState
             ],
           ),
         ],
+      ),
+    ),
+    );
+  }
+
+  /// Menampilkan dialog konfirmasi hapus sesi dan foto dari local storage saat card di-hold / long-press
+  void _showDeleteSessionDialog(_DisplaySessionItem item) {
+    HapticFeedback.mediumImpact();
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header Icon Sampah
+              Container(
+                width: 58,
+                height: 58,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFEBF0),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: Color(0xFFFF2E7E),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Judul Dialog
+              const Text(
+                'Hapus Sesi Foto?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E22),
+                  letterSpacing: -0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+
+              // Keterangan
+              Text(
+                'Sesi "${item.title}" beserta seluruh file foto dan photostrip aslinya akan dihapus secara permanen dari memori lokal perangkat Anda.',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF6B7280),
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+
+              // Preview Mini Card Sesi yang akan dihapus
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0F5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFFD1E1)),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: _buildSafeImage(item.previewPath),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E1E22),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${item.location} • ${_formatDateTime(item.createdAt)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF6B7280),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${item.rawPhotoPaths.length} Foto Tersimpan',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFFF2E7E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Action Buttons: Batal & Hapus Sesi
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Batal',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4B5563),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Dialog konfirmasi "Apakah Anda yakin Ya atau Tidak"
+                        showDialog<void>(
+                          context: context,
+                          builder: (confirmCtx) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            backgroundColor: Colors.white,
+                            title: Row(
+                              children: const [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Color(0xFFFF2E7E),
+                                  size: 24,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Apakah Anda Yakin?',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E1E22),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            content: Text(
+                              'Apakah Anda yakin ingin menghapus sesi "${item.title}"? Seluruh foto dan photostrip pada sesi ini akan dihapus permanen dari penyimpanan lokal perangkat.',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFF4B5563),
+                                height: 1.45,
+                              ),
+                            ),
+                            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(confirmCtx),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Tidak',
+                                  style: TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  Navigator.pop(confirmCtx);
+                                  Navigator.pop(dialogCtx);
+                                  if (item.isReal) {
+                                    await ref
+                                        .read(photoSessionsProvider.notifier)
+                                        .deleteSession(item.id);
+                                  }
+                                  if (!mounted) return;
+                                  SmileToast.showSuccess(
+                                    context,
+                                    title: 'Sesi Terhapus',
+                                    message:
+                                        'Sesi "${item.title}" dan seluruh fotonya berhasil dihapus dari penyimpanan lokal.',
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFF2E7E),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Ya, Hapus',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.delete_rounded, size: 16, color: Colors.white),
+                      label: const Text(
+                        'Hapus Sesi',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF2E7E),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -37,6 +37,12 @@ class PhotoSessionNotifier extends AsyncNotifier<List<PhotoSessionModel>> {
       currentList.where((s) => s.id != sessionId).toList(),
     );
   }
+
+  /// Menghapus seluruh sesi dan file foto dari disk lokal
+  Future<void> deleteAllSessions() async {
+    await LocalPhotoSessionService.deleteAllSessions();
+    state = const AsyncValue.data([]);
+  }
 }
 
 /// Provider yang menyediakan [List<RecentPhotoActivityItem>] secara reaktif

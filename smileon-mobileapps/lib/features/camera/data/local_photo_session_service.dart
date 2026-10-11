@@ -161,4 +161,18 @@ class LocalPhotoSessionService {
       debugPrint('>>> [LocalPhotoSessionService] Error deleteSession: $e');
     }
   }
+
+  /// Menghapus seluruh sesi dan file foto dari disk lokal
+  static Future<void> deleteAllSessions() async {
+    try {
+      final sessionsDir = await _getSessionsDirectory();
+      if (await sessionsDir.exists()) {
+        await sessionsDir.delete(recursive: true);
+        await sessionsDir.create(recursive: true);
+      }
+      debugPrint('>>> [LocalPhotoSessionService] Seluruh sesi berhasil dihapus dari local storage.');
+    } catch (e) {
+      debugPrint('>>> [LocalPhotoSessionService] Error deleteAllSessions: $e');
+    }
+  }
 }

@@ -125,6 +125,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ? 'assets/images/hero/couple_photos_horizontal_1.png'
                         : 'assets/images/hero/couple_photos_1.png',
                   ),
+                  SmileCtaCardPromotion(
+                    artistName: 'Tiara Andini',
+                    artistHandle: '@tiaraandini',
+                    badgeText: 'EXCLUSIVE COLLAB',
+                    title: 'Starlight Bloom\nSpecial Frame',
+                    subtitle: 'Edisi terbatas x Tiara Andini',
+                    promoCode: 'TIARA50',
+                    socialProofText: '🔥 18.4k dipakai',
+                    buttonText: 'Pakai Frame Artis',
+                    framePreviewPath:
+                        'assets/images/frame-example/photostrip_preview1.png',
+                    onTap: () {},
+                    onButtonPressed: () {},
+                  ),
                   SmileCtaCardEvent(
                     eventTitle: 'Wedding\nAldi & Sesa',
                     eventDate: '14 Des 2024',
