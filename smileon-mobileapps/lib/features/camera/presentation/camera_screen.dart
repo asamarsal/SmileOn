@@ -8,6 +8,9 @@ import 'package:smileon/features/camera/presentation/newsession_event_screen.dar
 import 'package:smileon/features/camera/presentation/newsession_personal_screen.dart';
 import 'package:smileon/features/camera/presentation/qrscan/qrscan_screen.dart';
 import 'package:smileon/features/navigation/providers/navigation_provider.dart';
+import 'package:smileon/features/activity/domain/models/user_voucher_model.dart';
+import 'package:smileon/features/activity/presentation/providers/user_voucher_provider.dart';
+import 'package:smileon/features/activity/presentation/components/eventmade_slider.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -114,11 +117,162 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       return;
     }
 
-    // Selain TESTVIEWEVENT, TESTMAKEEVENT, dan TESTNEWEVENT, munculkan toast kode voucher tidak ditemukan
+    final cleanInput = normalized.replaceAll('-', '');
+
+    // 1. Pengecekan Voucher yang Telah Dibeli (UserVoucherModel dari userVoucherProvider)
+    final purchasedVouchers = ref.read(userVoucherProvider);
+    final matchedPurchased = purchasedVouchers.cast<UserVoucherModel?>().firstWhere(
+      (v) {
+        if (v == null) return false;
+        final vNorm = v.voucherCode.toUpperCase().replaceAll(RegExp(r'\s+|-'), '');
+        return vNorm == cleanInput || v.voucherCode.toUpperCase() == normalized;
+      },
+      orElse: () => null,
+    );
+
+    if (matchedPurchased != null) {
+      if (matchedPurchased.status == 'Kadaluarsa') {
+        SmileToast.showError(
+          context,
+          title: 'Voucher Kadaluarsa',
+          message: 'Voucher "${matchedPurchased.voucherCode}" telah melewati masa berlaku.',
+        );
+        return;
+      }
+      if (matchedPurchased.status == 'Digunakan') {
+        SmileToast.showError(
+          context,
+          title: 'Voucher Telah Digunakan',
+          message: 'Voucher "${matchedPurchased.voucherCode}" sudah digunakan untuk acara lain.',
+        );
+        return;
+      }
+
+      SmileToast.showSuccess(
+        context,
+        title: 'Voucher Terverifikasi',
+        message: 'Voucher ${matchedPurchased.title} (${matchedPurchased.creditAmount} foto) siap digunakan.',
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NewSessionEventScreen(
+            isMakeEvent: true,
+            isEventMaker: true,
+            isGuest: false,
+            voucherCode: matchedPurchased.voucherCode,
+            totalCredits: matchedPurchased.creditAmount,
+            remainingCredits: matchedPurchased.creditAmount,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 2. Pengecekan Voucher Event yang Telah Dibuat (CreatedEventActivityItem dari defaultItems / Host)
+    final createdEvents = CreatedEventActivityItem.defaultItems;
+    final matchedCreated = createdEvents.cast<CreatedEventActivityItem?>().firstWhere(
+      (e) {
+        if (e == null) return false;
+        final eNorm = e.voucherCode.toUpperCase().replaceAll(RegExp(r'\s+|-'), '');
+        return eNorm == cleanInput || e.voucherCode.toUpperCase() == normalized;
+      },
+      orElse: () => null,
+    );
+
+    if (matchedCreated != null) {
+      if (matchedCreated.remainingCredits <= 0) {
+        SmileToast.showError(
+          context,
+          title: 'Kuota Event Habis',
+          message: 'Kuota foto untuk "${matchedCreated.title}" telah habis (${matchedCreated.quotaDisplayString}).',
+        );
+        return;
+      }
+
+      SmileToast.showSuccess(
+        context,
+        title: 'Event Ditemukan',
+        message: 'Selamat datang di ${matchedCreated.title}!',
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NewSessionEventScreen(
+            eventName: matchedCreated.title,
+            eventDate: matchedCreated.date,
+            eventLocation: matchedCreated.venue,
+            totalCredits: matchedCreated.totalCredits,
+            remainingCredits: matchedCreated.remainingCredits,
+            userCredits: 1,
+            isMakeEvent: false,
+            isEventMaker: false,
+            isGuest: true,
+            voucherCode: matchedCreated.voucherCode,
+            bannerAsset: matchedCreated.bannerAsset,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 3. Pengecekan Format Split Voucher Tamu (misal: haikalronald-stevenbirthday, fahrisetiawan-lunawedding)
+    final rawLower = code.trim().toLowerCase();
+    if (rawLower.contains('-') && !rawLower.startsWith('smlon')) {
+      final parts = rawLower.split('-');
+      if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+        final guestSlug = parts[0];
+        final eventSlug = parts.sublist(1).join(' ');
+
+        final guestFormatted = guestSlug
+            .replaceAll(RegExp(r'[0-9_]'), ' ')
+            .trim()
+            .split(' ')
+            .where((w) => w.isNotEmpty)
+            .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+            .join(' ');
+        final eventFormatted = eventSlug
+            .replaceAll(RegExp(r'[0-9_]'), ' ')
+            .trim()
+            .split(' ')
+            .where((w) => w.isNotEmpty)
+            .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+            .join(' ');
+
+        SmileToast.showSuccess(
+          context,
+          title: 'Undangan Terverifikasi',
+          message: 'Selamat datang, ${guestFormatted.isNotEmpty ? guestFormatted : "Tamu"}! Undangan terkonfirmasi.',
+        );
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NewSessionEventScreen(
+              eventName: eventFormatted.isNotEmpty ? eventFormatted : 'SmileOn Event Photobox',
+              eventDate: 'Hari Ini',
+              eventLocation: 'Photobox Venue',
+              totalCredits: 100,
+              remainingCredits: 99,
+              userCredits: 1,
+              isMakeEvent: false,
+              isEventMaker: false,
+              isGuest: true,
+              voucherCode: code,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    // Selain voucher valid di atas, munculkan toast kode voucher tidak ditemukan
     SmileToast.showError(
       context,
       title: 'Kode Voucher',
-      message: 'Kode voucher tidak ditemukan',
+      message: 'Kode voucher tidak ditemukan atau belum terdaftar.',
     );
   }
 
@@ -175,6 +329,42 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           ),
         ),
       );
+      return;
+    }
+
+    final cleanInput = normalized.replaceAll('-', '');
+    final purchasedVouchers = ref.read(userVoucherProvider);
+    final matchedPurchased = purchasedVouchers.cast<UserVoucherModel?>().firstWhere(
+      (v) {
+        if (v == null) return false;
+        final vNorm = v.voucherCode.toUpperCase().replaceAll(RegExp(r'\s+|-'), '');
+        return vNorm == cleanInput || v.voucherCode.toUpperCase() == normalized;
+      },
+      orElse: () => null,
+    );
+
+    if (matchedPurchased != null) {
+      if (matchedPurchased.status != 'Aktif') {
+        SmileToast.showError(
+          context,
+          title: 'Voucher ${matchedPurchased.status}',
+          message: 'Voucher "${matchedPurchased.voucherCode}" tidak dapat digunakan.',
+        );
+        return;
+      }
+      SmileToast.showSuccess(
+        context,
+        title: 'Voucher Dikonfirmasi',
+        message: 'Voucher ${matchedPurchased.title} (${matchedPurchased.creditAmount} foto) berhasil digunakan. Memulai kamera...',
+      );
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
+          );
+        }
+      });
       return;
     }
 

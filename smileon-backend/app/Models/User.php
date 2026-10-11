@@ -39,6 +39,7 @@ class User extends Authenticatable
         'referral_code',
         'referred_by',
         'last_login_at',
+        'fcm_token',
     ];
 
     /**
@@ -136,6 +137,11 @@ class User extends Authenticatable
     public function userSavedFrames(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Frame::class, 'user_saved_frames', 'user_id', 'frame_id');
+    }
+
+    public function userVouchers(): HasMany
+    {
+        return $this->hasMany(UserVoucher::class);
     }
 
     // ============================================================

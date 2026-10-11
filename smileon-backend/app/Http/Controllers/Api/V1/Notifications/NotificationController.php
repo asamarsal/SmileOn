@@ -87,4 +87,29 @@ class NotificationController extends Controller
 
         return response()->json(['success' => true, 'data' => $logs]);
     }
+
+    /**
+     * POST /api/v1/notifications/fcm-token
+     *
+     * Simpan token FCM push notification untuk user aktif.
+     */
+    public function storeFcmToken(Request $request): JsonResponse
+    {
+        $request->validate([
+            'fcm_token' => 'required|string|max:500',
+        ]);
+
+        $user = $request->user();
+        $user->update(['fcm_token' => $request->fcm_token]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'FCM Token berhasil diperbarui.',
+            'data'    => [
+                'user_id'   => $user->id,
+                'fcm_token' => $user->fcm_token,
+            ],
+        ]);
+    }
 }
+

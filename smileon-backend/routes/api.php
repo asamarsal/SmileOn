@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\Photos\PhotoStripController;
 use App\Http\Controllers\Api\V1\Orders\PackageController;
 use App\Http\Controllers\Api\V1\Orders\OrderController;
 use App\Http\Controllers\Api\V1\Orders\VoucherController;
+use App\Http\Controllers\Api\V1\Orders\UserVoucherController;
 use App\Http\Controllers\Api\V1\Loyalty\LoyaltyController;
 use App\Http\Controllers\Api\V1\Loyalty\ReferralController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
@@ -134,6 +135,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     | 4.4 Events, QR Code Suite & Guest History
     |----------------------------------------------------------------------
     */
+    // Public event quota check & guest voucher verification (booth kiosk)
+    Route::get('events/{uuid}/quota', [EventController::class, 'quota'])->name('events.quota');
+    Route::post('events/guests/verify', [EventController::class, 'verifyGuestVoucher'])->name('events.guests.verify.public');
+    Route::post('events/{uuid}/guests/verify', [EventController::class, 'verifyGuestVoucher'])->name('events.guests.verify');
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('events', [EventController::class, 'index'])->name('events.index');
         Route::post('events', [EventController::class, 'store'])->name('events.store');
@@ -151,6 +157,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('events/{uuid}/qr/host', [EventController::class, 'hostQr'])->name('events.qr.host');
         Route::get('events/join/{access_code}', [EventController::class, 'joinEvent'])->name('events.join');
         Route::get('user/events/joined', [EventController::class, 'joinedEvents'])->name('user.events.joined');
+
+        // Quota Management
+        Route::post('events/{uuid}/quota/consume', [EventController::class, 'consumeQuota'])->name('events.quota.consume');
+        Route::post('events/{uuid}/quota/topup', [EventController::class, 'topupQuota'])->name('events.quota.topup');
+
+        // Guest List & Split Voucher Management
+        Route::get('events/{uuid}/guests', [EventController::class, 'guestList'])->name('events.guests.index');
+        Route::post('events/{uuid}/guests/split-voucher', [EventController::class, 'splitGuestVoucher'])->name('events.guests.split');
     });
 
     /*
@@ -267,6 +281,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('vouchers/redeem', [VoucherController::class, 'redeem'])->middleware('idempotency')->name('vouchers.redeem');
         Route::get('user/credits', [VoucherController::class, 'credits'])->name('user.credits');
         Route::get('user/credits/ledger', [VoucherController::class, 'creditLedger'])->name('user.credits.ledger');
+
+        // Purchased Vouchers (My Voucher inventory & generation)
+        Route::get('vouchers/my', [UserVoucherController::class, 'myVouchers'])->name('vouchers.my');
+        Route::post('vouchers/purchase', [UserVoucherController::class, 'purchase'])->middleware('idempotency')->name('vouchers.purchase');
+        Route::post('vouchers/verify-code', [UserVoucherController::class, 'verifyCode'])->name('vouchers.verify-code');
     });
 
     /*
@@ -293,6 +312,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::patch('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
         Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::delete('notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+        Route::post('notifications/fcm-token', [NotificationController::class, 'storeFcmToken'])->name('notifications.fcm-token');
         Route::get('user/activity-logs', [NotificationController::class, 'activityLogs'])->name('user.activity-logs');
     });
 

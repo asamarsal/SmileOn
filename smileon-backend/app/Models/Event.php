@@ -14,9 +14,9 @@ class Event extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'uuid', 'organizer_id', 'name', 'description', 'banner_url', 'cover_visual',
+        'uuid', 'organizer_id', 'name', 'description', 'venue', 'banner_url', 'cover_visual',
         'starts_at', 'ends_at', 'expired_at', 'is_event_started', 'status',
-        'access_code', 'total_credits', 'used_credits', 'reserved_credits',
+        'access_code', 'host_voucher_code', 'total_credits', 'used_credits', 'reserved_credits',
         'force_remove_watermark', 'settings',
     ];
 
@@ -74,11 +74,34 @@ class Event extends Model
                     ->withTimestamps();
     }
 
+    public function guestVouchers(): HasMany
+    {
+        return $this->hasMany(EventGuestVoucher::class);
+    }
+
     /**
-     * Remaining pool credits available.
+     * Remaining pool credits available for new sessions.
      */
     public function availablePoolCredits(): int
     {
         return max(0, $this->total_credits - $this->used_credits - $this->reserved_credits);
+    }
+
+    /**
+     * Total remaining credits excluding completed usages.
+     */
+    public function remainingCredits(): int
+    {
+        return max(0, $this->total_credits - $this->used_credits);
+    }
+
+    public function quotaDisplayString(): string
+    {
+        return "{$this->used_credits}/{$this->total_credits}";
+    }
+
+    public function isExhausted(): bool
+    {
+        return $this->availablePoolCredits() <= 0;
     }
 }

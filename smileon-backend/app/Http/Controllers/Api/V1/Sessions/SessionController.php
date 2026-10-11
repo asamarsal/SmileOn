@@ -6,13 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\PhotoSession;
 use App\Models\PhotoCredit;
 use App\Models\CreditTransaction;
+use App\Models\Event;
+use App\Models\EventGuestVoucher;
+use App\Models\Frame;
+use App\Events\EventQuotaUpdated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
  * SessionController — Photo session state machine management.
- * Covers section 4.7 of the plan.
+ * Covers section 4.7 of the plan, with full support for Event Quota and Split Guest Vouchers.
  */
 class SessionController extends Controller
 {
@@ -28,18 +32,109 @@ class SessionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'frame_uuid'   => 'nullable|string',
-            'orientation'  => 'nullable|in:portrait,landscape,square',
-            'mode'         => 'nullable|in:personal,event',
-            'event_uuid'   => 'nullable|string',
-            'credits_required' => 'nullable|integer|min:1',
-            'photos_count' => 'nullable|integer|min:1|max:8',
+            'frame_uuid'         => 'nullable|string',
+            'orientation'        => 'nullable|in:portrait,landscape,square',
+            'mode'               => 'nullable|in:personal,event',
+            'event_uuid'         => 'nullable|string',
+            'guest_voucher_code' => 'nullable|string',
+            'credits_required'   => 'nullable|integer|min:1',
+            'photos_count'       => 'nullable|integer|min:1|max:8',
         ]);
 
         $user = $request->user();
         $creditsRequired = $request->credits_required ?? 1;
+        $mode = $request->mode ?? 'personal';
 
-        // Check available credits
+        // ============================================================
+        // EVENT MODE: Deduct from Event Quota & Guest Voucher
+        // ============================================================
+        if ($mode === 'event' || $request->filled('event_uuid') || $request->filled('guest_voucher_code')) {
+            $event = null;
+            $guestVoucher = null;
+
+            if ($request->filled('guest_voucher_code')) {
+                $cleanCode = strtolower(trim($request->guest_voucher_code));
+                $guestVoucher = EventGuestVoucher::with('event')->where('voucher_code', $cleanCode)->first();
+                if (!$guestVoucher) {
+                    return response()->json([
+                        'success'    => false,
+                        'message'    => 'Voucher tamu tidak valid atau tidak ditemukan.',
+                        'error_code' => 'VOUCHER_NOT_FOUND',
+                    ], 404);
+                }
+                if ($guestVoucher->remainingQuota() < $creditsRequired) {
+                    return response()->json([
+                        'success'    => false,
+                        'message'    => 'Kuota voucher tamu telah habis.',
+                        'error_code' => 'GUEST_QUOTA_EXHAUSTED',
+                        'data'       => ['remainingQuota' => $guestVoucher->remainingQuota()],
+                    ], 422);
+                }
+                $event = $guestVoucher->event;
+            } elseif ($request->filled('event_uuid')) {
+                $event = Event::where('uuid', $request->event_uuid)->first();
+            }
+
+            if (!$event) {
+                return response()->json([
+                    'success'    => false,
+                    'message'    => 'Event tidak ditemukan.',
+                    'error_code' => 'EVENT_NOT_FOUND',
+                ], 404);
+            }
+
+            if (!$event->is_active) {
+                return response()->json([
+                    'success'    => false,
+                    'message'    => 'Event sedang tidak aktif.',
+                    'error_code' => 'EVENT_INACTIVE',
+                ], 422);
+            }
+
+            if ($event->availablePoolCredits() < $creditsRequired) {
+                return response()->json([
+                    'success'    => false,
+                    'message'    => 'Kuota foto event telah habis.',
+                    'error_code' => 'INSUFFICIENT_EVENT_CREDITS',
+                    'data'       => [
+                        'totalCredits'     => $event->total_credits,
+                        'usedCredits'      => $event->used_credits,
+                        'remainingCredits' => $event->availablePoolCredits(),
+                    ],
+                ], 402);
+            }
+
+            $session = DB::transaction(function () use ($user, $request, $creditsRequired, $event, $guestVoucher) {
+                // Reserve event credit pool
+                $event->increment('reserved_credits', $creditsRequired);
+
+                // Resolve frame
+                $frameId = null;
+                if ($request->frame_uuid) {
+                    $frame = Frame::where('uuid', $request->frame_uuid)->first();
+                    $frameId = $frame?->id;
+                }
+
+                return PhotoSession::create([
+                    'user_id'          => $user->id,
+                    'event_id'         => $event->id,
+                    'guest_voucher_id' => $guestVoucher?->id,
+                    'frame_id'         => $frameId,
+                    'mode'             => 'event',
+                    'orientation'      => $request->orientation ?? 'portrait',
+                    'credits_required' => $creditsRequired,
+                    'photos_count'     => $request->photos_count ?? 4,
+                    'status'           => 'waiting',
+                    'expires_at'       => now()->addMinutes(20),
+                ]);
+            });
+
+            return response()->json(['success' => true, 'data' => $session->load('frame', 'event', 'guestVoucher')], 201);
+        }
+
+        // ============================================================
+        // PERSONAL MODE: Deduct from User's Photo Credits
+        // ============================================================
         $credit = $user->photoCredit;
         if (!$credit || $credit->balance < $creditsRequired) {
             return response()->json([
@@ -68,14 +163,14 @@ class SessionController extends Controller
             // Resolve frame
             $frameId = null;
             if ($request->frame_uuid) {
-                $frame = \App\Models\Frame::where('uuid', $request->frame_uuid)->first();
+                $frame = Frame::where('uuid', $request->frame_uuid)->first();
                 $frameId = $frame?->id;
             }
 
             return PhotoSession::create([
                 'user_id'          => $user->id,
                 'frame_id'         => $frameId,
-                'mode'             => $request->mode ?? 'personal',
+                'mode'             => 'personal',
                 'orientation'      => $request->orientation ?? 'portrait',
                 'credits_required' => $creditsRequired,
                 'photos_count'     => $request->photos_count ?? 4,
@@ -89,7 +184,7 @@ class SessionController extends Controller
 
     public function show(string $uuid): JsonResponse
     {
-        $session = PhotoSession::with('frame', 'photos', 'strip')->where('uuid', $uuid)->firstOrFail();
+        $session = PhotoSession::with('frame', 'photos', 'strip', 'event', 'guestVoucher')->where('uuid', $uuid)->firstOrFail();
         return response()->json(['success' => true, 'data' => $session]);
     }
 
@@ -124,20 +219,41 @@ class SessionController extends Controller
 
             // Release reserved credits, mark as used
             DB::transaction(function () use ($session) {
-                $credit = $session->user->photoCredit;
-                if ($credit) {
-                    $credit->decrement('reserved_balance', $session->credits_required);
-                    $credit->increment('lifetime_used', $session->credits_required);
-                    CreditTransaction::create([
-                        'user_id'        => $session->user_id,
-                        'type'           => 'session_use',
-                        'amount'         => -$session->credits_required,
-                        'balance_before' => $credit->balance + $session->credits_required,
-                        'balance_after'  => $credit->balance,
-                        'reference_type' => 'PhotoSession',
-                        'reference_id'   => $session->id,
-                        'created_at'     => now(),
-                    ]);
+                if ($session->mode === 'event' && $session->event_id) {
+                    $event = $session->event;
+                    if ($event) {
+                        $event->decrement('reserved_credits', $session->credits_required);
+                        $event->increment('used_credits', $session->credits_required);
+                        $event->touch();
+                        event(new EventQuotaUpdated($event->fresh()));
+                    }
+                    if ($session->guest_voucher_id) {
+                        $guestVoucher = $session->guestVoucher;
+                        if ($guestVoucher) {
+                            $guestVoucher->increment('quota_used', $session->credits_required);
+                            $guestVoucher->update([
+                                'has_photo'     => true,
+                                'last_photo_at' => now(),
+                                'status'        => $guestVoucher->quota_used >= $guestVoucher->quota_limit ? 'exhausted' : 'active',
+                            ]);
+                        }
+                    }
+                } else {
+                    $credit = $session->user->photoCredit;
+                    if ($credit) {
+                        $credit->decrement('reserved_balance', $session->credits_required);
+                        $credit->increment('lifetime_used', $session->credits_required);
+                        CreditTransaction::create([
+                            'user_id'        => $session->user_id,
+                            'type'           => 'session_use',
+                            'amount'         => -$session->credits_required,
+                            'balance_before' => $credit->balance + $session->credits_required,
+                            'balance_after'  => $credit->balance,
+                            'reference_type' => 'PhotoSession',
+                            'reference_id'   => $session->id,
+                            'created_at'     => now(),
+                        ]);
+                    }
                 }
             });
         });
@@ -150,21 +266,30 @@ class SessionController extends Controller
 
             // Refund reserved credits
             DB::transaction(function () use ($session) {
-                $credit = $session->user->photoCredit;
-                if ($credit) {
-                    $before = $credit->balance;
-                    $credit->increment('balance', $session->credits_required);
-                    $credit->decrement('reserved_balance', $session->credits_required);
-                    CreditTransaction::create([
-                        'user_id'        => $session->user_id,
-                        'type'           => 'session_release',
-                        'amount'         => $session->credits_required,
-                        'balance_before' => $before,
-                        'balance_after'  => $before + $session->credits_required,
-                        'reference_type' => 'PhotoSession',
-                        'reference_id'   => $session->id,
-                        'created_at'     => now(),
-                    ]);
+                if ($session->mode === 'event' && $session->event_id) {
+                    $event = $session->event;
+                    if ($event) {
+                        $event->decrement('reserved_credits', $session->credits_required);
+                        $event->touch();
+                        event(new EventQuotaUpdated($event->fresh()));
+                    }
+                } else {
+                    $credit = $session->user->photoCredit;
+                    if ($credit) {
+                        $before = $credit->balance;
+                        $credit->increment('balance', $session->credits_required);
+                        $credit->decrement('reserved_balance', $session->credits_required);
+                        CreditTransaction::create([
+                            'user_id'        => $session->user_id,
+                            'type'           => 'session_release',
+                            'amount'         => $session->credits_required,
+                            'balance_before' => $before,
+                            'balance_after'  => $before + $session->credits_required,
+                            'reference_type' => 'PhotoSession',
+                            'reference_id'   => $session->id,
+                            'created_at'     => now(),
+                        ]);
+                    }
                 }
             });
         });

@@ -16,7 +16,7 @@ class PhotoSession extends Model
     protected $table = 'photo_sessions';
 
     protected $fillable = [
-        'uuid', 'session_code', 'user_id', 'event_id', 'booth_id', 'frame_id',
+        'uuid', 'session_code', 'user_id', 'event_id', 'guest_voucher_id', 'booth_id', 'frame_id',
         'status', 'mode', 'orientation', 'credits_required', 'photos_count',
         'photos_taken', 'participants', 'location', 'expires_at',
         'completed_at', 'cancelled_at',
@@ -62,6 +62,11 @@ class PhotoSession extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function guestVoucher(): BelongsTo
+    {
+        return $this->belongsTo(EventGuestVoucher::class, 'guest_voucher_id');
     }
 
     public function frame(): BelongsTo
