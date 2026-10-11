@@ -499,4 +499,43 @@ class EventController extends Controller
         $events = $request->user()->load(['sessions.event'])->sessions->pluck('event')->unique('id')->values();
         return response()->json(['success' => true, 'data' => $events]);
     }
+
+    /**
+     * GET /api/v1/events/guests/{voucher_code}/latest-photos
+     * Mengambil hasil foto & photostrip terbaru milik tamu berdasarkan kode voucher (tanpa login).
+     */
+    public function guestLatestPhotos(string $voucherCode): JsonResponse
+    {
+        $cleanCode = strtolower(trim($voucherCode));
+        $guestVoucher = EventGuestVoucher::with(['event', 'photoSessions' => function ($q) {
+            $q->with('photos', 'strip')->whereIn('status', ['completing', 'completed'])->orderByDesc('created_at');
+        }])->where('voucher_code', $cleanCode)->first();
+
+        if (!$guestVoucher) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Voucher tamu tidak ditemukan.',
+                'error_code' => 'VOUCHER_NOT_FOUND',
+            ], 404);
+        }
+
+        $latestSession = $guestVoucher->photoSessions->first();
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'guestName'     => $guestVoucher->guest_name,
+                'voucherCode'   => $guestVoucher->voucher_code,
+                'eventName'     => $guestVoucher->event?->name,
+                'hasPhoto'      => $guestVoucher->has_photo,
+                'lastPhotoAt'   => $guestVoucher->last_photo_at?->toIso8601String(),
+                'photostripUrl' => $latestSession?->strip?->clean_url ?? $latestSession?->strip?->watermarked_url,
+                'photos'        => $latestSession?->photos->map(fn($p) => [
+                    'index' => $p->shot_index,
+                    'url'   => $p->signed_url ?? $p->raw_url,
+                ]) ?? [],
+                'shareUrl'      => url('/invite/' . $guestVoucher->voucher_code),
+            ],
+        ]);
+    }
 }

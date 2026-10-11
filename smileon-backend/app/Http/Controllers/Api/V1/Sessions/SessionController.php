@@ -10,6 +10,7 @@ use App\Models\Event;
 use App\Models\EventGuestVoucher;
 use App\Models\Frame;
 use App\Events\EventQuotaUpdated;
+use App\Events\GuestPhotoReady;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -236,6 +237,7 @@ class SessionController extends Controller
                                 'last_photo_at' => now(),
                                 'status'        => $guestVoucher->quota_used >= $guestVoucher->quota_limit ? 'exhausted' : 'active',
                             ]);
+                            event(new GuestPhotoReady($guestVoucher->fresh(), $session->fresh('photos', 'strip')));
                         }
                     }
                 } else {

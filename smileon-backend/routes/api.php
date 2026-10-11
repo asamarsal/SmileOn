@@ -139,6 +139,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('events/{uuid}/quota', [EventController::class, 'quota'])->name('events.quota');
     Route::post('events/guests/verify', [EventController::class, 'verifyGuestVoucher'])->name('events.guests.verify.public');
     Route::post('events/{uuid}/guests/verify', [EventController::class, 'verifyGuestVoucher'])->name('events.guests.verify');
+    Route::get('events/guests/{voucher_code}/latest-photos', [EventController::class, 'guestLatestPhotos'])->name('events.guests.latest-photos');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('events', [EventController::class, 'index'])->name('events.index');

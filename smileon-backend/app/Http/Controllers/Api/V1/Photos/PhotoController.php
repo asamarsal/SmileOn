@@ -113,20 +113,26 @@ class PhotoController extends Controller
         $cdnBase    = config('filesystems.disks.r2.url', 'https://r2.smileon.app');
         $originalUrl = rtrim($cdnBase, '/') . '/' . ltrim($request->storage_key, '/');
 
-        $photo = Photo::create([
-            'session_id'       => $session->id,
-            'user_id'          => $request->user()->id,
-            'shot_number'      => $request->shot_index,
-            'storage_key'      => $request->storage_key,
-            'original_url'     => $originalUrl,
-            'sha256_hash'      => $request->sha256_hash,
-            'file_size_bytes'  => $request->file_size_bytes,
-            'width_px'         => $request->width_px,
-            'height_px'        => $request->height_px,
-            'mime_type'        => $request->mime_type,
-            'show_watermark'   => true,
-            'status'           => 'uploaded',
-        ]);
+        // Menggunakan updateOrCreate agar jika tamu melakukan retake foto pada slot yang sama,
+        // data frame foto ditimpa/diperbarui secara bersih dan tidak menimbulkan duplikasi.
+        $photo = Photo::updateOrCreate(
+            [
+                'session_id'  => $session->id,
+                'shot_number' => $request->shot_index,
+            ],
+            [
+                'user_id'          => $request->user()->id,
+                'storage_key'      => $request->storage_key,
+                'original_url'     => $originalUrl,
+                'sha256_hash'      => $request->sha256_hash,
+                'file_size_bytes'  => $request->file_size_bytes,
+                'width_px'         => $request->width_px,
+                'height_px'        => $request->height_px,
+                'mime_type'        => $request->mime_type,
+                'show_watermark'   => true,
+                'status'           => 'uploaded',
+            ]
+        );
 
         // TODO: Dispatch ProcessPhotoJob::dispatch($photo) for watermark & thumbnail generation
 

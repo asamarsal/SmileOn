@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
 import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/components/smile_dialog.dart';
-import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/login/loginscreen.dart';
 
@@ -294,24 +292,13 @@ class _AccountBottomSheetContent extends ConsumerWidget {
 
                           // 3. Wallet Monad
                           _buildAccountItem(
-                            icon: Icons.camera_alt_outlined,
+                            icon: Icons.account_balance_wallet_outlined,
                             title: t.walletMonad,
                             value: truncatedWallet,
                             onTap: () {
-                              if (fullWallet.isNotEmpty) {
-                                Clipboard.setData(
-                                  ClipboardData(text: fullWallet),
-                                );
-                                SmileToast.showSuccess(
-                                  context,
-                                  title: t.copiedToast,
-                                  message: t.copiedWalletMsg,
-                                );
-                              } else {
-                                ref
-                                    .read(authServiceProvider)
-                                    .showDynamicProfile();
-                              }
+                              ref
+                                  .read(authServiceProvider)
+                                  .showDynamicProfile();
                             },
                           ),
                           _buildItemDivider(),
