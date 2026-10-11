@@ -4,7 +4,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'dart:io' show Platform;
 import 'package:hand_detection/hand_detection.dart' as hd;
 import 'package:smileon/core/components/smile_toast.dart';
 
@@ -16,6 +15,7 @@ import 'package:smileon/features/camera/presentation/vertical/maincamera_frame.d
 import 'package:smileon/features/camera/presentation/vertical/menu/dialog_filter.dart';
 import 'package:smileon/features/camera/presentation/vertical/menu/template_vertical_active_camera.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
+import 'package:smileon/features/camera/presentation/horizontal/horizontal_active_camscreen.dart';
 
 part 'dialog_vertical_active_fullscreen.dart';
 
@@ -27,7 +27,7 @@ class VerticalActiveCamScreen extends StatefulWidget {
       _VerticalActiveCamScreenState();
 }
 
-class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
+class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with WidgetsBindingObserver {
   hd.HandDetector? _handDetector;
   bool _isProcessingML = false;
   DateTime? _lastMLFrame;
@@ -56,6 +56,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   PageController? _previewPageController;
   StateSetter? _fullscreenDialogSetState;
   bool _isDarkMode = true;
+  bool _isOrientationLocked = true;
+  bool _isNavigatingOrientation = false;
 
   void _syncSetState(VoidCallback fn) {
     if (!mounted) return;
@@ -79,11 +81,45 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Kunci orientasi portrait secara default saat layar ini dibuka
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
     _initCameras();
   }
 
   @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    // Jika tidak dikunci dan belum sedang navigasi, deteksi rotasi ke landscape
+    if (!_isOrientationLocked && !_isNavigatingOrientation && mounted) {
+      final view = WidgetsBinding.instance.platformDispatcher.views.first;
+      final size = view.physicalSize;
+      final isLandscape = size.width > size.height;
+      if (isLandscape) {
+        _isNavigatingOrientation = true;
+        // Kunci ke landscape dan pindah ke layar horizontal
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const HorizontalActiveCamScreen(),
+              ),
+            );
+          }
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _isCapturingSequence = false;
     _isCapturingSingle = false;
     _showShutterEffect = false;
@@ -91,7 +127,47 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
     _previewPageController?.dispose();
     _handDetector?.dispose();
     _cameraController?.dispose();
+    // Kembalikan orientasi ke bebas rotasi saat layar ini ditutup
+    if (!_isNavigatingOrientation) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     super.dispose();
+  }
+
+  void _toggleOrientationLock() {
+    setState(() {
+      _isOrientationLocked = !_isOrientationLocked;
+    });
+    if (_isOrientationLocked) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      SmileToast.showInfo(
+        context,
+        title: 'Orientasi Dikunci 🔒',
+        message: 'Layar dikunci ke posisi vertikal.',
+        duration: const Duration(milliseconds: 1200),
+      );
+    } else {
+      // Buka kunci — izinkan semua orientasi agar sensor dapat mendeteksi rotasi
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SmileToast.showInfo(
+        context,
+        title: 'Orientasi Bebas 🔄',
+        message: 'Putar layar ke horizontal untuk beralih mode.',
+        duration: const Duration(milliseconds: 1500),
+      );
+    }
   }
 
   Future<void> _initCameras() async {
@@ -1779,8 +1855,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
   Widget _buildFooterBranding() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: const [
-        Text(
+      children: [
+        const Text(
           'SmileOn',
           style: TextStyle(
             fontStyle: FontStyle.normal,
@@ -1789,13 +1865,49 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> {
             color: Color(0xFF2B2B30),
           ),
         ),
-        Text(
-          'CAPTURE • PRINT • SHARE',
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
-            color: Color(0xFF7A7A82),
+        GestureDetector(
+          onTap: _toggleOrientationLock,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _isOrientationLocked
+                  ? const Color(0xFFE91E63).withValues(alpha: 0.12)
+                  : Colors.grey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _isOrientationLocked
+                    ? const Color(0xFFE91E63).withValues(alpha: 0.4)
+                    : Colors.grey.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isOrientationLocked
+                      ? Icons.screen_lock_portrait_rounded
+                      : Icons.screen_rotation_rounded,
+                  size: 11,
+                  color: _isOrientationLocked
+                      ? const Color(0xFFE91E63)
+                      : const Color(0xFF7A7A82),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _isOrientationLocked ? 'PORTRAIT LOCKED' : 'AUTO ROTATE',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: _isOrientationLocked
+                        ? const Color(0xFFE91E63)
+                        : const Color(0xFF7A7A82),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

@@ -15,6 +15,7 @@ import 'package:smileon/features/camera/presentation/horizontal/step/step3_downl
 import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_frame.dart';
 import 'package:smileon/features/camera/presentation/horizontal/horizontal_selected_preview_photostrip.dart';
 import 'package:smileon/features/camera/presentation/horizontal/horizontal_expanded_previewframe.dart';
+import 'package:smileon/features/camera/presentation/vertical/vertical_active_camscreen.dart';
 
 class HorizontalActiveCamScreen extends StatefulWidget {
   const HorizontalActiveCamScreen({super.key});
@@ -24,7 +25,7 @@ class HorizontalActiveCamScreen extends StatefulWidget {
       _HorizontalActiveCamScreenState();
 }
 
-class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
+class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> with WidgetsBindingObserver {
   Color _selectedSidebarColor = Colors.white;
   hd.HandDetector? _handDetector;
   bool _isProcessingML = false;
@@ -50,6 +51,8 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   StateSetter? _fullscreenDialogSetState;
   bool _isDisposed = false;
   int? _retakeTargetIndex;
+  bool _isOrientationLocked = true;
+  bool _isNavigatingOrientation = false;
 
   void _switchFrameOrDummy() {
     HapticFeedback.lightImpact();
@@ -89,11 +92,45 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Kunci orientasi landscape saat layar horizontal ini dibuka
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _initCameras();
   }
 
   @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    // Jika tidak dikunci dan belum sedang navigasi, deteksi rotasi ke portrait
+    if (!_isOrientationLocked && !_isNavigatingOrientation && mounted) {
+      final view = WidgetsBinding.instance.platformDispatcher.views.first;
+      final size = view.physicalSize;
+      final isPortrait = size.height > size.width;
+      if (isPortrait) {
+        _isNavigatingOrientation = true;
+        // Kunci ke portrait dan pindah ke layar vertical
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const VerticalActiveCamScreen(),
+              ),
+            );
+          }
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _isDisposed = true;
     _isCapturingSingle = false;
     _isCapturingSequence = false;
@@ -104,7 +141,49 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
     _retakeTargetIndex = null;
     _handDetector?.dispose();
     _cameraController?.dispose();
+    // Kembalikan orientasi bebas saat layar ini ditutup
+    if (!_isNavigatingOrientation) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     super.dispose();
+  }
+
+  void _toggleOrientationLock() {
+    setState(() {
+      _isOrientationLocked = !_isOrientationLocked;
+    });
+    if (_isOrientationLocked) {
+      // Kunci kembali ke landscape
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SmileToast.showInfo(
+        context,
+        title: 'Orientasi Dikunci 🔒',
+        message: 'Layar dikunci ke posisi horizontal.',
+        duration: const Duration(milliseconds: 1200),
+      );
+    } else {
+      // Buka kunci — izinkan semua orientasi agar sensor dapat mendeteksi rotasi
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SmileToast.showInfo(
+        context,
+        title: 'Orientasi Bebas 🔄',
+        message: 'Putar layar ke vertical untuk beralih mode.',
+        duration: const Duration(milliseconds: 1500),
+      );
+    }
   }
 
   Future<void> _initCameras() async {
@@ -1335,8 +1414,14 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
             crossAxisAlignment:
                 CrossAxisAlignment.stretch, // Pastikan tinggi penuh
             children: [
-              // Tombol Back di Kiri Atas
-              Align(alignment: Alignment.topLeft, child: _buildBackButton()),
+              // Tombol Back di Kiri Atas & Lock Orientasi di Sudut Kiri Bawah
+              Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildBackButton(),
+                  _buildOrientationLockButton(),
+                ],
+              ),
               const SizedBox(
                 width: 2,
               ), // Jarak ke kanan dari tombol back ke frame
@@ -1389,6 +1474,45 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> {
           Icons.arrow_back_rounded,
           color: AppTheme.primaryRose,
           size: 20,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrientationLockButton() {
+    return GestureDetector(
+      onTap: _toggleOrientationLock,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: _isOrientationLocked
+              ? const Color(0xFFE91E63).withValues(alpha: 0.12)
+              : Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: _isOrientationLocked
+                ? const Color(0xFFE91E63).withValues(alpha: 0.5)
+                : const Color(0xFFFFD1DC),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          _isOrientationLocked
+              ? Icons.screen_lock_landscape_rounded
+              : Icons.screen_rotation_rounded,
+          color: _isOrientationLocked
+              ? const Color(0xFFE91E63)
+              : const Color(0xFF9E9E9E),
+          size: 18,
         ),
       ),
     );
