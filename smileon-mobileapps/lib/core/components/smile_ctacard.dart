@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 export 'smile_ctacard_normal.dart';
 export 'smile_ctacard_event.dart';
 export 'smile_ctacard_lastactivity.dart';
+export 'smile_ctacard_lastphoto.dart';
 
 /// Komponen Kontainer / Carousel CTA Card
 /// Menampilkan daftar kartu CTA (misalnya SmileCtaCardNormal dan SmileCtaCardEvent)

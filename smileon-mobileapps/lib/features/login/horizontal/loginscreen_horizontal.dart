@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lottie/lottie.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
 import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/theme/app_theme.dart';
@@ -146,7 +147,7 @@ class _LoginScreenHorizontalState extends ConsumerState<LoginScreenHorizontal> {
 
                                 SizedBox(height: isTablet ? 12.0 : 6.0),
 
-                                // Ilustrasi Polaroid Horizontal dengan cetakan foto & dekorasi
+                                // Animasi Lottie Login
                                 Center(
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
@@ -157,8 +158,8 @@ class _LoginScreenHorizontalState extends ConsumerState<LoginScreenHorizontal> {
                                           : 390.0,
                                       maxWidth: 480,
                                     ),
-                                    child: Image.asset(
-                                      'assets/images/polaroid_horizontal.png',
+                                    child: Lottie.asset(
+                                      'assets/lottie/smileon_login.json',
                                       fit: BoxFit.contain,
                                     ),
                                   ),

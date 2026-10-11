@@ -12,6 +12,7 @@ import 'package:smileon/features/home/presentation/all_frames_screen.dart';
 import 'package:smileon/features/home/presentation/notification/notification_screen.dart';
 import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
+import 'package:smileon/features/activity/presentation/category/lastphoto_activity.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -140,6 +141,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     buttonText: t.startPhoto,
                     onButtonPressed: () {},
                     onTap: () {},
+                  ),
+                  SmileCtaCardLastPhoto(
+                    label: 'Foto Terakhir',
+                    title: 'Koleksi\nPhotostrip',
+                    categoryBadge: 'Galeri Momen',
+                    statusText: 'Lihat kenangan photostrip kamu',
+                    buttonText: 'Buka Galeri Foto',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LastPhotoActivityScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

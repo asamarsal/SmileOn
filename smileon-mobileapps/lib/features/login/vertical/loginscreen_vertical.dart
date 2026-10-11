@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lottie/lottie.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
 import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/theme/app_theme.dart';
@@ -133,10 +134,10 @@ class _LoginScreenVerticalState extends ConsumerState<LoginScreenVertical> {
 
                               const SizedBox(height: 16),
 
-                              // Polaroid Camera Illustration (Vertical)
+                              // Animasi Lottie Login
                               Center(
-                                child: Image.asset(
-                                  'assets/images/polaroid.png',
+                                child: Lottie.asset(
+                                  'assets/lottie/smileon_login.json',
                                   height: 260,
                                   fit: BoxFit.contain,
                                 ),
