@@ -15,6 +15,9 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "SmileOn - Make a moment. Make it SmileOn.",
   description: "Capture, customize, and share your memories — anytime, anywhere.",
+  icons: {
+    icon: "/smileon-ico.svg",
+  },
 };
 
 export default function RootLayout({

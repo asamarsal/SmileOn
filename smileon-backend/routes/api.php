@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\V1\Admin\AdminPaymentMethodController;
 use App\Http\Controllers\Api\V1\Admin\AdminAuditLogController;
 use App\Http\Controllers\Api\V1\Admin\AdminStorageSyncController;
 use App\Http\Controllers\Api\V1\Admin\AdminReferralController;
+use App\Http\Controllers\Api\V1\Admin\AdminPackageController;
+use App\Http\Controllers\Api\V1\Admin\AdminPricingSettingController;
 use App\Http\Controllers\Api\V1\Frames\FrameController;
 use App\Http\Controllers\Api\V1\Frames\FrameCategoryController;
 use App\Http\Controllers\Api\V1\Events\EventController;
@@ -112,6 +114,19 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // Merchandise Admin
         Route::patch('merchandise/orders/{uuid}/fulfill', [MerchandiseController::class, 'fulfill'])->name('merchandise.orders.fulfill');
+
+        // Packages & Pricing Settings (Admin CRUD)
+        Route::get('packages', [AdminPackageController::class, 'index'])->name('packages.index');
+        Route::post('packages', [AdminPackageController::class, 'store'])->name('packages.store');
+        Route::get('packages/{id}', [AdminPackageController::class, 'show'])->name('packages.show');
+        Route::put('packages/{id}', [AdminPackageController::class, 'update'])->name('packages.update');
+        Route::patch('packages/{id}/toggle-active', [AdminPackageController::class, 'toggleActive'])->name('packages.toggle-active');
+        Route::delete('packages/{id}', [AdminPackageController::class, 'destroy'])->name('packages.destroy');
+
+        // Pengaturan Harga Foto Satuan, Cetak Fisik & Kurs Multi-Currency (Admin CRUD)
+        Route::get('pricing-settings', [AdminPricingSettingController::class, 'index'])->name('pricing-settings.index');
+        Route::put('pricing-settings/{id}', [AdminPricingSettingController::class, 'update'])->name('pricing-settings.update');
+        Route::post('pricing-settings/batch', [AdminPricingSettingController::class, 'batchUpdate'])->name('pricing-settings.batch');
     });
 
     /*
@@ -252,6 +267,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     */
     Route::get('packages', [PackageController::class, 'index'])->name('packages.index');
     Route::get('packages/{id}', [PackageController::class, 'show'])->name('packages.show');
+    Route::get('pricing-settings', [AdminPricingSettingController::class, 'publicPricing'])->name('pricing-settings.public');
     Route::get('payment-methods', [AdminPaymentMethodController::class, 'publicIndex'])->name('payment-methods.public');
     Route::get('web3/contracts', [OrderController::class, 'web3Contracts'])->name('web3.contracts');
 

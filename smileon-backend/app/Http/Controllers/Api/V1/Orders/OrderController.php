@@ -52,12 +52,14 @@ class OrderController extends Controller
             'type'              => 'required|in:credit_package,voucher,print_job,merchandise',
             'package_id'        => 'required_if:type,credit_package|integer',
             'payment_method_id' => 'required|integer|exists:payment_methods,id',
+            'currency'          => 'nullable|string|in:IDR,USD',
             'voucher_code'      => 'nullable|string',
         ]);
 
         $user = $request->user();
+        $currency = strtoupper($request->currency ?? 'IDR');
 
-        $order = DB::transaction(function () use ($request, $user) {
+        $order = DB::transaction(function () use ($request, $user, $currency) {
             $package     = null;
             $subtotal    = 0;
             $credits     = 0;
@@ -65,15 +67,16 @@ class OrderController extends Controller
 
             if ($request->type === 'credit_package') {
                 $package  = Package::findOrFail($request->package_id);
-                $subtotal = $package->price;
+                $unitPrice = $package->getPriceForCurrency($currency);
+                $subtotal = $unitPrice;
                 $credits  = $package->credits_amount;
                 $items[]  = [
                     'item_type'  => 'Package',
                     'item_id'    => $package->id,
                     'item_name'  => $package->name,
                     'quantity'   => 1,
-                    'unit_price' => $package->price,
-                    'total'      => $package->price,
+                    'unit_price' => $unitPrice,
+                    'total'      => $unitPrice,
                 ];
             }
 
@@ -105,6 +108,7 @@ class OrderController extends Controller
                 'discount_amount'   => $discountAmount,
                 'admin_fee'         => $adminFee,
                 'total'             => $total,
+                'currency'          => $currency,
                 'type'              => $request->type,
                 'status'            => 'pending',
                 'expired_at'        => now()->addHours(24),
