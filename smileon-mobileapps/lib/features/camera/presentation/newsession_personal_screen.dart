@@ -80,10 +80,25 @@ class _NewSessionPersonalScreenState
       duration: const Duration(seconds: 1),
     );
 
-    // Buka ActiveCameraScreen
+    // Tentukan frame index awal
+    int frameIdx = 0;
+    if (_selectedFrameName.toLowerCase().contains('tulip')) {
+      frameIdx = 1;
+    }
+
+    // Buka ActiveCameraScreen dengan metadata sesi
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const ActiveCameraScreen()),
+      MaterialPageRoute(
+        builder: (context) => ActiveCameraScreen(
+          sessionTitle: title,
+          location: _selectedLocation.isNotEmpty ? _selectedLocation : null,
+          sessionType: 'personal',
+          initialFrameIndex: frameIdx,
+          frameTitle: _selectedFrameName,
+          frameAsset: _selectedFrameAsset,
+        ),
+      ),
     );
   }
 

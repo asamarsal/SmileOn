@@ -2,13 +2,17 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/features/camera/data/local_photo_session_service.dart';
+import 'package:smileon/features/camera/presentation/camera_screen.dart';
+import 'package:smileon/features/camera/presentation/providers/photo_session_provider.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step2_editphoto_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step3_dialog_previewphotostrip.dart';
-import 'package:smileon/features/camera/presentation/camera_screen.dart';
-import 'package:smileon/core/components/smile_toast.dart';
 
 /// STEP 3: DOWNLOAD & PAYMENT (VERTICAL)
 /// Menyediakan alur akhir untuk vertical photobooth:
@@ -17,7 +21,7 @@ import 'package:smileon/core/components/smile_toast.dart';
 /// - Photostrip preview vertikal
 /// - QRIS payment & countdown timer
 /// - Tombol download foto & GIF
-class Step3DownloadVertical extends StatefulWidget {
+class Step3DownloadVertical extends ConsumerStatefulWidget {
   final List<String> capturedPhotos;
   final Color? selectedThemeColor;
   final String? frameTitle;
@@ -30,6 +34,8 @@ class Step3DownloadVertical extends StatefulWidget {
   final VoidCallback? onClose;
   final List<double>? filterMatrix;
   final List<bool>? mirroredStates;
+  final String? sessionTitle;
+  final String? location;
 
   const Step3DownloadVertical({
     super.key,
@@ -45,6 +51,8 @@ class Step3DownloadVertical extends StatefulWidget {
     this.onClose,
     this.filterMatrix,
     this.mirroredStates,
+    this.sessionTitle,
+    this.location,
   });
 
   static Future<void> show(
@@ -74,10 +82,11 @@ class Step3DownloadVertical extends StatefulWidget {
   }
 
   @override
-  State<Step3DownloadVertical> createState() => _Step3DownloadVerticalState();
+  ConsumerState<Step3DownloadVertical> createState() =>
+      _Step3DownloadVerticalState();
 }
 
-class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
+class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
   Timer? _countdownTimer;
   int _remainingSeconds = 14 * 60 + 17; // 14m 17s
   bool _voucherApplied = true;
@@ -288,7 +297,9 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Konfirmasi'),
-        content: const Text('Apakah Anda yakin ingin keluar? Sesi ini akan diakhiri.'),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar? Sesi foto ini akan disimpan ke riwayat aktivitas Anda dan memori kamera akan dibersihkan.',
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
@@ -296,19 +307,90 @@ class _Step3DownloadVerticalState extends State<Step3DownloadVertical> {
             child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(ctx).pop();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (_) => const CameraScreen(initialTabIndex: 1),
-                ),
-                (route) => false, // Bersihkan seluruh stack route agar kembali bersih
-              );
+              await _saveAndExitSession();
             },
-            child: const Text('Ya, Keluar', style: TextStyle(color: AppTheme.primaryRose, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Ya, Simpan & Keluar',
+              style: TextStyle(
+                color: AppTheme.primaryRose,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _saveAndExitSession() async {
+    if (widget.capturedPhotos.isNotEmpty) {
+      String? tempStripPath;
+      try {
+        final bytes = await PhotostripRenderer.render(
+          context: context,
+          bgAssetPath: _bgAsset(),
+          frameAssetPath: _frameAsset(),
+          photoPaths: widget.capturedPhotos,
+          mirroredStates: widget.mirroredStates,
+          filterMatrix: widget.filterMatrix,
+          withWatermark: false,
+        );
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File(
+          '${tempDir.path}/temp_strip_${DateTime.now().millisecondsSinceEpoch}.png',
+        );
+        await tempFile.writeAsBytes(bytes);
+        tempStripPath = tempFile.path;
+      } catch (e) {
+        debugPrint('Error rendering fotostrip saat exit: $e');
+      }
+
+      try {
+        final sessionId = 'SES-${DateTime.now().millisecondsSinceEpoch}';
+        await LocalPhotoSessionService.saveSession(
+          sessionId: sessionId,
+          title: widget.sessionTitle ??
+              widget.frameTitle ??
+              'Sesi Foto SmileOn',
+          sessionType: 'personal',
+          location: widget.location,
+          frameIndex: widget.selectedFrameIndex,
+          frameAssetPath: _frameAsset(),
+          bgAssetPath: _bgAsset(),
+          rawPhotoPaths: widget.capturedPhotos,
+          mirroredStates:
+              widget.mirroredStates ?? const [false, false, false, false],
+          filterMatrix: widget.filterMatrix,
+          renderedStripPath: tempStripPath,
+          isPaid: _isPaid,
+        );
+        if (mounted) {
+          ref.read(photoSessionsProvider.notifier).refresh();
+        }
+      } catch (e) {
+        debugPrint('Error saving session locally: $e');
+      }
+    }
+
+    if (widget.onFinishSession != null) {
+      widget.onFinishSession!();
+    }
+
+    if (!mounted) return;
+    SmileToast.showSuccess(
+      context,
+      title: 'Sesi Tersimpan',
+      message: 'Sesi foto berhasil disimpan ke riwayat aktivitas! ✨',
+      alignment: Alignment.topCenter,
+    );
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const CameraScreen(initialTabIndex: 1),
+      ),
+      (route) => false,
     );
   }
 

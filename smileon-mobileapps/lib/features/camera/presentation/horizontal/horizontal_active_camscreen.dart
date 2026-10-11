@@ -20,11 +20,21 @@ import 'package:smileon/features/camera/presentation/vertical/vertical_active_ca
 class HorizontalActiveCamScreen extends StatefulWidget {
   final List<String>? initialCapturedPhotos;
   final List<bool>? initialCapturedPhotosMirrorState;
+  final String? sessionTitle;
+  final String? location;
+  final String sessionType;
+  final int initialFrameIndex;
+  final String? frameTitle;
 
   const HorizontalActiveCamScreen({
     super.key,
     this.initialCapturedPhotos,
     this.initialCapturedPhotosMirrorState,
+    this.sessionTitle,
+    this.location,
+    this.sessionType = 'personal',
+    this.initialFrameIndex = 0,
+    this.frameTitle,
   });
 
   @override
@@ -99,6 +109,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
   @override
   void initState() {
     super.initState();
+    if (widget.initialFrameIndex > 0) {
+      _selectedFrameIndex = widget.initialFrameIndex;
+    }
     if (widget.initialCapturedPhotos != null) {
       _capturedPhotos.addAll(widget.initialCapturedPhotos!);
     }
@@ -1425,7 +1438,9 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
           capturedPhotos: _capturedPhotos,
           mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,
-          frameTitle: 'Classic Pink',
+          frameTitle: widget.frameTitle ?? 'Classic Pink',
+          sessionTitle: widget.sessionTitle,
+          location: widget.location,
           initialIndex: _selectedFrameIndex,
           onBackToPreview: () {
             setState(() {

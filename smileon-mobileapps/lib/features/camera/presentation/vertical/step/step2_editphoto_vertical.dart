@@ -44,6 +44,8 @@ class Step2EditPhotoVertical extends StatefulWidget {
   final VoidCallback? onClose;
   final List<double>? filterMatrix;
   final List<bool>? mirroredStates;
+  final String? sessionTitle;
+  final String? location;
 
   const Step2EditPhotoVertical({
     super.key,
@@ -59,6 +61,8 @@ class Step2EditPhotoVertical extends StatefulWidget {
     this.onClose,
     this.filterMatrix,
     this.mirroredStates,
+    this.sessionTitle,
+    this.location,
   });
 
   static Future<void> show(
@@ -177,10 +181,13 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
           capturedPhotos: widget.capturedPhotos,
           selectedThemeColor: widget.selectedThemeColor,
           selectedFrameIndex: _selectedFrameIndex,
+          frameTitle: widget.frameTitle,
           onRetake: widget.onRetake,
           filterMatrix: widget.filterMatrix,
           mirroredStates: widget.mirroredStates,
           onClose: widget.onClose,
+          sessionTitle: widget.sessionTitle,
+          location: widget.location,
         ),
       ),
     );

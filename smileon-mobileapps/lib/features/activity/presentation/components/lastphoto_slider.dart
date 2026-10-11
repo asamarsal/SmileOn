@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/activity/presentation/category/lastphoto_activity.dart';
+import 'package:smileon/features/camera/presentation/providers/photo_session_provider.dart';
+import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
 
 /// Model item Foto Terakhir
 class RecentPhotoActivityItem {
@@ -11,6 +16,7 @@ class RecentPhotoActivityItem {
   final String date;
   final String imagePath;
   final bool isNetwork;
+  final bool isLocalFile;
   final Color frameColor;
   final Color borderColor;
   final int cutCount;
@@ -21,6 +27,7 @@ class RecentPhotoActivityItem {
     required this.date,
     required this.imagePath,
     this.isNetwork = false,
+    this.isLocalFile = false,
     this.frameColor = const Color(0xFFFFF0F5),
     this.borderColor = const Color(0xFFFFD1E1),
     this.cutCount = 2,
@@ -114,15 +121,11 @@ class LastPhotoSlider extends ConsumerWidget {
     this.onItemTap,
   });
 
-  List<RecentPhotoActivityItem> get _effectiveItems =>
-      (items != null && items!.isNotEmpty)
-          ? items!
-          : RecentPhotoActivityItem.defaultItems;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
-    final data = _effectiveItems;
+    final localItems = ref.watch(recentPhotosProvider);
+    final data = (items != null && items!.isNotEmpty) ? items! : localItems;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,19 +273,7 @@ class LastPhotoSlider extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  photo.isNetwork
-                      ? Image.network(
-                          photo.imagePath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
-                        )
-                      : Image.asset(
-                          photo.imagePath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
-                        ),
+                  _buildPhotoDisplay(photo),
                   if (photo.cutCount == 4) ...[
                     Center(
                       child: Container(
@@ -454,9 +445,7 @@ class LastPhotoSlider extends ConsumerWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: photo.isNetwork
-                      ? Image.network(photo.imagePath, fit: BoxFit.cover)
-                      : Image.asset(photo.imagePath, fit: BoxFit.cover),
+                  child: _buildPhotoDisplay(photo),
                 ),
               ),
               const SizedBox(height: 22),
@@ -464,13 +453,37 @@ class LastPhotoSlider extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(ctx);
-                        SmileToast.showSuccess(
-                          context,
-                          message: 'Foto berhasil disimpan ke galeri ponsel!',
-                          title: 'Unduh Berhasil',
-                        );
+                        if (File(photo.imagePath).existsSync()) {
+                          try {
+                            final bytes =
+                                await File(photo.imagePath).readAsBytes();
+                            await PhotostripRenderer.saveToGallery(bytes);
+                            if (context.mounted) {
+                              SmileToast.showSuccess(
+                                context,
+                                message:
+                                    'Foto berhasil disimpan ke galeri ponsel! ✨',
+                                title: 'Unduh Berhasil',
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              SmileToast.showError(
+                                context,
+                                message: 'Gagal menyimpan foto: $e',
+                                title: 'Unduh Gagal',
+                              );
+                            }
+                          }
+                        } else {
+                          SmileToast.showSuccess(
+                            context,
+                            message: 'Foto berhasil disimpan ke galeri ponsel!',
+                            title: 'Unduh Berhasil',
+                          );
+                        }
                       },
                       icon: const Icon(Icons.download_rounded, size: 18),
                       label: const Text('Unduh HD'),
@@ -489,11 +502,18 @@ class LastPhotoSlider extends ConsumerWidget {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        SmileToast.showSuccess(
-                          context,
-                          message: 'Tautan photostrip disalin ke clipboard!',
-                          title: 'Bagikan',
-                        );
+                        if (File(photo.imagePath).existsSync()) {
+                          Share.shareXFiles(
+                            [XFile(photo.imagePath)],
+                            text: 'Photostrip SmileOn - ${photo.title}',
+                          );
+                        } else {
+                          SmileToast.showSuccess(
+                            context,
+                            message: 'Tautan photostrip disalin ke clipboard!',
+                            title: 'Bagikan',
+                          );
+                        }
                       },
                       icon: const Icon(Icons.share_rounded, size: 18, color: Colors.white),
                       label: const Text('Bagikan', style: TextStyle(color: Colors.white)),
@@ -513,5 +533,30 @@ class LastPhotoSlider extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Widget _buildPhotoDisplay(RecentPhotoActivityItem photo) {
+    if (photo.isNetwork || photo.imagePath.startsWith('http')) {
+      return Image.network(
+        photo.imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+      );
+    } else if (photo.isLocalFile || File(photo.imagePath).existsSync()) {
+      return Image.file(
+        File(photo.imagePath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+      );
+    } else {
+      return Image.asset(
+        photo.imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+      );
+    }
   }
 }

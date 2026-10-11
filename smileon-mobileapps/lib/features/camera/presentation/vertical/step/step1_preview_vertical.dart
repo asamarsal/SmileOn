@@ -26,6 +26,8 @@ class Step1PreviewVertical extends StatefulWidget {
   final VoidCallback? onClose;
   final List<double>? filterMatrix;
   final List<bool>? mirroredStates;
+  final String? sessionTitle;
+  final String? location;
 
   const Step1PreviewVertical({
     super.key,
@@ -41,6 +43,8 @@ class Step1PreviewVertical extends StatefulWidget {
     this.onClose,
     this.filterMatrix,
     this.mirroredStates,
+    this.sessionTitle,
+    this.location,
   });
 
   static Future<void> show(
@@ -167,6 +171,8 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
           filterMatrix: widget.filterMatrix,
           mirroredStates: widget.mirroredStates,
           onClose: widget.onClose,
+          sessionTitle: widget.sessionTitle,
+          location: widget.location,
         ),
       ),
     );
@@ -189,6 +195,8 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
           filterMatrix: widget.filterMatrix,
           mirroredStates: widget.mirroredStates,
           onClose: widget.onClose,
+          sessionTitle: widget.sessionTitle,
+          location: widget.location,
         ),
       ),
     );

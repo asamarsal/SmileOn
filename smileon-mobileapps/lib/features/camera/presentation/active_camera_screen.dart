@@ -11,11 +11,23 @@ export 'package:smileon/features/camera/presentation/vertical/vertical_active_ca
 class ActiveCameraScreen extends StatefulWidget {
   final List<String>? initialCapturedPhotos;
   final List<bool>? initialCapturedPhotosMirrorState;
+  final String? sessionTitle;
+  final String? location;
+  final String sessionType;
+  final int initialFrameIndex;
+  final String? frameTitle;
+  final String? frameAsset;
 
   const ActiveCameraScreen({
     super.key,
     this.initialCapturedPhotos,
     this.initialCapturedPhotosMirrorState,
+    this.sessionTitle,
+    this.location,
+    this.sessionType = 'personal',
+    this.initialFrameIndex = 0,
+    this.frameTitle,
+    this.frameAsset,
   });
 
   @override
@@ -41,12 +53,22 @@ class _ActiveCameraScreenState extends State<ActiveCameraScreen> {
         initialCapturedPhotos: widget.initialCapturedPhotos,
         initialCapturedPhotosMirrorState:
             widget.initialCapturedPhotosMirrorState,
+        sessionTitle: widget.sessionTitle,
+        location: widget.location,
+        sessionType: widget.sessionType,
+        initialFrameIndex: widget.initialFrameIndex,
+        frameTitle: widget.frameTitle,
       );
     } else {
       return VerticalActiveCamScreen(
         initialCapturedPhotos: widget.initialCapturedPhotos,
         initialCapturedPhotosMirrorState:
             widget.initialCapturedPhotosMirrorState,
+        sessionTitle: widget.sessionTitle,
+        location: widget.location,
+        sessionType: widget.sessionType,
+        initialFrameIndex: widget.initialFrameIndex,
+        frameTitle: widget.frameTitle,
       );
     }
   }

@@ -22,11 +22,21 @@ part 'dialog_vertical_active_fullscreen.dart';
 class VerticalActiveCamScreen extends StatefulWidget {
   final List<String>? initialCapturedPhotos;
   final List<bool>? initialCapturedPhotosMirrorState;
+  final String? sessionTitle;
+  final String? location;
+  final String sessionType;
+  final int initialFrameIndex;
+  final String? frameTitle;
 
   const VerticalActiveCamScreen({
     super.key,
     this.initialCapturedPhotos,
     this.initialCapturedPhotosMirrorState,
+    this.sessionTitle,
+    this.location,
+    this.sessionType = 'personal',
+    this.initialFrameIndex = 0,
+    this.frameTitle,
   });
 
   @override
@@ -87,6 +97,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.initialFrameIndex > 0) {
+      _selectedFrameIndex = widget.initialFrameIndex;
+    }
     if (widget.initialCapturedPhotos != null) {
       _capturedPhotos.addAll(widget.initialCapturedPhotos!);
     }
@@ -1614,6 +1627,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                           selectedFrameIndex: _selectedFrameIndex,
                           filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
                           mirroredStates: _capturedPhotosMirrorState,
+                          sessionTitle: widget.sessionTitle,
+                          location: widget.location,
+                          frameTitle: widget.frameTitle,
                           onRetake: () {
                             if (mounted) {
                               setState(() {

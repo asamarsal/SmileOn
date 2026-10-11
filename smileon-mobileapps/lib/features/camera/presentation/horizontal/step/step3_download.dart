@@ -3,8 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/features/camera/data/local_photo_session_service.dart';
+import 'package:smileon/features/camera/presentation/camera_screen.dart';
+import 'package:smileon/features/camera/presentation/providers/photo_session_provider.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
 
 /// STEP 3: DOWNLOAD & PEMBAYARAN
@@ -13,7 +18,7 @@ import 'package:smileon/features/camera/presentation/vertical/step/photostrip_re
 /// - Stepper vertikal (1: Preview, 2: Edit Foto, 3: Download [Aktif])
 /// - Kartu Pembayaran: QRIS, Countdown Timer 14:17, Ringkasan Pesanan, Form Kode Voucher
 /// - Kartu Setelah Pembayaran: Benefit list, Download Semua, Download Satuan (Tanpa Watermark, GIF, Watermark), Kirim ke Email
-class Step3Download extends StatefulWidget {
+class Step3Download extends ConsumerStatefulWidget {
   final List<String> capturedPhotos;
   final Color? selectedThemeColor;
   final String? frameTitle;
@@ -25,6 +30,8 @@ class Step3Download extends StatefulWidget {
   final List<bool>? mirroredStates;
   final int initialIndex;
   final List<double>? filterMatrix;
+  final String? sessionTitle;
+  final String? location;
 
   const Step3Download({
     super.key,
@@ -39,6 +46,8 @@ class Step3Download extends StatefulWidget {
     this.mirroredStates,
     this.initialIndex = 0,
     this.filterMatrix,
+    this.sessionTitle,
+    this.location,
   });
 
   static Future<void> show(
@@ -71,10 +80,10 @@ class Step3Download extends StatefulWidget {
   }
 
   @override
-  State<Step3Download> createState() => _Step3DownloadState();
+  ConsumerState<Step3Download> createState() => _Step3DownloadState();
 }
 
-class _Step3DownloadState extends State<Step3Download> {
+class _Step3DownloadState extends ConsumerState<Step3Download> {
   int? _expandedStepIndex;
   Timer? _countdownTimer;
   int _remainingSeconds = 14 * 60 + 17; // Sesuai mockup: 14 menit 17 detik
@@ -753,7 +762,7 @@ class _Step3DownloadState extends State<Step3Download> {
 
   Widget _buildCloseButton() {
     return InkWell(
-      onTap: widget.onClose ?? () => Navigator.of(context).pop(),
+      onTap: _handleExitAndSaveSession,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: 36,
@@ -772,6 +781,126 @@ class _Step3DownloadState extends State<Step3Download> {
         ),
         child: const Icon(Icons.close, size: 18, color: Color(0xFF757575)),
       ),
+    );
+  }
+
+  Future<void> _handleExitAndSaveSession() async {
+    if (widget.capturedPhotos.isEmpty) {
+      if (widget.onFinishSession != null) {
+        widget.onFinishSession!();
+      }
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const CameraScreen(initialTabIndex: 1),
+        ),
+        (route) => false,
+      );
+      return;
+    }
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.save_outlined, color: AppTheme.primaryRose),
+            SizedBox(width: 8),
+            Text(
+              'Selesaikan Sesi?',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Sesi foto ini akan disimpan ke riwayat aktivitas Anda dan memori kamera akan dibersihkan.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRose,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Ya, Simpan & Selesai'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    String? tempStripPath;
+    try {
+      final bytes = await PhotostripRenderer.render(
+        context: context,
+        bgAssetPath: _bgAsset(widget.initialIndex),
+        frameAssetPath: _frameAsset(widget.initialIndex),
+        photoPaths: widget.capturedPhotos,
+        mirroredStates: widget.mirroredStates,
+        filterMatrix: widget.filterMatrix,
+        withWatermark: false,
+      );
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(
+        '${tempDir.path}/temp_strip_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await tempFile.writeAsBytes(bytes);
+      tempStripPath = tempFile.path;
+    } catch (e) {
+      debugPrint('Error rendering fotostrip saat exit: $e');
+    }
+
+    try {
+      final sessionId = 'SES-${DateTime.now().millisecondsSinceEpoch}';
+      await LocalPhotoSessionService.saveSession(
+        sessionId: sessionId,
+        title: widget.sessionTitle ?? widget.frameTitle ?? 'Sesi Foto SmileOn',
+        sessionType: 'personal',
+        location: widget.location,
+        frameIndex: widget.initialIndex,
+        frameAssetPath: _frameAsset(widget.initialIndex),
+        bgAssetPath: _bgAsset(widget.initialIndex),
+        rawPhotoPaths: widget.capturedPhotos,
+        mirroredStates:
+            widget.mirroredStates ?? const [false, false, false, false],
+        filterMatrix: widget.filterMatrix,
+        renderedStripPath: tempStripPath,
+      );
+
+      if (mounted) {
+        ref.read(photoSessionsProvider.notifier).refresh();
+      }
+    } catch (e) {
+      debugPrint('Error saving session locally: $e');
+    }
+
+    if (widget.onFinishSession != null) {
+      widget.onFinishSession!();
+    }
+
+    if (!mounted) return;
+    SmileToast.showSuccess(
+      context,
+      title: 'Sesi Tersimpan',
+      message: 'Sesi foto berhasil disimpan ke riwayat aktivitas! ✨',
+      alignment: Alignment.topCenter,
+    );
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const CameraScreen(initialTabIndex: 1),
+      ),
+      (route) => false,
     );
   }
 
