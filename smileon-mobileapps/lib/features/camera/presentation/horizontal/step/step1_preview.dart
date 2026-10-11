@@ -199,24 +199,24 @@ class _Step1PreviewState extends State<Step1Preview> {
           children: [
             // Konten Utama Horizontal: Photostrip + Stepper + Frame + Actions
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              padding: const EdgeInsets.fromLTRB(28, 10, 18, 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. KIRI: Photostrip Preview (Rasio 1:3)
                   _buildPhotostripSection(),
 
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 15),
 
                   // 2. STEPPER VERTIKAL (Step 1, 2, 3)
                   Center(child: _buildVerticalStepper()),
 
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 15),
 
                   // 3. TENGAH: Frame Foto Utama (16:9)
                   Expanded(child: _buildMainPhotoFrame()),
 
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 15),
 
                   // 4. KANAN: Tombol Aksi Vertikal (Edit, Desain, Ulang, Lanjut)
                   Center(child: _buildVerticalActionButtons()),

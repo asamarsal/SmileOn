@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
 
 /// STEP 3: DOWNLOAD & PEMBAYARAN
 /// Tahap akhir dari alur horizontal photobooth:
@@ -20,6 +24,7 @@ class Step3Download extends StatefulWidget {
   final VoidCallback? onClose;
   final List<bool>? mirroredStates;
   final int initialIndex;
+  final List<double>? filterMatrix;
 
   const Step3Download({
     super.key,
@@ -33,6 +38,7 @@ class Step3Download extends StatefulWidget {
     this.onClose,
     this.mirroredStates,
     this.initialIndex = 0,
+    this.filterMatrix,
   });
 
   static Future<void> show(
@@ -43,6 +49,7 @@ class Step3Download extends StatefulWidget {
     VoidCallback? onFinishSession,
     List<bool>? mirroredStates,
     int initialIndex = 0,
+    List<double>? filterMatrix,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -55,6 +62,7 @@ class Step3Download extends StatefulWidget {
             onFinishSession: onFinishSession,
             mirroredStates: mirroredStates,
             initialIndex: initialIndex,
+            filterMatrix: filterMatrix,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -72,14 +80,17 @@ class _Step3DownloadState extends State<Step3Download> {
   int _remainingSeconds = 14 * 60 + 17; // Sesuai mockup: 14 menit 17 detik
   bool _voucherApplied = true;
   String _selectedPaymentMethod = 'qris';
+  bool _isDownloadingAll = false;
+  bool _isDownloadingStrip = false;
+  bool _isDownloadingWatermark = false;
+  bool _isDownloadingGif = false;
   final TextEditingController _voucherController = TextEditingController(
     text: 'ROSEROMANCE5K',
   );
 
   String get _minutesStr =>
       (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
-  String get _secondsStr =>
-      (_remainingSeconds % 60).toString().padLeft(2, '0');
+  String get _secondsStr => (_remainingSeconds % 60).toString().padLeft(2, '0');
 
   @override
   void initState() {
@@ -152,39 +163,150 @@ class _Step3DownloadState extends State<Step3Download> {
     }
   }
 
-  void _handleDownloadAll() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Mengunduh seluruh file (Strip, Satuan & GIF)! 🎉'),
-          ],
-        ),
-        backgroundColor: AppTheme.primaryRose,
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
+  Future<void> _handleDownloadAll() async {
+    if (widget.capturedPhotos.isEmpty) {
+      SmileToast.showWarning(
+        context,
+        title: 'Peringatan',
+        message: 'Tidak ada foto untuk diunduh!',
+        alignment: Alignment.topCenter,
+      );
+      return;
+    }
+    setState(() => _isDownloadingAll = true);
+    HapticFeedback.mediumImpact();
+    try {
+      final bytes = await PhotostripRenderer.render(
+        context: context,
+        bgAssetPath: _bgAsset(widget.initialIndex),
+        frameAssetPath: _frameAsset(widget.initialIndex),
+        photoPaths: widget.capturedPhotos,
+        mirroredStates: widget.mirroredStates,
+        filterMatrix: widget.filterMatrix,
+        withWatermark: false,
+      );
+      await PhotostripRenderer.saveToGallery(bytes);
+      if (!mounted) return;
+      setState(() => _isDownloadingAll = false);
+      SmileToast.showSuccess(
+        context,
+        title: 'Berhasil Disimpan',
+        message: 'Fotostrip berhasil disimpan ke galeri! ✨',
+        alignment: Alignment.topCenter,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDownloadingAll = false);
+      SmileToast.showError(
+        context,
+        title: 'Gagal Menyimpan',
+        message: 'Gagal mengunduh: $e',
+        alignment: Alignment.topCenter,
+      );
+    }
+  }
+
+  Future<void> _downloadWithoutWatermark() async {
+    if (widget.capturedPhotos.isEmpty) {
+      SmileToast.showWarning(
+        context,
+        title: 'Peringatan',
+        message: 'Tidak ada foto untuk diunduh!',
+        alignment: Alignment.topCenter,
+      );
+      return;
+    }
+    setState(() => _isDownloadingStrip = true);
+    HapticFeedback.lightImpact();
+    try {
+      final bytes = await PhotostripRenderer.render(
+        context: context,
+        bgAssetPath: _bgAsset(widget.initialIndex),
+        frameAssetPath: _frameAsset(widget.initialIndex),
+        photoPaths: widget.capturedPhotos,
+        mirroredStates: widget.mirroredStates,
+        filterMatrix: widget.filterMatrix,
+        withWatermark: false,
+      );
+      await PhotostripRenderer.saveToGallery(bytes);
+      if (!mounted) return;
+      setState(() => _isDownloadingStrip = false);
+      SmileToast.showSuccess(
+        context,
+        title: 'Berhasil Disimpan',
+        message: 'Fotostrip tanpa watermark tersimpan ke galeri! ✨',
+        alignment: Alignment.topCenter,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDownloadingStrip = false);
+      SmileToast.showError(
+        context,
+        title: 'Gagal Menyimpan',
+        message: 'Gagal mengunduh: $e',
+        alignment: Alignment.topCenter,
+      );
+    }
+  }
+
+  Future<void> _downloadWithWatermark() async {
+    if (widget.capturedPhotos.isEmpty) {
+      SmileToast.showWarning(
+        context,
+        title: 'Peringatan',
+        message: 'Tidak ada foto untuk diunduh!',
+        alignment: Alignment.topCenter,
+      );
+      return;
+    }
+    setState(() => _isDownloadingWatermark = true);
+    HapticFeedback.lightImpact();
+    try {
+      final bytes = await PhotostripRenderer.render(
+        context: context,
+        bgAssetPath: _bgAsset(widget.initialIndex),
+        frameAssetPath: _frameAsset(widget.initialIndex),
+        photoPaths: widget.capturedPhotos,
+        mirroredStates: widget.mirroredStates,
+        filterMatrix: widget.filterMatrix,
+        withWatermark: true,
+      );
+      await PhotostripRenderer.saveToGallery(bytes);
+      if (!mounted) return;
+      setState(() => _isDownloadingWatermark = false);
+      SmileToast.showSuccess(
+        context,
+        title: 'Berhasil Disimpan',
+        message: 'Fotostrip dengan watermark tersimpan ke galeri! 📷',
+        alignment: Alignment.topCenter,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDownloadingWatermark = false);
+      SmileToast.showError(
+        context,
+        title: 'Gagal Menyimpan',
+        message: 'Gagal mengunduh: $e',
+        alignment: Alignment.topCenter,
+      );
+    }
+  }
+
+  Future<void> _downloadGif() async {
+    setState(() => _isDownloadingGif = true);
+    HapticFeedback.lightImpact();
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+    setState(() => _isDownloadingGif = false);
+    SmileToast.showSuccess(
+      context,
+      title: 'Berhasil',
+      message: 'GIF tanpa watermark berhasil diunduh! 🎞️',
+      alignment: Alignment.topCenter,
     );
   }
 
-  void _handleDownloadSingle(String type) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.file_download_done, color: Colors.white),
-            const SizedBox(width: 8),
-            Text('Foto $type berhasil disimpan! 📁'),
-          ],
-        ),
-        backgroundColor: AppTheme.primaryRose,
-        duration: const Duration(milliseconds: 1500),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+
 
   void _showQrZoomDialog() {
     showDialog(
@@ -198,7 +320,10 @@ class _Step3DownloadState extends State<Step3Download> {
 
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
           child: Container(
             width: dialogWidth,
             height: dialogHeight,
@@ -312,7 +437,8 @@ class _Step3DownloadState extends State<Step3Download> {
                                     ),
                                     const SizedBox(width: 10),
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           'Sisa Waktu Pembayaran',
@@ -354,10 +480,12 @@ class _Step3DownloadState extends State<Step3Download> {
                                   ),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: const [
                                         Text(
                                           'Total Pembayaran',
@@ -377,7 +505,9 @@ class _Step3DownloadState extends State<Step3Download> {
                                       ],
                                     ),
                                     Text(
-                                      _voucherApplied ? 'Rp 20.000' : 'Rp 25.000',
+                                      _voucherApplied
+                                          ? 'Rp 20.000'
+                                          : 'Rp 25.000',
                                       style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w900,
@@ -576,32 +706,36 @@ class _Step3DownloadState extends State<Step3Download> {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              padding: const EdgeInsets.fromLTRB(28, 10, 18, 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. KIRI: Photostrip Preview (Rasio 1:3)
                   _buildPhotostripSection(),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
 
                   // 2. STEPPER VERTIKAL (1: Preview, 2: Edit Foto, 3: Download [Aktif])
                   Center(child: _buildVerticalStepper()),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
 
                   // 3. TENGAH & KANAN: DUA KARTU SESUAI GAMBAR DESAIN
                   Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // KARTU KIRI: Pembayaran
-                        Expanded(child: _buildPaymentCard()),
+                        // KARTU KIRI: Pembayaran (dikecilkan sedikit width-nya agar proporsional)
+                        Expanded(
+                          child: _buildPaymentCard(),
+                        ),
 
                         const SizedBox(width: 12),
 
                         // KARTU KANAN: Setelah Pembayaran Kamu Dapatkan
-                        Expanded(child: _buildBenefitsAndDownloadCard()),
+                        Expanded(
+                          child: _buildBenefitsAndDownloadCard(),
+                        ),
                       ],
                     ),
                   ),
@@ -610,11 +744,7 @@ class _Step3DownloadState extends State<Step3Download> {
             ),
 
             // Tombol Tutup (X) di pojok kanan atas
-            Positioned(
-              top: 10,
-              right: 12,
-              child: _buildCloseButton(),
-            ),
+            Positioned(top: 10, right: 12, child: _buildCloseButton()),
           ],
         ),
       ),
@@ -664,7 +794,7 @@ class _Step3DownloadState extends State<Step3Download> {
         borderRadius: BorderRadius.circular(24),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -718,10 +848,7 @@ class _Step3DownloadState extends State<Step3Download> {
               const SizedBox(height: 3),
               const Text(
                 'Scan QRIS untuk menyelesaikan pembayaran',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF757575),
-                ),
+                style: TextStyle(fontSize: 11, color: Color(0xFF757575)),
               ),
               const SizedBox(height: 12),
 
@@ -873,10 +1000,7 @@ class _Step3DownloadState extends State<Step3Download> {
                 '${widget.capturedPhotos.isNotEmpty ? widget.capturedPhotos.length : 4} Foto',
               ),
               const SizedBox(height: 5),
-              _buildSummaryRow(
-                'Harga Desain',
-                'Rp 25.000',
-              ),
+              _buildSummaryRow('Harga Desain', 'Rp 25.000'),
               const SizedBox(height: 5),
               _buildSummaryRow(
                 'Diskon Voucher',
@@ -1151,20 +1275,13 @@ class _Step3DownloadState extends State<Step3Download> {
     );
   }
 
-  Widget _buildSummaryRow(
-    String label,
-    String value, {
-    Color? valueColor,
-  }) {
+  Widget _buildSummaryRow(String label, String value, {Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11.5,
-            color: Color(0xFF6B7280),
-          ),
+          style: const TextStyle(fontSize: 11.5, color: Color(0xFF6B7280)),
         ),
         Text(
           value,
@@ -1197,7 +1314,7 @@ class _Step3DownloadState extends State<Step3Download> {
         borderRadius: BorderRadius.circular(24),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1206,18 +1323,14 @@ class _Step3DownloadState extends State<Step3Download> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: const [
                   Text(
-                    'Setelah Pembayaran Kamu Dapatkan',
+                    'Setelah Pembayaran Kamu Dapat',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.primaryRose,
                     ),
                   ),
-                  Icon(
-                    Icons.favorite,
-                    size: 18,
-                    color: Color(0xFFFFD1DC),
-                  ),
+                  Icon(Icons.favorite, size: 18, color: Color(0xFFFFD1DC)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1235,7 +1348,7 @@ class _Step3DownloadState extends State<Step3Download> {
               const SizedBox(height: 7),
               _buildBenefitItem(
                 Icons.file_download_outlined,
-                'Download otomatis setelah pembayaran',
+                'Download otomatis setelah bayar',
               ),
               const SizedBox(height: 7),
               _buildBenefitItem(
@@ -1250,18 +1363,33 @@ class _Step3DownloadState extends State<Step3Download> {
                 width: double.infinity,
                 height: 42,
                 child: ElevatedButton.icon(
-                  onPressed: _handleDownloadAll,
-                  icon: const Icon(
-                    Icons.auto_awesome,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                  label: const Text(
-                    'Download Semua (Strip, Satuan & GIF)',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.white,
+                  onPressed: _isDownloadingAll ? null : _handleDownloadAll,
+                  icon: _isDownloadingAll
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.auto_awesome,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _isDownloadingAll
+                          ? 'Menyimpan Semua...'
+                          : 'Download Semua (Strip, Satuan & GIF)',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -1308,7 +1436,8 @@ class _Step3DownloadState extends State<Step3Download> {
                 icon: Icons.file_download_outlined,
                 label: 'Download Tanpa Watermark',
                 isSolid: true,
-                onTap: () => _handleDownloadSingle('Tanpa Watermark'),
+                isLoading: _isDownloadingStrip,
+                onTap: _isDownloadingStrip ? null : _downloadWithoutWatermark,
               ),
               const SizedBox(height: 7),
 
@@ -1317,7 +1446,8 @@ class _Step3DownloadState extends State<Step3Download> {
                 icon: Icons.file_download_outlined,
                 label: 'Download Gif Tanpa Watermark',
                 isSolid: false,
-                onTap: () => _handleDownloadSingle('GIF Animasi Tanpa Watermark'),
+                isLoading: _isDownloadingGif,
+                onTap: _isDownloadingGif ? null : _downloadGif,
               ),
               const SizedBox(height: 7),
 
@@ -1326,7 +1456,8 @@ class _Step3DownloadState extends State<Step3Download> {
                 icon: Icons.file_download_outlined,
                 label: 'Download dengan Watermark',
                 isSolid: false,
-                onTap: () => _handleDownloadSingle('Dengan Watermark (Gratis)'),
+                isLoading: _isDownloadingWatermark,
+                onTap: _isDownloadingWatermark ? null : _downloadWithWatermark,
               ),
               const SizedBox(height: 7),
 
@@ -1375,7 +1506,8 @@ class _Step3DownloadState extends State<Step3Download> {
     required IconData icon,
     required String label,
     required bool isSolid,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
+    bool isLoading = false,
   }) {
     return SizedBox(
       width: double.infinity,
@@ -1383,13 +1515,26 @@ class _Step3DownloadState extends State<Step3Download> {
       child: isSolid
           ? ElevatedButton.icon(
               onPressed: onTap,
-              icon: Icon(icon, size: 15, color: Colors.white),
-              label: Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11.5,
-                  color: Colors.white,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Icon(icon, size: 15, color: Colors.white),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  isLoading ? 'Menyimpan...' : label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -1403,13 +1548,26 @@ class _Step3DownloadState extends State<Step3Download> {
             )
           : OutlinedButton.icon(
               onPressed: onTap,
-              icon: Icon(icon, size: 15, color: AppTheme.primaryRose),
-              label: Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11.5,
-                  color: AppTheme.primaryRose,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppTheme.primaryRose),
+                      ),
+                    )
+                  : Icon(icon, size: 15, color: AppTheme.primaryRose),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  isLoading ? 'Menyimpan...' : label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    color: AppTheme.primaryRose,
+                  ),
                 ),
               ),
               style: OutlinedButton.styleFrom(
@@ -1495,8 +1653,8 @@ class _Step3DownloadState extends State<Step3Download> {
             color: isActive
                 ? Colors.white
                 : (isCompleted
-                    ? AppTheme.primaryRose
-                    : const Color(0xFF757575)),
+                      ? AppTheme.primaryRose
+                      : const Color(0xFF757575)),
             fontSize: 11,
             fontWeight: FontWeight.bold,
           ),
@@ -1634,7 +1792,7 @@ class _Step3DownloadState extends State<Step3Download> {
                 children: [
                   // Layer 1: Background
                   Image.asset(_bgAsset(widget.initialIndex), fit: BoxFit.fill),
-                  
+
                   // Layer 2: Photo Slots
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -1658,10 +1816,14 @@ class _Step3DownloadState extends State<Step3Download> {
                                 width: photoW,
                                 height: photoH,
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(slotRadius),
+                                  borderRadius: BorderRadius.circular(
+                                    slotRadius,
+                                  ),
                                 ),
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(slotRadius),
+                                  borderRadius: BorderRadius.circular(
+                                    slotRadius,
+                                  ),
                                   child: _buildPhotoThumbnail(i),
                                 ),
                               ),
@@ -1691,18 +1853,29 @@ class _Step3DownloadState extends State<Step3Download> {
     if (widget.capturedPhotos.isNotEmpty &&
         index < widget.capturedPhotos.length &&
         File(widget.capturedPhotos[index]).existsSync()) {
-      
-      final bool isMirrored = widget.mirroredStates != null && 
-                              widget.mirroredStates!.length > index && 
-                              widget.mirroredStates![index];
-      
+      final bool isMirrored =
+          widget.mirroredStates != null &&
+          widget.mirroredStates!.length > index &&
+          widget.mirroredStates![index];
+
       Widget photoWidget = Image.file(
         File(widget.capturedPhotos[index]),
         fit: BoxFit.cover,
       );
 
       if (isMirrored) {
-        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+        photoWidget = Transform.scale(
+          scaleX: -1,
+          alignment: Alignment.center,
+          child: photoWidget,
+        );
+      }
+
+      if (widget.filterMatrix != null) {
+        photoWidget = ColorFiltered(
+          colorFilter: ColorFilter.matrix(widget.filterMatrix!),
+          child: photoWidget,
+        );
       }
 
       return photoWidget;

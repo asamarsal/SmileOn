@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/home/presentation/widgets/all_frames_dialog.dart';
@@ -203,10 +204,26 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
     final double sb = (1 - s) * lb;
 
     return ColorFilter.matrix(<double>[
-      (sr + s) * c, sg * c, sb * c, 0, b,
-      sr * c, (sg + s) * c, sb * c, 0, b,
-      sr * c, sg * c, (sb + s) * c, 0, b,
-      0, 0, 0, 1, 0,
+      (sr + s) * c,
+      sg * c,
+      sb * c,
+      0,
+      b,
+      sr * c,
+      (sg + s) * c,
+      sb * c,
+      0,
+      b,
+      sr * c,
+      sg * c,
+      (sb + s) * c,
+      0,
+      b,
+      0,
+      0,
+      0,
+      1,
+      0,
     ]);
   }
 
@@ -237,24 +254,24 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              padding: const EdgeInsets.fromLTRB(28, 10, 18, 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. KIRI: Photostrip Preview (Rasio 1:3)
                   _buildPhotostripSection(),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
 
                   // 2. STEPPER VERTIKAL (1: Preview, 2: Edit Foto, 3: Download)
                   Center(child: _buildVerticalStepper()),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
 
                   // 3. TENGAH: Kanvas Pengeditan Foto Utama
                   Expanded(child: _buildMainEditingCanvas()),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 15),
 
                   // 4. KANAN: Panel Kontrol Aksesoris, Stiker, Teks & Lanjut
                   _buildRightControlPanel(),
@@ -263,11 +280,7 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
             ),
 
             // Tombol Tutup (X)
-            Positioned(
-              top: 10,
-              right: 12,
-              child: _buildCloseButton(),
-            ),
+            Positioned(top: 10, right: 12, child: _buildCloseButton()),
           ],
         ),
       ),
@@ -370,8 +383,8 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
             color: isActive
                 ? Colors.white
                 : (isCompleted
-                    ? AppTheme.primaryRose
-                    : const Color(0xFF757575)),
+                      ? AppTheme.primaryRose
+                      : const Color(0xFF757575)),
             fontSize: 11,
             fontWeight: FontWeight.bold,
           ),
@@ -534,20 +547,26 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
                               width: photoW,
                               height: photoH,
                               child: GestureDetector(
-                                onTap: () => setState(() => _selectedPhotoIndex = i),
+                                onTap: () =>
+                                    setState(() => _selectedPhotoIndex = i),
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(slotRadius),
+                                    borderRadius: BorderRadius.circular(
+                                      slotRadius,
+                                    ),
                                     border: Border.all(
                                       color: _selectedPhotoIndex == i
                                           ? const Color(0xFFFF1744)
                                           : Colors.transparent,
-                                      width: _selectedPhotoIndex == i ? 3.0 : 0.0,
+                                      width: _selectedPhotoIndex == i
+                                          ? 3.0
+                                          : 0.0,
                                     ),
                                     boxShadow: _selectedPhotoIndex == i
                                         ? [
                                             BoxShadow(
-                                              color: const Color(0xFFFF1744).withValues(alpha: 0.6),
+                                              color: const Color(0xFFFF1744)
+                                                  .withValues(alpha: 0.6),
                                               blurRadius: 10,
                                               spreadRadius: 2,
                                             ),
@@ -588,18 +607,22 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
     if (widget.capturedPhotos.isNotEmpty &&
         index < widget.capturedPhotos.length &&
         File(widget.capturedPhotos[index]).existsSync()) {
-      
-      final bool isMirrored = widget.mirroredStates != null && 
-                              widget.mirroredStates!.length > index && 
-                              widget.mirroredStates![index];
-      
+      final bool isMirrored =
+          widget.mirroredStates != null &&
+          widget.mirroredStates!.length > index &&
+          widget.mirroredStates![index];
+
       Widget photoWidget = Image.file(
         File(widget.capturedPhotos[index]),
         fit: BoxFit.cover,
       );
 
       if (isMirrored) {
-        photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
+        photoWidget = Transform.scale(
+          scaleX: -1,
+          alignment: Alignment.center,
+          child: photoWidget,
+        );
       }
 
       return photoWidget;
@@ -679,7 +702,7 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  'Foto ${_selectedPhotoIndex + 1} dari 4',
+                                  '${_selectedPhotoIndex + 1} dari 4',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
@@ -725,9 +748,11 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
         onPanUpdate: (details) {
           setState(() {
             _selectedItemId = item.id;
-            final newX = (item.position.dx * canvasWidth + details.delta.dx) /
+            final newX =
+                (item.position.dx * canvasWidth + details.delta.dx) /
                 canvasWidth;
-            final newY = (item.position.dy * canvasHeight + details.delta.dy) /
+            final newY =
+                (item.position.dy * canvasHeight + details.delta.dy) /
                 canvasHeight;
             item.position = Offset(
               newX.clamp(0.05, 0.95),
@@ -742,7 +767,10 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
               padding: const EdgeInsets.all(4),
               decoration: isSelected
                   ? BoxDecoration(
-                      border: Border.all(color: AppTheme.primaryRose, width: 1.5),
+                      border: Border.all(
+                        color: AppTheme.primaryRose,
+                        width: 1.5,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     )
                   : null,
@@ -764,7 +792,11 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close, size: 12, color: Colors.white),
+                    child: const Icon(
+                      Icons.close,
+                      size: 12,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -793,7 +825,11 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
-                  Icon(Icons.restart_alt, size: 18, color: AppTheme.primaryRose),
+                  Icon(
+                    Icons.restart_alt,
+                    size: 18,
+                    color: AppTheme.primaryRose,
+                  ),
                   Text(
                     'Reset',
                     style: TextStyle(
@@ -888,7 +924,7 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
   // --- KANAN: PANEL KONTROL & AKSI ---
   Widget _buildRightControlPanel() {
     return Container(
-      width: 240,
+      width: 215,
       decoration: BoxDecoration(
         color: const Color(0xFFFFF7F9),
         borderRadius: BorderRadius.circular(16),
@@ -916,8 +952,8 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
             child: _activeCategoryTab == 0
                 ? _buildItemsGrid(_accessoriesList)
                 : (_activeCategoryTab == 1
-                    ? _buildItemsGrid(_stickersList)
-                    : _buildFrameTabContent()),
+                      ? _buildItemsGrid(_stickersList)
+                      : _buildFrameTabContent()),
           ),
 
           // Tombol Lanjutkan ke Download di Bawah
@@ -935,9 +971,12 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
                   }
                 },
                 icon: const Icon(Icons.arrow_forward, size: 18),
-                label: const Text(
-                  'Lanjutkan ke Download',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Lanjutkan ke Download',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryRose,
@@ -1032,7 +1071,11 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.palette_outlined, size: 36, color: AppTheme.primaryRose),
+          const Icon(
+            Icons.palette_outlined,
+            size: 36,
+            color: AppTheme.primaryRose,
+          ),
           const SizedBox(height: 8),
           const Text(
             'Ganti Template Frame',
