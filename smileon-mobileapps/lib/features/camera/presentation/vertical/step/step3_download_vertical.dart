@@ -7,12 +7,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/data/local_photo_session_service.dart';
-import 'package:smileon/features/camera/presentation/camera_screen.dart';
 import 'package:smileon/features/camera/presentation/providers/photo_session_provider.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step1_preview_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step2_editphoto_vertical.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/step3_dialog_previewphotostrip.dart';
+import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
+import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 
 /// STEP 3: DOWNLOAD & PAYMENT (VERTICAL)
 /// Menyediakan alur akhir untuk vertical photobooth:
@@ -36,6 +37,8 @@ class Step3DownloadVertical extends ConsumerStatefulWidget {
   final List<bool>? mirroredStates;
   final String? sessionTitle;
   final String? location;
+  final String sessionType;
+  final List<String>? peopleInPhoto;
 
   const Step3DownloadVertical({
     super.key,
@@ -53,6 +56,8 @@ class Step3DownloadVertical extends ConsumerStatefulWidget {
     this.mirroredStates,
     this.sessionTitle,
     this.location,
+    this.sessionType = 'personal',
+    this.peopleInPhoto,
   });
 
   static Future<void> show(
@@ -64,6 +69,10 @@ class Step3DownloadVertical extends ConsumerStatefulWidget {
     VoidCallback? onFinishSession,
     VoidCallback? onRetake,
     List<double>? filterMatrix,
+    String? sessionTitle,
+    String? location,
+    String sessionType = 'personal',
+    List<String>? peopleInPhoto,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -75,6 +84,10 @@ class Step3DownloadVertical extends ConsumerStatefulWidget {
           onFinishSession: onFinishSession,
           onRetake: onRetake,
           filterMatrix: filterMatrix,
+          sessionTitle: sessionTitle,
+          location: location,
+          sessionType: sessionType,
+          peopleInPhoto: peopleInPhoto,
           onClose: () => Navigator.of(context).pop(),
         ),
       ),
@@ -354,7 +367,7 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
           title: widget.sessionTitle ??
               widget.frameTitle ??
               'Sesi Foto SmileOn',
-          sessionType: 'personal',
+          sessionType: widget.sessionType,
           location: widget.location,
           frameIndex: widget.selectedFrameIndex,
           frameAssetPath: _frameAsset(),
@@ -364,6 +377,7 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
               widget.mirroredStates ?? const [false, false, false, false],
           filterMatrix: widget.filterMatrix,
           renderedStripPath: tempStripPath,
+          peopleInPhoto: widget.peopleInPhoto,
           isPaid: _isPaid,
         );
         if (mounted) {
@@ -386,12 +400,21 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
       alignment: Alignment.topCenter,
     );
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const CameraScreen(initialTabIndex: 1),
-      ),
-      (route) => false,
-    );
+    final targetCameraTab =
+        widget.sessionType.toLowerCase() == 'event' ? 0 : 1;
+    ref.read(cameraTabProvider.notifier).state = targetCameraTab;
+    changeTab(ref, 1);
+
+    try {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const MainScaffold(),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   void _startTimer() {

@@ -17,6 +17,7 @@ class ActiveCameraScreen extends StatefulWidget {
   final int initialFrameIndex;
   final String? frameTitle;
   final String? frameAsset;
+  final List<String>? peopleInPhoto;
 
   const ActiveCameraScreen({
     super.key,
@@ -28,6 +29,7 @@ class ActiveCameraScreen extends StatefulWidget {
     this.initialFrameIndex = 0,
     this.frameTitle,
     this.frameAsset,
+    this.peopleInPhoto,
   });
 
   @override
@@ -58,6 +60,7 @@ class _ActiveCameraScreenState extends State<ActiveCameraScreen> {
         sessionType: widget.sessionType,
         initialFrameIndex: widget.initialFrameIndex,
         frameTitle: widget.frameTitle,
+        peopleInPhoto: widget.peopleInPhoto,
       );
     } else {
       return VerticalActiveCamScreen(
@@ -69,6 +72,7 @@ class _ActiveCameraScreenState extends State<ActiveCameraScreen> {
         sessionType: widget.sessionType,
         initialFrameIndex: widget.initialFrameIndex,
         frameTitle: widget.frameTitle,
+        peopleInPhoto: widget.peopleInPhoto,
       );
     }
   }

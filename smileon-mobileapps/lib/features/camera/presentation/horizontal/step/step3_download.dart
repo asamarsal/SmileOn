@@ -8,9 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/data/local_photo_session_service.dart';
-import 'package:smileon/features/camera/presentation/camera_screen.dart';
 import 'package:smileon/features/camera/presentation/providers/photo_session_provider.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
+import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
+import 'package:smileon/features/navigation/providers/navigation_provider.dart';
 
 /// STEP 3: DOWNLOAD & PEMBAYARAN
 /// Tahap akhir dari alur horizontal photobooth:
@@ -32,6 +33,8 @@ class Step3Download extends ConsumerStatefulWidget {
   final List<double>? filterMatrix;
   final String? sessionTitle;
   final String? location;
+  final String sessionType;
+  final List<String>? peopleInPhoto;
 
   const Step3Download({
     super.key,
@@ -48,6 +51,8 @@ class Step3Download extends ConsumerStatefulWidget {
     this.filterMatrix,
     this.sessionTitle,
     this.location,
+    this.sessionType = 'personal',
+    this.peopleInPhoto,
   });
 
   static Future<void> show(
@@ -59,6 +64,9 @@ class Step3Download extends ConsumerStatefulWidget {
     List<bool>? mirroredStates,
     int initialIndex = 0,
     List<double>? filterMatrix,
+    String? sessionTitle,
+    String? location,
+    List<String>? peopleInPhoto,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -72,6 +80,9 @@ class Step3Download extends ConsumerStatefulWidget {
             mirroredStates: mirroredStates,
             initialIndex: initialIndex,
             filterMatrix: filterMatrix,
+            sessionTitle: sessionTitle,
+            location: location,
+            peopleInPhoto: peopleInPhoto,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -789,12 +800,20 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
       if (widget.onFinishSession != null) {
         widget.onFinishSession!();
       }
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const CameraScreen(initialTabIndex: 1),
-        ),
-        (route) => false,
-      );
+      final targetCameraTab =
+          widget.sessionType.toLowerCase() == 'event' ? 0 : 1;
+      ref.read(cameraTabProvider.notifier).state = targetCameraTab;
+      changeTab(ref, 1);
+      try {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } catch (_) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const MainScaffold(),
+          ),
+          (route) => false,
+        );
+      }
       return;
     }
 
@@ -875,6 +894,7 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
             widget.mirroredStates ?? const [false, false, false, false],
         filterMatrix: widget.filterMatrix,
         renderedStripPath: tempStripPath,
+        peopleInPhoto: widget.peopleInPhoto,
       );
 
       if (mounted) {
@@ -896,12 +916,21 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
       alignment: Alignment.topCenter,
     );
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const CameraScreen(initialTabIndex: 1),
-      ),
-      (route) => false,
-    );
+    final targetCameraTab =
+        widget.sessionType.toLowerCase() == 'event' ? 0 : 1;
+    ref.read(cameraTabProvider.notifier).state = targetCameraTab;
+    changeTab(ref, 1);
+
+    try {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const MainScaffold(),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   // --- KARTU KIRI: PEMBAYARAN ---

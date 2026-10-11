@@ -17,6 +17,7 @@ class PhotoSessionModel {
   final List<bool> mirroredStates;
   final List<double>? filterMatrix;
   final String? renderedStripPath; // Path gambar strip 300 DPI hasil render
+  final List<String> peopleInPhoto; // Daftar orang di foto / teman yang ditag
   final bool isPaid;
   final bool isWatermarked;
 
@@ -33,6 +34,7 @@ class PhotoSessionModel {
     this.mirroredStates = const [false, false, false, false],
     this.filterMatrix,
     this.renderedStripPath,
+    this.peopleInPhoto = const [],
     this.isPaid = false,
     this.isWatermarked = false,
   });
@@ -51,6 +53,7 @@ class PhotoSessionModel {
       'mirrored_states': mirroredStates,
       'filter_matrix': filterMatrix,
       'rendered_strip_path': renderedStripPath,
+      'people_in_photo': peopleInPhoto,
       'is_paid': isPaid,
       'is_watermarked': isWatermarked,
     };
@@ -82,6 +85,10 @@ class PhotoSessionModel {
           ?.map((e) => (e as num).toDouble())
           .toList(),
       renderedStripPath: map['rendered_strip_path']?.toString(),
+      peopleInPhoto: (map['people_in_photo'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       isPaid: map['is_paid'] == true,
       isWatermarked: map['is_watermarked'] == true,
     );
@@ -104,6 +111,8 @@ class PhotoSessionModel {
       title: title,
       date: _formatDate(createdAt),
       imagePath: previewPath,
+      location: location,
+      peopleInPhoto: peopleInPhoto,
       isNetwork: false,
       isLocalFile: isLocal,
       cutCount: 4,

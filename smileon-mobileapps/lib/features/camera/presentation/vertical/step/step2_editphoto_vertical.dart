@@ -46,6 +46,8 @@ class Step2EditPhotoVertical extends StatefulWidget {
   final List<bool>? mirroredStates;
   final String? sessionTitle;
   final String? location;
+  final String sessionType;
+  final List<String>? peopleInPhoto;
 
   const Step2EditPhotoVertical({
     super.key,
@@ -63,6 +65,8 @@ class Step2EditPhotoVertical extends StatefulWidget {
     this.mirroredStates,
     this.sessionTitle,
     this.location,
+    this.sessionType = 'personal',
+    this.peopleInPhoto,
   });
 
   static Future<void> show(
@@ -188,6 +192,8 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
           onClose: widget.onClose,
           sessionTitle: widget.sessionTitle,
           location: widget.location,
+          sessionType: widget.sessionType,
+          peopleInPhoto: widget.peopleInPhoto,
         ),
       ),
     );

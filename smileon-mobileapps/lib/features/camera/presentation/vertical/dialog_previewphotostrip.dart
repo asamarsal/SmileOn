@@ -23,6 +23,10 @@ class DialogPreviewPhotostrip extends StatefulWidget {
   final bool initialRoundedBorder;
   final List<double>? filterMatrix;
   final List<bool>? mirroredStates;
+  final String? sessionTitle;
+  final String? location;
+  final String sessionType;
+  final List<String>? peopleInPhoto;
 
   const DialogPreviewPhotostrip({
     super.key,
@@ -34,6 +38,10 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     this.initialRoundedBorder = true,
     this.filterMatrix,
     this.mirroredStates,
+    this.sessionTitle,
+    this.location,
+    this.sessionType = 'personal',
+    this.peopleInPhoto,
   });
 
   /// Menampilkan dialog preview photostrip sebagai full-screen route
@@ -49,6 +57,10 @@ class DialogPreviewPhotostrip extends StatefulWidget {
     bool isRoundedBorder = true,
     List<double>? filterMatrix,
     List<bool>? mirroredStates,
+    String? sessionTitle,
+    String? location,
+    String sessionType = 'personal',
+    List<String>? peopleInPhoto,
   }) {
     HapticFeedback.lightImpact();
     return Navigator.of(context).push(
@@ -66,6 +78,10 @@ class DialogPreviewPhotostrip extends StatefulWidget {
               initialRoundedBorder: isRoundedBorder,
               filterMatrix: filterMatrix,
               mirroredStates: mirroredStates,
+              sessionTitle: sessionTitle,
+              location: location,
+              sessionType: sessionType,
+              peopleInPhoto: peopleInPhoto,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
@@ -1219,6 +1235,10 @@ class _DialogPreviewPhotostripState extends State<DialogPreviewPhotostrip>
                                     isRoundedBorder: _isRoundedBorder,
                                     filterMatrix: widget.filterMatrix,
                                     mirroredStates: widget.mirroredStates,
+                                    sessionTitle: widget.sessionTitle,
+                                    location: widget.location,
+                                    sessionType: widget.sessionType,
+                                    peopleInPhoto: widget.peopleInPhoto,
                                     onClose: () => Navigator.pop(ctx),
                                   ),
                                 ),

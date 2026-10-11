@@ -93,6 +93,7 @@ class _NewSessionPersonalScreenState
         builder: (context) => ActiveCameraScreen(
           sessionTitle: title,
           location: _selectedLocation.isNotEmpty ? _selectedLocation : null,
+          peopleInPhoto: List<String>.from(_friends),
           sessionType: 'personal',
           initialFrameIndex: frameIdx,
           frameTitle: _selectedFrameName,

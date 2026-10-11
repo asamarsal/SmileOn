@@ -27,6 +27,7 @@ class VerticalActiveCamScreen extends StatefulWidget {
   final String sessionType;
   final int initialFrameIndex;
   final String? frameTitle;
+  final List<String>? peopleInPhoto;
 
   const VerticalActiveCamScreen({
     super.key,
@@ -37,6 +38,7 @@ class VerticalActiveCamScreen extends StatefulWidget {
     this.sessionType = 'personal',
     this.initialFrameIndex = 0,
     this.frameTitle,
+    this.peopleInPhoto,
   });
 
   @override
@@ -1391,6 +1393,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       capturedPhotos: List<String>.from(_capturedPhotos),
       filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
       mirroredStates: List<bool>.from(_capturedPhotosMirrorState),
+      sessionTitle: widget.sessionTitle,
+      location: widget.location,
+      sessionType: widget.sessionType,
+      peopleInPhoto: widget.peopleInPhoto,
       onFrameSelected: (newIndex) {
         if (mounted) {
           setState(() => _selectedFrameIndex = newIndex);
@@ -1629,6 +1635,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                           mirroredStates: _capturedPhotosMirrorState,
                           sessionTitle: widget.sessionTitle,
                           location: widget.location,
+                          sessionType: widget.sessionType,
+                          peopleInPhoto: widget.peopleInPhoto,
                           frameTitle: widget.frameTitle,
                           onRetake: () {
                             if (mounted) {

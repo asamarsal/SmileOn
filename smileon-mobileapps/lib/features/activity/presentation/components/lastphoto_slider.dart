@@ -15,6 +15,8 @@ class RecentPhotoActivityItem {
   final String title;
   final String date;
   final String imagePath;
+  final String? location;
+  final List<String> peopleInPhoto;
   final bool isNetwork;
   final bool isLocalFile;
   final Color frameColor;
@@ -26,6 +28,8 @@ class RecentPhotoActivityItem {
     required this.title,
     required this.date,
     required this.imagePath,
+    this.location,
+    this.peopleInPhoto = const [],
     this.isNetwork = false,
     this.isLocalFile = false,
     this.frameColor = const Color(0xFFFFF0F5),
@@ -39,6 +43,11 @@ class RecentPhotoActivityItem {
       title: json['title']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
       imagePath: json['image_path']?.toString() ?? json['imageUrl']?.toString() ?? '',
+      location: json['location']?.toString(),
+      peopleInPhoto: (json['people_in_photo'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       isNetwork: json['is_network'] == true || (json['image_path'] ?? '').toString().startsWith('http'),
       frameColor: json['frame_color'] != null
           ? Color(int.parse(json['frame_color'].toString()))
@@ -312,7 +321,9 @@ class LastPhotoSlider extends ConsumerWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            photo.date,
+            photo.location != null && photo.location!.isNotEmpty
+                ? '${photo.date} • ${photo.location}'
+                : photo.date,
             style: const TextStyle(
               fontSize: 11,
               color: Color(0xFF8C93A0),
@@ -409,12 +420,23 @@ class LastPhotoSlider extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Diambil pada ${photo.date}',
+                        'Diambil pada ${photo.date}${photo.location != null && photo.location!.isNotEmpty ? ' • ${photo.location}' : ''}',
                         style: const TextStyle(
                           fontSize: 12.5,
                           color: Color(0xFF6B7280),
                         ),
                       ),
+                      if (photo.peopleInPhoto.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Bersama: ${photo.peopleInPhoto.join(', ')}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF4B5563),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   GestureDetector(

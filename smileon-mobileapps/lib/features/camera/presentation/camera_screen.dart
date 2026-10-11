@@ -32,6 +32,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     super.initState();
     _selectedTabIndex = widget.initialTabIndex;
     _pageController = PageController(initialPage: _selectedTabIndex);
+    if (_selectedTabIndex != 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(_selectedTabIndex);
+        }
+      });
+    }
   }
 
   @override
@@ -244,6 +251,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                 setState(() {
                   _selectedTabIndex = index;
                 });
+                ref.read(cameraTabProvider.notifier).state = index;
               },
               children: [_buildEventModeLayout(t), _buildPersonalModeLayout(t)],
             ),
@@ -267,6 +275,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     setState(() {
                       _selectedTabIndex = index;
                     });
+                    ref.read(cameraTabProvider.notifier).state = index;
                     _pageController.animateToPage(
                       index,
                       duration: const Duration(milliseconds: 320),

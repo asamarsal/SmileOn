@@ -40,6 +40,7 @@ class LocalPhotoSessionService {
     required List<bool> mirroredStates,
     List<double>? filterMatrix,
     String? renderedStripPath,
+    List<String>? peopleInPhoto,
     bool isPaid = false,
     bool isWatermarked = false,
   }) async {
@@ -86,6 +87,7 @@ class LocalPhotoSessionService {
         mirroredStates: mirroredStates,
         filterMatrix: filterMatrix,
         renderedStripPath: permanentStripPath,
+        peopleInPhoto: peopleInPhoto ?? const [],
         isPaid: isPaid,
         isWatermarked: isWatermarked,
       );

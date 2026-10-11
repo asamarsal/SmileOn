@@ -25,6 +25,7 @@ class HorizontalActiveCamScreen extends StatefulWidget {
   final String sessionType;
   final int initialFrameIndex;
   final String? frameTitle;
+  final List<String>? peopleInPhoto;
 
   const HorizontalActiveCamScreen({
     super.key,
@@ -35,6 +36,7 @@ class HorizontalActiveCamScreen extends StatefulWidget {
     this.sessionType = 'personal',
     this.initialFrameIndex = 0,
     this.frameTitle,
+    this.peopleInPhoto,
   });
 
   @override
@@ -1441,6 +1443,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
           frameTitle: widget.frameTitle ?? 'Classic Pink',
           sessionTitle: widget.sessionTitle,
           location: widget.location,
+          peopleInPhoto: widget.peopleInPhoto,
           initialIndex: _selectedFrameIndex,
           onBackToPreview: () {
             setState(() {
