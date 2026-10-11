@@ -46,7 +46,8 @@ class VerticalActiveCamScreen extends StatefulWidget {
       _VerticalActiveCamScreenState();
 }
 
-class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with WidgetsBindingObserver {
+class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen>
+    with WidgetsBindingObserver {
   hd.HandDetector? _handDetector;
   bool _isProcessingML = false;
   DateTime? _lastMLFrame;
@@ -106,13 +107,12 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       _capturedPhotos.addAll(widget.initialCapturedPhotos!);
     }
     if (widget.initialCapturedPhotosMirrorState != null) {
-      _capturedPhotosMirrorState
-          .addAll(widget.initialCapturedPhotosMirrorState!);
+      _capturedPhotosMirrorState.addAll(
+        widget.initialCapturedPhotosMirrorState!,
+      );
     }
     // Kunci orientasi portrait secara default saat layar ini dibuka
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _initCameras();
   }
 
@@ -137,8 +137,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
               MaterialPageRoute(
                 builder: (_) => HorizontalActiveCamScreen(
                   initialCapturedPhotos: List<String>.from(_capturedPhotos),
-                  initialCapturedPhotosMirrorState:
-                      List<bool>.from(_capturedPhotosMirrorState),
+                  initialCapturedPhotosMirrorState: List<bool>.from(
+                    _capturedPhotosMirrorState,
+                  ),
                 ),
               ),
             );
@@ -175,9 +176,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       _isOrientationLocked = !_isOrientationLocked;
     });
     if (_isOrientationLocked) {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-      ]);
+      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       SmileToast.showInfo(
         context,
         title: 'Orientasi Dikunci 🔒',
@@ -234,7 +233,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
           _isInitialized = true;
         });
       }
-      
+
       _initHandDetector();
     } catch (e) {
       debugPrint("Error starting camera: $e");
@@ -450,9 +449,15 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                         final String lastMod = File(currentPath).existsSync()
                             ? File(currentPath).lastModifiedSync().toString()
                             : '';
-                        return FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] != null
+                        return FilterDialog
+                                    .filters[_selectedCameraFilterIndex]['matrix'] !=
+                                null
                             ? ColorFiltered(
-                                colorFilter: ColorFilter.matrix(FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>),
+                                colorFilter: ColorFilter.matrix(
+                                  FilterDialog
+                                          .filters[_selectedCameraFilterIndex]['matrix']
+                                      as List<double>,
+                                ),
                                 child: Image.file(
                                   File(currentPath),
                                   key: ValueKey('$currentPath-$lastMod'),
@@ -614,9 +619,13 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     );
   }
 
-  Future<void> _showRetakeConfirmDialog(int index, [BuildContext? parentContext]) async {
+  Future<void> _showRetakeConfirmDialog(
+    int index, [
+    BuildContext? parentContext,
+  ]) async {
     if (index < 0 || index >= _capturedPhotos.length) return;
-    final BuildContext? targetContext = (parentContext != null && parentContext.mounted)
+    final BuildContext? targetContext =
+        (parentContext != null && parentContext.mounted)
         ? parentContext
         : (mounted ? context : null);
     if (targetContext == null) return;
@@ -884,10 +893,18 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                       fit: StackFit.expand,
                       children: [
                         if (fileExists)
-                          FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] != null
+                          FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] !=
+                                  null
                               ? ColorFiltered(
-                                  colorFilter: ColorFilter.matrix(FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>),
-                                  child: Image.file(File(photoPath), fit: BoxFit.cover),
+                                  colorFilter: ColorFilter.matrix(
+                                    FilterDialog
+                                            .filters[_selectedCameraFilterIndex]['matrix']
+                                        as List<double>,
+                                  ),
+                                  child: Image.file(
+                                    File(photoPath),
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
                               : Image.file(File(photoPath), fit: BoxFit.cover)
                         else
@@ -935,7 +952,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
           right: -5,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: isBusy ? null : () => _showRetakeConfirmDialog(index, dialogContext),
+            onTap: isBusy
+                ? null
+                : () => _showRetakeConfirmDialog(index, dialogContext),
             child: Container(
               width: 20,
               height: 20,
@@ -965,7 +984,6 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     );
   }
 
-
   Future<void> _initHandDetector() async {
     try {
       _handDetector = await hd.HandDetector.create(
@@ -986,10 +1004,14 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
 
   hd.CameraFrameRotation? _rotationFor(int degrees) {
     switch (degrees % 360) {
-      case 90: return hd.CameraFrameRotation.cw90;
-      case 180: return hd.CameraFrameRotation.cw180;
-      case 270: return hd.CameraFrameRotation.cw270;
-      default: return null;
+      case 90:
+        return hd.CameraFrameRotation.cw90;
+      case 180:
+        return hd.CameraFrameRotation.cw180;
+      case 270:
+        return hd.CameraFrameRotation.cw270;
+      default:
+        return null;
     }
   }
 
@@ -1004,9 +1026,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
         (_capturedPhotos.length >= 4 && _retakeTargetIndex == null)) {
       return;
     }
-    
+
     final now = DateTime.now();
-    if (_lastMLFrame != null && now.difference(_lastMLFrame!) < const Duration(milliseconds: 300)) {
+    if (_lastMLFrame != null &&
+        now.difference(_lastMLFrame!) < const Duration(milliseconds: 300)) {
       return;
     }
     _lastMLFrame = now;
@@ -1015,23 +1038,32 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     try {
       final hands = await _handDetector!.detectFromCameraImage(
         image,
-        rotation: _rotationFor(_cameraController?.description.sensorOrientation ?? 0),
+        rotation: _rotationFor(
+          _cameraController?.description.sensorOrientation ?? 0,
+        ),
         isBgra: Platform.isMacOS,
         maxDim: 256,
       );
 
       if (hands.isNotEmpty) {
         final hand = hands.first;
-        debugPrint("ML Detected Hand! Gesture: ${hand.gesture?.type}, Score: ${hand.gesture?.confidence}");
-        
+        debugPrint(
+          "ML Detected Hand! Gesture: ${hand.gesture?.type}, Score: ${hand.gesture?.confidence}",
+        );
+
         // Cek gestur tangan terbuka, victory, thumbs up (sebagai alternatif jika openPalm gagal dikenali)
         if (hand.gesture != null) {
           final gType = hand.gesture!.type;
-          if (gType == hd.GestureType.openPalm || gType == hd.GestureType.victory || gType == hd.GestureType.pointingUp || gType == hd.GestureType.thumbUp) {
+          if (gType == hd.GestureType.openPalm ||
+              gType == hd.GestureType.victory ||
+              gType == hd.GestureType.pointingUp ||
+              gType == hd.GestureType.thumbUp) {
             _triggerGesture();
           }
         } else {
-          debugPrint("ML Hand recognized but gesture is null. Landmarks count: ${hand.landmarks.length}");
+          debugPrint(
+            "ML Hand recognized but gesture is null. Landmarks count: ${hand.landmarks.length}",
+          );
         }
       }
     } catch (e) {
@@ -1051,9 +1083,16 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
         (_capturedPhotos.length >= 4 && _retakeTargetIndex == null)) {
       return;
     }
-    _syncSetState(() { _isGestureTriggered = true; });
-    
-    SmileToast.showSuccess(context, title: 'Gestur Dikenali', message: 'Memulai hitung mundur...', duration: const Duration(seconds: 1));
+    _syncSetState(() {
+      _isGestureTriggered = true;
+    });
+
+    SmileToast.showSuccess(
+      context,
+      title: 'Gestur Dikenali',
+      message: 'Memulai hitung mundur...',
+      duration: const Duration(seconds: 1),
+    );
     HapticFeedback.heavyImpact();
 
     // Stop stream temporarily to allow takePicture
@@ -1062,7 +1101,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     } catch (_) {
       // Ignore if stream not running
     }
-    
+
     if (_isSequentialMode) {
       await _startSequentialCapture();
     } else {
@@ -1070,17 +1109,24 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     }
 
     // Restart stream
-    if (_isCameraOn && mounted && _cameraController != null && _cameraController!.value.isInitialized) {
+    if (_isCameraOn &&
+        mounted &&
+        _cameraController != null &&
+        _cameraController!.value.isInitialized) {
       try {
-        _cameraController!.startImageStream((image) => _processCameraImage(image));
+        _cameraController!.startImageStream(
+          (image) => _processCameraImage(image),
+        );
       } catch (_) {
         // Ignore if stream already active
       }
     }
-    
+
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        _syncSetState(() { _isGestureTriggered = false; });
+        _syncSetState(() {
+          _isGestureTriggered = false;
+        });
       }
     });
   }
@@ -1104,7 +1150,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Foto sudah lengkap (4/4). Tekan tombol Lanjutkan untuk preview.'),
+            content: Text(
+              'Foto sudah lengkap (4/4). Tekan tombol Lanjutkan untuk preview.',
+            ),
             duration: Duration(seconds: 2),
             backgroundColor: AppTheme.primaryRose,
             behavior: SnackBarBehavior.floating,
@@ -1199,7 +1247,6 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
           ),
         );
       }
-
     } catch (e) {
       debugPrint("Error taking picture: $e");
     } finally {
@@ -1254,7 +1301,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Foto sudah lengkap (4/4). Tekan tombol Lanjutkan untuk preview.'),
+            content: Text(
+              'Foto sudah lengkap (4/4). Tekan tombol Lanjutkan untuk preview.',
+            ),
             duration: Duration(seconds: 2),
             backgroundColor: AppTheme.primaryRose,
             behavior: SnackBarBehavior.floating,
@@ -1337,7 +1386,6 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
           await Future.delayed(const Duration(milliseconds: 700));
         }
       }
-
     } catch (e) {
       debugPrint("Error in sequential capture: $e");
     } finally {
@@ -1364,7 +1412,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Mengambil ulang foto untuk Frame ${targetIndex + 1}...'),
+            content: Text(
+              'Mengambil ulang foto untuk Frame ${targetIndex + 1}...',
+            ),
             backgroundColor: AppTheme.primaryRose,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
@@ -1376,7 +1426,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       if (!_isCameraOn) {
         await _toggleCamera();
       }
-      if (mounted && _cameraController != null && _cameraController!.value.isInitialized) {
+      if (mounted &&
+          _cameraController != null &&
+          _cameraController!.value.isInitialized) {
         _takePicture();
       }
     }
@@ -1391,7 +1443,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       context: context,
       initialFrameIndex: _selectedFrameIndex,
       capturedPhotos: List<String>.from(_capturedPhotos),
-      filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
+      filterMatrix:
+          FilterDialog.filters[_selectedCameraFilterIndex]['matrix']
+              as List<double>?,
       mirroredStates: List<bool>.from(_capturedPhotosMirrorState),
       sessionTitle: widget.sessionTitle,
       location: widget.location,
@@ -1456,7 +1510,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                           isCameraOn: _isCameraOn,
                           isInitialized: _isInitialized,
                           isMirrored: _isMirrored,
-                          filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
+                          filterMatrix:
+                              FilterDialog
+                                      .filters[_selectedCameraFilterIndex]['matrix']
+                                  as List<double>?,
                           currentSession: math.min(
                             _capturedPhotos.length + 1,
                             4,
@@ -1609,7 +1666,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     return Row(
       children: List.generate(_categories.length, (index) {
         final isLanjut = index == 3; // Tombol 'Lanjut'
-        final isPink = index == 0 || index == 3; // Template & Lanjutkan selalu pink
+        final isPink =
+            index == 0 || index == 3; // Template & Lanjutkan selalu pink
 
         return Expanded(
           child: Padding(
@@ -1631,7 +1689,10 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                         builder: (context) => Step1PreviewVertical(
                           capturedPhotos: _capturedPhotos,
                           selectedFrameIndex: _selectedFrameIndex,
-                          filterMatrix: FilterDialog.filters[_selectedCameraFilterIndex]['matrix'] as List<double>?,
+                          filterMatrix:
+                              FilterDialog
+                                      .filters[_selectedCameraFilterIndex]['matrix']
+                                  as List<double>?,
                           mirroredStates: _capturedPhotosMirrorState,
                           sessionTitle: widget.sessionTitle,
                           location: widget.location,
@@ -1651,9 +1712,14 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                         ),
                       ),
                     ).then((_) {
-                      if (mounted && _isCameraOn && _cameraController != null && _cameraController!.value.isInitialized) {
+                      if (mounted &&
+                          _isCameraOn &&
+                          _cameraController != null &&
+                          _cameraController!.value.isInitialized) {
                         try {
-                          _cameraController!.startImageStream((image) => _processCameraImage(image));
+                          _cameraController!.startImageStream(
+                            (image) => _processCameraImage(image),
+                          );
                         } catch (_) {}
                       }
                     });
@@ -1671,7 +1737,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                   setState(() {
                     _showFramesCarousel = !_showFramesCarousel;
                   });
-                } else if (index == 1) { // Filter
+                } else if (index == 1) {
+                  // Filter
                   setState(() {
                     _showFramesCarousel = false;
                   });
@@ -1741,7 +1808,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
   // ==============================================================
   // 5. PRIMARY BUTTON "Ambil Foto" DENGAN KONTROL KIRI & KANAN
   // ==============================================================
-  
+
   Widget _buildCaptureActionButton() {
     final bool isBusy = _isCapturingSequence || _isCapturingSingle;
     return Row(
@@ -1803,8 +1870,8 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                       (_capturedPhotos.length >= 4)
                           ? Icons.preview_rounded
                           : (_isSequentialMode
-                              ? Icons.auto_awesome_motion
-                              : Icons.camera_alt),
+                                ? Icons.auto_awesome_motion
+                                : Icons.camera_alt),
                       size: 22,
                       color: Colors.white,
                     ),
@@ -1812,20 +1879,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                 (_capturedPhotos.length >= 4 && !isBusy)
                     ? 'Preview'
                     : (_isCapturingSequence
-                        ? (_countdown > 0
-                              ? 'Foto ${math.min(_capturedPhotos.length + 1, 4)}/4 ($_countdown s)'
-                              : 'Memproses...')
-                        : (_isCapturingSingle
-                              ? (_countdown > 0
-                                    ? 'Batal ($_countdown s)'
-                                    : 'Memproses...')
-                              : (_retakeTargetIndex != null
-                                    ? 'Retake Frame ${_retakeTargetIndex! + 1}'
-                                    : (_isSequentialMode
-                                          ? 'Ambil 4 Foto'
-                                          : (_capturedPhotos.isEmpty
-                                                ? 'Ambil Foto'
-                                                : 'Ambil Foto (${_capturedPhotos.length}/4)'))))),
+                          ? (_countdown > 0
+                                ? 'Foto ${math.min(_capturedPhotos.length + 1, 4)}/4 ($_countdown s)'
+                                : 'Memproses...')
+                          : (_isCapturingSingle
+                                ? (_countdown > 0
+                                      ? 'Batal ($_countdown s)'
+                                      : 'Memproses...')
+                                : (_retakeTargetIndex != null
+                                      ? 'Retake Frame ${_retakeTargetIndex! + 1}'
+                                      : (_isSequentialMode
+                                            ? 'Ambil 4 Foto'
+                                            : (_capturedPhotos.isEmpty
+                                                  ? 'Ambil Foto'
+                                                  : 'Ambil Foto (${_capturedPhotos.length}/4)'))))),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1986,7 +2053,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _isOrientationLocked ? 'PORTRAIT LOCKED' : 'AUTO ROTATE',
+                  _isOrientationLocked ? 'POTRAIT LOCKED' : 'AUTO ROTATE',
                   style: TextStyle(
                     fontSize: 8,
                     fontWeight: FontWeight.w700,

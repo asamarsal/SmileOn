@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
+import 'package:smileon/features/activity/presentation/providers/user_voucher_provider.dart';
 
 /// Halaman Detail Kategori: Paket Spesial
 class SpecialCategoryEventVoucherScreen extends ConsumerStatefulWidget {
@@ -555,12 +556,17 @@ class _SpecialCategoryEventVoucherScreenState
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content:
-                            Text('Pembelian ${pkg.title} berhasil diproses!'),
-                        backgroundColor: AppTheme.primaryRose,
-                      ),
+                    VoucherPurchaseHelper.processAndShowSuccess(
+                      context,
+                      ref,
+                      title: pkg.title,
+                      category: pkg.category,
+                      photoCount: pkg.photoCount,
+                      priceFormatted: pkg.priceFormatted,
+                      cryptoPrice: pkg.cryptoPrice,
+                      paymentMethod:
+                          _selectedPayment == 'monad' ? 'Monad EVM' : 'QRIS',
+                      imagePath: pkg.imagePath,
                     );
                   },
                   style: ElevatedButton.styleFrom(

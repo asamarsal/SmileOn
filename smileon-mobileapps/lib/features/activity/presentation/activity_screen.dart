@@ -6,15 +6,19 @@ import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/activity/presentation/components/ctacard_activity.dart';
 import 'package:smileon/features/activity/presentation/components/ctacard_noactivity.dart';
 import 'package:smileon/features/activity/presentation/components/eventattended_slider.dart';
+import 'package:smileon/features/activity/presentation/components/eventmade_slider.dart';
 import 'package:smileon/features/activity/presentation/components/lastphoto_slider.dart';
 import 'package:smileon/features/activity/presentation/components/lasttransaction_slider.dart';
+import 'package:smileon/features/activity/presentation/components/myvoucher_slider.dart';
 import 'package:smileon/features/activity/presentation/components/savedframe_slider.dart';
 
 export 'package:smileon/features/activity/presentation/components/ctacard_activity.dart';
 export 'package:smileon/features/activity/presentation/components/ctacard_noactivity.dart';
 export 'package:smileon/features/activity/presentation/components/eventattended_slider.dart';
+export 'package:smileon/features/activity/presentation/components/eventmade_slider.dart';
 export 'package:smileon/features/activity/presentation/components/lastphoto_slider.dart';
 export 'package:smileon/features/activity/presentation/components/lasttransaction_slider.dart';
+export 'package:smileon/features/activity/presentation/components/myvoucher_slider.dart';
 export 'package:smileon/features/activity/presentation/components/savedframe_slider.dart';
 
 /// Layar Aktivitas pengguna: Foto Terakhir, Frame Disimpan, Event Diikuti, dan Transaksi.
@@ -94,9 +98,13 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               const SizedBox(height: 24),
 
               // 3. Konten Komponen Slider Aktivitas
+              const MyVoucherSlider(),
+              const SizedBox(height: 24),
               const LastPhotoSlider(),
               const SizedBox(height: 24),
               const SavedFrameSlider(),
+              const SizedBox(height: 24),
+              const EventMadeSlider(),
               const SizedBox(height: 24),
               const EventAttendedSlider(),
               const SizedBox(height: 24),

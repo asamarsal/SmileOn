@@ -30,8 +30,10 @@ class AppTranslations {
   String get filterFrame => isEn ? 'Frame' : 'Frame';
   String get filterEvent => isEn ? 'Event' : 'Event';
   String get filterTransaction => isEn ? 'Transaction' : 'Transaksi';
+  String get myVouchers => isEn ? 'My Vouchers' : 'Voucher Saya';
   String get recentPhotos => isEn ? 'Recent Photos' : 'Foto Terakhir';
   String get savedFrames => isEn ? 'Saved Frames' : 'Frame Disimpan';
+  String get createdEvents => isEn ? 'Created Events' : 'Event Dibuat';
   String get joinedEvents => isEn ? 'Joined Events' : 'Event Diikuti';
   String get recentTransactions =>
       isEn ? 'Recent Transactions' : 'Transaksi Terakhir';

@@ -9,6 +9,7 @@ import 'package:smileon/features/settings/presentation/event-voucher/category/cr
 import 'package:smileon/features/settings/presentation/event-voucher/category/event_eventvoucher.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/category/member_eventvoucher.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/category/special_eventvoucher.dart';
+import 'package:smileon/features/activity/presentation/providers/user_voucher_provider.dart';
 
 /// Model paket voucher untuk photobox
 class VoucherPackageItem {
@@ -1225,13 +1226,16 @@ class _BuyVoucherScreenState extends ConsumerState<BuyVoucherScreen> {
                   text: 'Beli Paket Voucher',
                   onPressed: () {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Memproses pesanan ${pkg.title} via ${_selectedPayment == 'monad' ? 'Monad EVM' : 'QRIS'}...',
-                        ),
-                        backgroundColor: AppTheme.primaryRose,
-                      ),
+                    VoucherPurchaseHelper.processAndShowSuccess(
+                      context,
+                      ref,
+                      title: pkg.title,
+                      category: pkg.category,
+                      photoCount: pkg.photoCount,
+                      priceFormatted: pkg.priceFormatted,
+                      cryptoPrice: pkg.cryptoPrice,
+                      paymentMethod: _selectedPayment == 'monad' ? 'Monad EVM' : 'QRIS',
+                      imagePath: pkg.imagePath,
                     );
                   },
                 ),
