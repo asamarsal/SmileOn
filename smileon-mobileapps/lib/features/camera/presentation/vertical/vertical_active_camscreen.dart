@@ -20,7 +20,14 @@ import 'package:smileon/features/camera/presentation/horizontal/horizontal_activ
 part 'dialog_vertical_active_fullscreen.dart';
 
 class VerticalActiveCamScreen extends StatefulWidget {
-  const VerticalActiveCamScreen({super.key});
+  final List<String>? initialCapturedPhotos;
+  final List<bool>? initialCapturedPhotosMirrorState;
+
+  const VerticalActiveCamScreen({
+    super.key,
+    this.initialCapturedPhotos,
+    this.initialCapturedPhotosMirrorState,
+  });
 
   @override
   State<VerticalActiveCamScreen> createState() =>
@@ -44,8 +51,6 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
   bool _shutterFlash = false;
   int _countdown = 0;
   int _timerSeconds = 3;
-  int _selectedCategoryIndex =
-      0; // 0: Template, 1: Filter, 2: Background, 3: Lainnya
   bool _showFramesCarousel = true;
   int _selectedFrameIndex = 0; // 0: Hanfleur, 1: Black SmileOn, 2: Good Times, 3: Better Together, 4: Capture Print Share
   int _selectedCameraFilterIndex = 0;
@@ -82,6 +87,13 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.initialCapturedPhotos != null) {
+      _capturedPhotos.addAll(widget.initialCapturedPhotos!);
+    }
+    if (widget.initialCapturedPhotosMirrorState != null) {
+      _capturedPhotosMirrorState
+          .addAll(widget.initialCapturedPhotosMirrorState!);
+    }
     // Kunci orientasi portrait secara default saat layar ini dibuka
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -108,7 +120,11 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const HorizontalActiveCamScreen(),
+                builder: (_) => HorizontalActiveCamScreen(
+                  initialCapturedPhotos: List<String>.from(_capturedPhotos),
+                  initialCapturedPhotosMirrorState:
+                      List<bool>.from(_capturedPhotosMirrorState),
+                ),
               ),
             );
           }
@@ -963,7 +979,16 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
-    if (_isProcessingML || _handDetector == null || !mounted || _isGestureTriggered || _isCapturingSingle || _isCapturingSequence || _countdown > 0) return;
+    if (_isProcessingML ||
+        _handDetector == null ||
+        !mounted ||
+        _isGestureTriggered ||
+        _isCapturingSingle ||
+        _isCapturingSequence ||
+        _countdown > 0 ||
+        (_capturedPhotos.length >= 4 && _retakeTargetIndex == null)) {
+      return;
+    }
     
     final now = DateTime.now();
     if (_lastMLFrame != null && now.difference(_lastMLFrame!) < const Duration(milliseconds: 300)) {
@@ -1004,7 +1029,13 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
   }
 
   void _triggerGesture() async {
-    if (_isGestureTriggered || _isCapturingSingle || _isCapturingSequence || _countdown > 0) return;
+    if (_isGestureTriggered ||
+        _isCapturingSingle ||
+        _isCapturingSequence ||
+        _countdown > 0 ||
+        (_capturedPhotos.length >= 4 && _retakeTargetIndex == null)) {
+      return;
+    }
     _syncSetState(() { _isGestureTriggered = true; });
     
     SmileToast.showSuccess(context, title: 'Gestur Dikenali', message: 'Memulai hitung mundur...', duration: const Duration(seconds: 1));
@@ -1013,7 +1044,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     // Stop stream temporarily to allow takePicture
     try {
       await _cameraController!.stopImageStream();
-    } catch(e) {}
+    } catch (_) {
+      // Ignore if stream not running
+    }
     
     if (_isSequentialMode) {
       await _startSequentialCapture();
@@ -1025,7 +1058,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
     if (_isCameraOn && mounted && _cameraController != null && _cameraController!.value.isInitialized) {
       try {
         _cameraController!.startImageStream((image) => _processCameraImage(image));
-      } catch(e) {}
+      } catch (_) {
+        // Ignore if stream already active
+      }
     }
     
     Future.delayed(const Duration(seconds: 2), () {
@@ -1041,6 +1076,20 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Nyalakan kamera terlebih dahulu.'),
+            duration: Duration(seconds: 2),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto sudah lengkap (4/4). Tekan tombol Lanjutkan untuk preview.'),
             duration: Duration(seconds: 2),
             backgroundColor: AppTheme.primaryRose,
             behavior: SnackBarBehavior.floating,
@@ -1112,8 +1161,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
           _clickedPhotoIndex = retakeIdx;
         } else {
           if (_capturedPhotos.length >= 4) {
-            _capturedPhotos.clear();
-            _capturedPhotosMirrorState.clear();
+            return;
           }
           _capturedPhotos.add(xfile.path);
           _capturedPhotosMirrorState.add(_isMirrored);
@@ -1187,13 +1235,24 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
       return;
     }
 
+    if (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto sudah lengkap (4/4). Tekan tombol Lanjutkan untuk preview.'),
+            duration: Duration(seconds: 2),
+            backgroundColor: AppTheme.primaryRose,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     if (_isCapturingSequence || _isCapturingSingle) return;
 
     _syncSetState(() {
       _isCapturingSequence = true;
-      if (_capturedPhotos.length >= 4) {
-        _capturedPhotos.clear();
-      }
     });
 
     try {
@@ -1240,6 +1299,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
         _syncSetState(() {
           _showShutterEffect = false;
           _capturedPhotos.add(xfile.path);
+          _capturedPhotosMirrorState.add(_isMirrored);
         });
 
         HapticFeedback.mediumImpact();
@@ -1543,6 +1603,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                 HapticFeedback.lightImpact();
                 if (isLanjut) {
                   if (_capturedPhotos.isNotEmpty) {
+                    try {
+                      _cameraController?.stopImageStream();
+                    } catch (_) {}
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -1563,7 +1626,13 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                           onClose: () => Navigator.pop(context),
                         ),
                       ),
-                    );
+                    ).then((_) {
+                      if (mounted && _isCameraOn && _cameraController != null && _cameraController!.value.isInitialized) {
+                        try {
+                          _cameraController!.startImageStream((image) => _processCameraImage(image));
+                        } catch (_) {}
+                      }
+                    });
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -1577,11 +1646,9 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                 } else if (index == 0) {
                   setState(() {
                     _showFramesCarousel = !_showFramesCarousel;
-                    _selectedCategoryIndex = 0;
                   });
                 } else if (index == 1) { // Filter
                   setState(() {
-                    _selectedCategoryIndex = 1;
                     _showFramesCarousel = false;
                   });
                   FilterDialog.show(
@@ -1595,7 +1662,6 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen> with 
                   );
                 } else {
                   setState(() {
-                    _selectedCategoryIndex = index;
                     _showFramesCarousel = false;
                   });
                 }

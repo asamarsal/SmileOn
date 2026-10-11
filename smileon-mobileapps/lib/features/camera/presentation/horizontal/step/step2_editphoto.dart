@@ -37,6 +37,7 @@ class Step2EditPhoto extends StatefulWidget {
   final VoidCallback? onProceedToDownload;
   final VoidCallback? onClose;
   final List<bool>? mirroredStates;
+  final int initialIndex;
 
   const Step2EditPhoto({
     super.key,
@@ -49,6 +50,7 @@ class Step2EditPhoto extends StatefulWidget {
     this.onProceedToDownload,
     this.onClose,
     this.mirroredStates,
+    this.initialIndex = 0,
   });
 
   static Future<void> show(
@@ -58,6 +60,7 @@ class Step2EditPhoto extends StatefulWidget {
     String? frameTitle,
     int initialPhotoIndex = 0,
     List<bool>? mirroredStates,
+    int initialIndex = 0,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -69,6 +72,7 @@ class Step2EditPhoto extends StatefulWidget {
             frameTitle: frameTitle,
             initialPhotoIndex: initialPhotoIndex,
             mirroredStates: mirroredStates,
+            initialIndex: initialIndex,
             onClose: () => Navigator.of(context).pop(),
           ),
         ),
@@ -82,6 +86,7 @@ class Step2EditPhoto extends StatefulWidget {
 
 class _Step2EditPhotoState extends State<Step2EditPhoto> {
   late int _selectedPhotoIndex;
+  late int _selectedFrameIndex;
   int? _expandedStepIndex;
 
   // Sliders
@@ -122,6 +127,7 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
   void initState() {
     super.initState();
     _selectedPhotoIndex = widget.initialPhotoIndex;
+    _selectedFrameIndex = widget.initialIndex;
   }
 
   void _handleStepTap(int stepIndex) {
@@ -450,75 +456,123 @@ class _Step2EditPhotoState extends State<Step2EditPhoto> {
     );
   }
 
+  String _bgAsset(int idx) {
+    switch (idx % 3) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_background2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_background3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_background1.png';
+    }
+  }
+
+  String _frameAsset(int idx) {
+    switch (idx % 3) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_frame2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_frame3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_frame1.png';
+    }
+  }
+
   // --- KIRI: PHOTOSTRIP PREVIEW ---
   Widget _buildPhotostripSection() {
     return AspectRatio(
-      aspectRatio: 1 / 3,
+      aspectRatio: 600.0 / 1800.0,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final outerRadius = w * (24.0 / 600.0);
           final slotRadius = w * (14.0 / 600.0);
-          final slotWidth = w * (480.0 / 600.0);
-          final slotHeight = slotWidth * (9.0 / 16.0);
-          final slotHMargin = (w - slotWidth) / 2;
-          final topPadding = w * (80.0 / 600.0);
-          final gap = w * (22.0 / 600.0);
 
           return Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF141416),
               borderRadius: BorderRadius.circular(outerRadius),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                ),
+                BoxShadow(
+                  color: AppTheme.primaryRose.withValues(alpha: 0.10),
+                  blurRadius: 24,
+                  spreadRadius: 2,
                 ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(outerRadius),
-              child: Column(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  SizedBox(height: topPadding),
-                  for (int i = 0; i < 4; i++) ...[
-                    if (i > 0) SizedBox(height: gap),
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedPhotoIndex = i),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: slotHMargin),
-                        child: Container(
-                          width: slotWidth,
-                          height: slotHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(slotRadius),
-                            border: Border.all(
-                              color: _selectedPhotoIndex == i
-                                  ? AppTheme.primaryRose
-                                  : Colors.white24,
-                              width: _selectedPhotoIndex == i ? 2.5 : 1.0,
+                  // Layer 1: Background
+                  Image.asset(_bgAsset(_selectedFrameIndex), fit: BoxFit.fill),
+
+                  // Layer 2: Photo Slots
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double w = constraints.maxWidth;
+                      final double h = constraints.maxHeight;
+                      final double paddingH = w * (44.0 / 600.0);
+                      final double photoW = w - 2.0 * paddingH;
+                      final double paddingTop = h * (80.0 / 1800.0);
+                      final double photoH = h * (288.0 / 1800.0);
+                      final double gap = h * (88.0 / 1800.0);
+
+                      return Stack(
+                        children: [
+                          for (int i = 0; i < 4; i++)
+                            Positioned(
+                              left: paddingH,
+                              top: paddingTop + i * (photoH + gap),
+                              width: photoW,
+                              height: photoH,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPhotoIndex = i),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(slotRadius),
+                                    border: Border.all(
+                                      color: _selectedPhotoIndex == i
+                                          ? const Color(0xFFFF1744)
+                                          : Colors.transparent,
+                                      width: _selectedPhotoIndex == i ? 3.0 : 0.0,
+                                    ),
+                                    boxShadow: _selectedPhotoIndex == i
+                                        ? [
+                                            BoxShadow(
+                                              color: const Color(0xFFFF1744).withValues(alpha: 0.6),
+                                              blurRadius: 10,
+                                              spreadRadius: 2,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(
+                                      slotRadius > 2 ? slotRadius - 2 : 2,
+                                    ),
+                                    child: _buildPhotoThumbnail(i),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(slotRadius),
-                            child: _buildPhotoThumbnail(i),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'SmileOn Photostrip',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: w * 0.045,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // Layer 3: Frame Overlay
+                  IgnorePointer(
+                    child: Image.asset(
+                      _frameAsset(_selectedFrameIndex),
+                      fit: BoxFit.fill,
                     ),
                   ),
                 ],

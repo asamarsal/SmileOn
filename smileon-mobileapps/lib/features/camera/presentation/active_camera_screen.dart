@@ -8,19 +8,46 @@ export 'package:smileon/features/camera/presentation/vertical/vertical_active_ca
 /// Dispatcher layar kamera aktif:
 /// - Mengarahkan ke [HorizontalActiveCamScreen] saat orientasi Landscape / Layar Lebar
 /// - Mengarahkan ke [VerticalActiveCamScreen] saat orientasi Portrait / Tegak
-class ActiveCameraScreen extends StatelessWidget {
-  const ActiveCameraScreen({super.key});
+class ActiveCameraScreen extends StatefulWidget {
+  final List<String>? initialCapturedPhotos;
+  final List<bool>? initialCapturedPhotosMirrorState;
+
+  const ActiveCameraScreen({
+    super.key,
+    this.initialCapturedPhotos,
+    this.initialCapturedPhotosMirrorState,
+  });
+
+  @override
+  State<ActiveCameraScreen> createState() => _ActiveCameraScreenState();
+}
+
+class _ActiveCameraScreenState extends State<ActiveCameraScreen> {
+  bool? _isLandscape;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isLandscape == null) {
+      final size = MediaQuery.of(context).size;
+      _isLandscape = size.width > size.height;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return OrientationBuilder(
-      builder: (context, orientation) {
-        if (orientation == Orientation.landscape) {
-          return const HorizontalActiveCamScreen();
-        } else {
-          return const VerticalActiveCamScreen();
-        }
-      },
-    );
+    if (_isLandscape == true) {
+      return HorizontalActiveCamScreen(
+        initialCapturedPhotos: widget.initialCapturedPhotos,
+        initialCapturedPhotosMirrorState:
+            widget.initialCapturedPhotosMirrorState,
+      );
+    } else {
+      return VerticalActiveCamScreen(
+        initialCapturedPhotos: widget.initialCapturedPhotos,
+        initialCapturedPhotosMirrorState:
+            widget.initialCapturedPhotosMirrorState,
+      );
+    }
   }
 }

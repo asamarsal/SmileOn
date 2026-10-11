@@ -18,7 +18,14 @@ import 'package:smileon/features/camera/presentation/horizontal/horizontal_expan
 import 'package:smileon/features/camera/presentation/vertical/vertical_active_camscreen.dart';
 
 class HorizontalActiveCamScreen extends StatefulWidget {
-  const HorizontalActiveCamScreen({super.key});
+  final List<String>? initialCapturedPhotos;
+  final List<bool>? initialCapturedPhotosMirrorState;
+
+  const HorizontalActiveCamScreen({
+    super.key,
+    this.initialCapturedPhotos,
+    this.initialCapturedPhotosMirrorState,
+  });
 
   @override
   State<HorizontalActiveCamScreen> createState() =>
@@ -92,6 +99,12 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
   @override
   void initState() {
     super.initState();
+    if (widget.initialCapturedPhotos != null) {
+      _capturedPhotos.addAll(widget.initialCapturedPhotos!);
+    }
+    if (widget.initialCapturedPhotosMirrorState != null) {
+      _capturedPhotosMirrorState.addAll(widget.initialCapturedPhotosMirrorState!);
+    }
     WidgetsBinding.instance.addObserver(this);
     // Kunci orientasi landscape saat layar horizontal ini dibuka
     SystemChrome.setPreferredOrientations([
@@ -119,7 +132,10 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const VerticalActiveCamScreen(),
+                builder: (_) => VerticalActiveCamScreen(
+                  initialCapturedPhotos: List<String>.from(_capturedPhotos),
+                  initialCapturedPhotosMirrorState: List<bool>.from(_capturedPhotosMirrorState),
+                ),
               ),
             );
           }
@@ -288,6 +304,18 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
       return;
     }
 
+    if (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) {
+      if (mounted) {
+        SmileToast.showInfo(
+          context,
+          title: 'Info',
+          message: 'Foto sudah lengkap (4/4). Tekan tombol Lanjut untuk preview.',
+          duration: const Duration(seconds: 2),
+        );
+      }
+      return;
+    }
+
     if (_isCapturingSequence || _isCapturingSingle) {
       _cancelCapture();
       return;
@@ -295,10 +323,6 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
 
     _syncSetState(() {
       _isCapturingSequence = true;
-      if (_capturedPhotos.length >= 4) {
-        _capturedPhotos.clear();
-        _capturedPhotosMirrorState.clear();
-      }
     });
 
     try {
@@ -409,7 +433,17 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
-    if (_isProcessingML || _handDetector == null || !mounted || _isGestureTriggered || _isCapturingSingle || _isCapturingSequence || _countdown > 0) return;
+    if (_activeStep != 0 ||
+        (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) ||
+        _isProcessingML ||
+        _handDetector == null ||
+        !mounted ||
+        _isGestureTriggered ||
+        _isCapturingSingle ||
+        _isCapturingSequence ||
+        _countdown > 0) {
+      return;
+    }
     
     final now = DateTime.now();
     if (_lastMLFrame != null && now.difference(_lastMLFrame!) < const Duration(milliseconds: 300)) {
@@ -450,7 +484,14 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
   }
 
   void _triggerGesture() async {
-    if (_isGestureTriggered || _isCapturingSingle || _isCapturingSequence || _countdown > 0) return;
+    if (_activeStep != 0 ||
+        (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) ||
+        _isGestureTriggered ||
+        _isCapturingSingle ||
+        _isCapturingSequence ||
+        _countdown > 0) {
+      return;
+    }
     _syncSetState(() { _isGestureTriggered = true; });
     
     SmileToast.showSuccess(context, title: 'Gestur Dikenali', message: 'Memulai hitung mundur...', duration: const Duration(seconds: 1));
@@ -492,6 +533,18 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
           context,
           title: 'Error',
           message: 'Nyalakan kamera terlebih dahulu untuk mengambil foto.',
+          duration: const Duration(seconds: 2),
+        );
+      }
+      return;
+    }
+
+    if (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) {
+      if (mounted) {
+        SmileToast.showInfo(
+          context,
+          title: 'Info',
+          message: 'Foto sudah lengkap (4/4). Tekan tombol Lanjut untuk preview.',
           duration: const Duration(seconds: 2),
         );
       }
@@ -559,8 +612,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
           _retakeTargetIndex = null;
         } else {
           if (_capturedPhotos.length >= 4) {
-            _capturedPhotos.clear();
-            _capturedPhotosMirrorState.clear();
+            return;
           }
           _capturedPhotos.add(xfile.path);
           _capturedPhotosMirrorState.add(_isMirrored);
@@ -1341,6 +1393,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
           mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,
           frameTitle: 'Classic Pink',
+          initialIndex: _selectedFrameIndex,
           onBackToPreview: () {
             setState(() {
               _activeStep = 1;
@@ -1806,6 +1859,15 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
                               HapticFeedback.mediumImpact();
                               if (_isCapturingSingle || _isCapturingSequence) {
                                 _cancelCapture();
+                                return;
+                              }
+                              if (_capturedPhotos.length >= 4 && _retakeTargetIndex == null) {
+                                SmileToast.showInfo(
+                                  context,
+                                  title: 'Info',
+                                  message: 'Foto sudah lengkap (4/4). Tekan tombol Lanjut untuk preview.',
+                                  duration: const Duration(seconds: 2),
+                                );
                                 return;
                               }
                               if (_isSequentialMode) {

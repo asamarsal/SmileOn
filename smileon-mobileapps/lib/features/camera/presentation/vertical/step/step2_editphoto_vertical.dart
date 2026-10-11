@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/presentation/vertical/chooseframe_dialog.dart';
@@ -215,15 +216,16 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
           children: [
             _buildAppBar(),
             _buildStepper(),
-            const SizedBox(height: 8),
-            // Canvas Foto
+            _buildPhotoSlotSelectorBar(),
+            const SizedBox(height: 4),
+            // Canvas Foto (Photostrip 600:1800)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _buildPhotoEditCanvas(),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             // Tools & Selector Drawer
             _buildBottomToolsSection(),
           ],
@@ -354,112 +356,298 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
     );
   }
 
+  String _bgAsset(int idx) {
+    switch (idx % 3) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_background2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_background3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_background1.png';
+    }
+  }
+
+  String _frameAsset(int idx) {
+    switch (idx % 3) {
+      case 1:
+        return 'assets/frame/photostrip2/photostrip_frame2.png';
+      case 2:
+        return 'assets/frame/photostrip3/photostrip_frame3.png';
+      case 0:
+      default:
+        return 'assets/frame/photostrip1/photostrip_frame1.png';
+    }
+  }
+
+  Widget _buildPhotoSlotSelectorBar() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFE4EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(4, (i) {
+          final isSel = _selectedPhotoIndex == i;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedPhotoIndex = i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(
+                color: isSel ? AppTheme.primaryRose : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Foto ${i + 1}',
+                style: TextStyle(
+                  color: isSel ? Colors.white : const Color(0xFF888894),
+                  fontSize: 11,
+                  fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
   Widget _buildPhotoEditCanvas() {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableW = constraints.maxWidth;
+        final availableH = constraints.maxHeight;
+
+        // Rasio 1:3 (600×1800 px)
+        final double maxCardH = availableH - 4;
+        final double maxCardW = availableW * 0.70;
+        final double cardW = math.min(maxCardW, maxCardH / 3.0);
+        final double cardH = cardW * 3.0;
+
+        return Center(
+          child: SizedBox(
+            width: cardW,
+            height: cardH,
+            child: _buildPhotostripCard(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPhotostripCard() {
+    const double cardRadius = 16.0;
+
+    return AspectRatio(
+      aspectRatio: 600.0 / 1800.0,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(cardRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: AppTheme.primaryRose.withValues(alpha: 0.10),
+              blurRadius: 24,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(cardRadius),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Layer 1: Background PNG
+              Image.asset(_bgAsset(_selectedFrameIndex), fit: BoxFit.fill),
+
+              // Layer 2: Slot foto kamera (4 slots)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final double w = constraints.maxWidth;
+                  final double h = constraints.maxHeight;
+                  final double paddingH = w * (44.0 / 600.0);
+                  final double photoW = w - 2.0 * paddingH;
+                  final double paddingTop = h * (80.0 / 1800.0);
+                  final double photoH = h * (288.0 / 1800.0);
+                  final double gap = h * (88.0 / 1800.0);
+                  final double slotRadius = w * (14.0 / 600.0);
+
+                  return Stack(
+                    children: [
+                      for (int i = 0; i < 4; i++)
+                        Positioned(
+                          left: paddingH,
+                          top: paddingTop + i * (photoH + gap),
+                          width: photoW,
+                          height: photoH,
+                          child: _buildPhotoSlotItem(i, photoW, photoH, slotRadius),
+                        ),
+                    ],
+                  );
+                },
+              ),
+
+              // Layer 2.5: Placed items (Stiker & Aksesoris)
+              for (final item in _placedItems)
+                _buildDraggablePlacedItem(item),
+
+              // Layer 3: Frame PNG overlay
+              IgnorePointer(
+                child: Image.asset(
+                  _frameAsset(_selectedFrameIndex),
+                  fit: BoxFit.fill,
+                ),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Display Current Photo with filters
-                ColorFiltered(
-                  colorFilter: ColorFilter.matrix(_getColorMatrix()),
-                  child: widget.capturedPhotos.isNotEmpty &&
-                          _selectedPhotoIndex < widget.capturedPhotos.length &&
-                          File(widget.capturedPhotos[_selectedPhotoIndex]).existsSync()
-                      ? Builder(
-                          builder: (context) {
-                            final bool isMirrored = widget.mirroredStates != null && 
-                                                    widget.mirroredStates!.length > _selectedPhotoIndex && 
-                                                    widget.mirroredStates![_selectedPhotoIndex];
-                            
-                            Widget photoWidget = Image.file(
-                              File(widget.capturedPhotos[_selectedPhotoIndex]),
-                              fit: BoxFit.cover,
-                            );
+        ),
+      ),
+    );
+  }
 
-                            if (isMirrored) {
-                              photoWidget = Transform.scale(scaleX: -1, alignment: Alignment.center, child: photoWidget);
-                            }
+  Widget _buildPhotoSlotItem(
+    int index,
+    double photoW,
+    double photoH,
+    double slotRadius,
+  ) {
+    final bool isSelected = _selectedPhotoIndex == index;
 
-                            return widget.filterMatrix != null
-                                ? ColorFiltered(
-                                    colorFilter: ColorFilter.matrix(widget.filterMatrix!),
-                                    child: photoWidget,
-                                  )
-                                : photoWidget;
-                          },
-                        )
-                      : Container(
-                          color: const Color(0xFFFDE8EF),
-                          child: const Center(
-                            child: Icon(Icons.photo, size: 50, color: AppTheme.primaryRose),
-                          ),
-                        ),
-                ),
-
-                // Placed Items
-                for (final item in _placedItems)
-                  _buildDraggablePlacedItem(item),
-
-                // Photo Selector Pill at Top-Left
-                if (widget.capturedPhotos.length > 1)
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(
-                          widget.capturedPhotos.length,
-                          (i) => GestureDetector(
-                            onTap: () => setState(() => _selectedPhotoIndex = i),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _selectedPhotoIndex == i
-                                    ? AppTheme.primaryRose
-                                    : Colors.white38,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${i + 1}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedPhotoIndex = index);
+      },
+      child: Container(
+        width: photoW,
+        height: photoH,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(slotRadius),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF1744) : Colors.transparent,
+            width: isSelected ? 3.0 : 0.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFF1744).withValues(alpha: 0.6),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            slotRadius > 2 ? slotRadius - 2 : 2,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildPhotoThumbnail(index),
+              if (isSelected)
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF1744),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Foto ${index + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-              ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoThumbnail(int index) {
+    final bool hasPhoto = widget.capturedPhotos.isNotEmpty &&
+        index < widget.capturedPhotos.length &&
+        File(widget.capturedPhotos[index]).existsSync();
+
+    if (hasPhoto) {
+      final bool isMirrored = widget.mirroredStates != null &&
+          widget.mirroredStates!.length > index &&
+          widget.mirroredStates![index];
+
+      Widget photoWidget = Image.file(
+        File(widget.capturedPhotos[index]),
+        fit: BoxFit.cover,
+      );
+
+      if (isMirrored) {
+        photoWidget = Transform.scale(
+          scaleX: -1,
+          alignment: Alignment.center,
+          child: photoWidget,
+        );
+      }
+
+      // Filter Matrix (Sliders + FilterMatrix)
+      photoWidget = ColorFiltered(
+        colorFilter: ColorFilter.matrix(_getColorMatrix()),
+        child: photoWidget,
+      );
+
+      if (widget.filterMatrix != null) {
+        photoWidget = ColorFiltered(
+          colorFilter: ColorFilter.matrix(widget.filterMatrix!),
+          child: photoWidget,
+        );
+      }
+
+      return photoWidget;
+    }
+
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF06292).withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              '${index + 1}',
+              style: const TextStyle(
+                color: Color(0xFFB54668),
+                fontSize: 12.0,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
