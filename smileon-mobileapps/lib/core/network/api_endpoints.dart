@@ -6,7 +6,7 @@ class ApiEndpoints {
   static String get baseUrl => AppConfig.baseUrl;
 
   // URL Cadangan Preset
-  static const String stagingBaseUrl = 'https://smileon-dapps.my.id/api/v1';
+  static const String stagingBaseUrl = 'https://api.smileon-dapps.my.id/api/v1';
   static const String localLanBaseUrl = 'http://192.168.1.54:8000/api/v1';
 
   // Timeout konfigurasi dari .env

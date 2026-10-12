@@ -43,8 +43,8 @@ class AppConfig {
 
   /// Base URL Backend REST API
   static String get baseUrl {
-    if (!_initialized) return 'https://smileon-dapps.my.id/api/v1';
-    return dotenv.env['API_BASE_URL'] ?? 'https://smileon-dapps.my.id/api/v1';
+    if (!_initialized) return 'https://api.smileon-dapps.my.id/api/v1';
+    return dotenv.env['API_BASE_URL'] ?? 'https://api.smileon-dapps.my.id/api/v1';
   }
 
   /// Environment aktif (development, staging, production)
