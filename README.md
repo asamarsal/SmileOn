@@ -29,6 +29,17 @@ SmileOn is currently live on **Monad Testnet** and provides two core modes: **Pe
 
 ---
 
+## 🌐 Live Deployments & Smart Contracts
+
+| Component | Status | Production Link / Contract Address | Description |
+| :--- | :---: | :--- | :--- |
+| **Frontend** | ![Live](https://img.shields.io/badge/Status-LIVE-success?style=flat-square) | [smileon-dapps.my.id](https://smileon-dapps.my.id) | Web DApp & Event Landing Portal (Next.js) |
+| **Backend** | ![Live](https://img.shields.io/badge/Status-LIVE-success?style=flat-square) | [api.smileon-dapps.my.id](https://api.smileon-dapps.my.id/api/health) | REST API & Storage Engine (Laravel 11 & PostgreSQL) |
+| **Smart Contract (Payment)** | ![Live](https://img.shields.io/badge/Monad-LIVE-836EF9?style=flat-square) | [`0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff`](https://testnet.monadexplorer.com/address/0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff) | `SmileOnPaymentHub` — Monad Testnet (`10143`) |
+| **Smart Contract (NFT)** | ![Live](https://img.shields.io/badge/Monad-LIVE-836EF9?style=flat-square) | [`0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48`](https://testnet.monadexplorer.com/address/0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48) | `SmileOnNFT` (ERC-721) — Monad Testnet (`10143`) |
+
+---
+
 ## ✨ Key Features
 
 - 📷 **In-app camera** — Take photos directly within the app, no external camera needed
