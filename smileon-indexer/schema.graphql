@@ -1,0 +1,28 @@
+type Payment @entity {
+  id: ID!
+  orderRef: String!
+  payer: String!
+  category: Int!
+  amount: BigInt!
+  itemId: String!
+  timestamp: BigInt!
+  chainId: BigInt!
+  txHash: String!
+  blockNumber: Int!
+}
+
+type Withdrawal @entity {
+  id: ID!
+  recipient: String!
+  amount: BigInt!
+  txHash: String!
+  blockNumber: Int!
+}
+
+type PriceTier @entity {
+  id: ID!
+  itemId: String!
+  priceInWei: BigInt!
+  isActive: Boolean!
+  description: String!
+}

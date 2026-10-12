@@ -44,6 +44,11 @@ const config: HardhatUserConfig = {
       },
     ],
   },
+  sourcify: {
+    enabled: true,
+    apiUrl: "https://sourcify-api-monad.blockvision.org",
+    browserUrl: "https://testnet.monadexplorer.com",
+  },
   paths: {
     sources: "./contracts",
     tests: "./test",

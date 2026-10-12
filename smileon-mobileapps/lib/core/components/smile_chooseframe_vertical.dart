@@ -30,7 +30,7 @@ class _SmileChooseframeVerticalState extends State<SmileChooseframeVertical> {
   @override
   void initState() {
     super.initState();
-    _categories = widget.categories ?? ['Semua', 'Gratis', 'Premium', 'Custom'];
+    _categories = widget.categories ?? ['Semua', 'Favorit', 'Gratis', 'Premium', 'Custom'];
     _frames =
         widget.frames ??
         [

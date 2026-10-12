@@ -83,4 +83,28 @@ class FrameController extends Controller
             ->paginate($request->per_page ?? 20);
         return response()->json(['success' => true, 'data' => $frames]);
     }
+
+    public function toggleFavorite(Request $request, string $uuid): JsonResponse
+    {
+        $frame = Frame::where('uuid', $uuid)->firstOrFail();
+        $user = $request->user();
+
+        $exists = $user->userSavedFrames()->where('frame_id', $frame->id)->exists();
+
+        if ($exists) {
+            $user->userSavedFrames()->detach($frame->id);
+            return response()->json([
+                'success' => true,
+                'is_favorited' => false,
+                'message' => 'Frame dihapus dari favorit/simpanan.'
+            ]);
+        } else {
+            $user->userSavedFrames()->syncWithoutDetaching([$frame->id]);
+            return response()->json([
+                'success' => true,
+                'is_favorited' => true,
+                'message' => 'Frame berhasil disimpan ke favorit.'
+            ], 201);
+        }
+    }
 }

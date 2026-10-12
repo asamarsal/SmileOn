@@ -7,6 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/features/activity/domain/models/user_voucher_model.dart';
 import 'package:smileon/features/activity/presentation/category/myvoucher_activity.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:smileon/core/constants/monad_contracts.dart';
+import 'package:smileon/core/services/monad_payment_service.dart';
 
 /// Service penyimpanan file JSON voucher lokal
 class LocalVoucherStorageService {
@@ -84,6 +87,7 @@ class UserVoucherNotifier extends Notifier<List<UserVoucherModel>> {
     required String cryptoPrice,
     required String paymentMethod,
     String? imagePath,
+    String? txHash,
   }) {
     final now = DateTime.now();
     final expiry = now.add(const Duration(days: 60));
@@ -128,6 +132,7 @@ class UserVoucherNotifier extends Notifier<List<UserVoucherModel>> {
       expiryDate: expiryStr,
       status: 'Aktif',
       imagePath: imagePath ?? 'assets/images/voucher/wedding_package.jpg',
+      txHash: txHash,
     );
 
     state = [newVoucher, ...state];
@@ -160,7 +165,7 @@ class UserVoucherNotifier extends Notifier<List<UserVoucherModel>> {
 
 /// Helper untuk memproses pembelian voucher dari modul Settings & Event Voucher
 class VoucherPurchaseHelper {
-  static UserVoucherModel processAndShowSuccess(
+  static Future<UserVoucherModel?> processAndShowSuccess(
     BuildContext context,
     WidgetRef ref, {
     required String title,
@@ -170,7 +175,107 @@ class VoucherPurchaseHelper {
     required String cryptoPrice,
     required String paymentMethod,
     String? imagePath,
-  }) {
+  }) async {
+    final isMonad = paymentMethod.toLowerCase().contains('monad');
+    String? onChainTxHash;
+
+    if (isMonad) {
+      // 1. Ekstrak nominal MON dari cryptoPrice (misal: "4.50 MON" -> 4.50)
+      final regex = RegExp(r'([0-9]+(\.[0-9]+)?)');
+      final match = regex.firstMatch(cryptoPrice);
+      final monAmount = match != null ? double.tryParse(match.group(1)!) ?? 1.0 : 1.0;
+
+      // 2. Tentukan itemId hash untuk kontrak SmileOnPaymentHub
+      final isEventCategory = category.toLowerCase().contains('event') || category.toLowerCase().contains('wedding');
+      final itemId = isEventCategory
+          ? MonadContracts.itemEventWedding300
+          : (photoCount.contains('50')
+              ? MonadContracts.itemCredit50
+              : MonadContracts.itemCredit100);
+
+      final orderRef = 'ORD-VCH-${DateTime.now().millisecondsSinceEpoch}';
+
+      // 3. Tampilkan dialog loading Monad
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PopScope(
+          canPop: false,
+          child: Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF836EF9)),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Memproses Transaksi Monad',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Order: $orderRef\nMembeli $title seharga $cryptoPrice...',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final paymentService = ref.read(monadPaymentServiceProvider);
+      final txResult = isEventCategory
+          ? await paymentService.payForEventPackage(
+              orderRef: orderRef,
+              monAmount: monAmount,
+              itemId: itemId,
+            )
+          : await paymentService.payForVoucherPackage(
+              orderRef: orderRef,
+              monAmount: monAmount,
+              itemId: itemId,
+            );
+
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // Tutup loading dialog
+      }
+
+      if (!txResult.isSuccess) {
+        if (context.mounted) {
+          SmileToast.showError(
+            context,
+            title: 'Pembayaran Gagal',
+            message: txResult.errorMessage ?? 'Gagal memproses transaksi voucher on-chain.',
+            alignment: Alignment.topCenter,
+          );
+        }
+        return null;
+      }
+
+      onChainTxHash = txResult.txHash;
+      HapticFeedback.heavyImpact();
+
+      // Dual-Rail Instant Verifier ke Backend SmileOn
+      if (onChainTxHash != null) {
+        paymentService.verifyWithBackend(
+          orderRef: orderRef,
+          txHash: onChainTxHash,
+          amount: monAmount,
+        );
+      }
+    }
+
     final creditAmount =
         int.tryParse(photoCount.replaceAll(RegExp(r'[^0-9]'), '')) ?? 100;
 
@@ -181,15 +286,18 @@ class VoucherPurchaseHelper {
           creditAmount: creditAmount,
           priceFormatted: priceFormatted,
           cryptoPrice: cryptoPrice,
-          paymentMethod: paymentMethod,
+          paymentMethod: isMonad ? 'Monad Testnet' : paymentMethod,
           imagePath: imagePath,
+          txHash: onChainTxHash,
         );
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => _PurchaseSuccessDialog(voucher: voucher),
-    );
+    if (context.mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) => _PurchaseSuccessDialog(voucher: voucher),
+      );
+    }
 
     return voucher;
   }
@@ -316,6 +424,75 @@ class _PurchaseSuccessDialog extends StatelessWidget {
                 ],
               ),
             ),
+            if (voucher.txHash != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F0FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFD4C8FA), width: 1.2),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.bolt_rounded, size: 16, color: Color(0xFF836EF9)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Tercatat di Monad Testnet',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF200052),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    SelectableText(
+                      'Tx: ${voucher.txHash!.length > 20 ? '${voucher.txHash!.substring(0, 10)}...${voucher.txHash!.substring(voucher.txHash!.length - 8)}' : voucher.txHash}',
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B47C8),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final uri = Uri.parse(MonadContracts.explorerTxUrl(voucher.txHash!));
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.open_in_new_rounded, size: 12, color: Color(0xFF836EF9)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Lihat di MonadExplorer',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF836EF9),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
 
             const Row(

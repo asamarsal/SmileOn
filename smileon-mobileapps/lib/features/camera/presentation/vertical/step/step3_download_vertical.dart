@@ -14,6 +14,10 @@ import 'package:smileon/features/camera/presentation/vertical/step/step2_editpho
 import 'package:smileon/features/camera/presentation/vertical/step/step3_dialog_previewphotostrip.dart';
 import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
 import 'package:smileon/features/navigation/providers/navigation_provider.dart';
+import 'package:dynamic_sdk/dynamic_sdk.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:smileon/core/constants/monad_contracts.dart';
+import 'package:smileon/core/services/monad_payment_service.dart';
 
 /// STEP 3: DOWNLOAD & PAYMENT (VERTICAL)
 /// Menyediakan alur akhir untuk vertical photobooth:
@@ -108,6 +112,10 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
   bool _monadConnected = false;
   String? _monadWalletAddress;
   bool _isConnectingMonad = false;
+  double _monadBalance = 0.0;
+  bool _isLoadingBalance = false;
+  bool _isPayingMonad = false;
+  String? _monadTxHash;
   bool _isDownloadingAll = false;
   bool _isDownloadingStrip = false;
   bool _isDownloadingGif = false;
@@ -122,6 +130,38 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
   void initState() {
     super.initState();
     _startTimer();
+    _checkInitialMonadWallet();
+  }
+
+  void _checkInitialMonadWallet() {
+    try {
+      final wallets = DynamicSDK.instance.wallets.userWallets;
+      if (wallets.isNotEmpty) {
+        final address = wallets.first.address;
+        setState(() {
+          _monadConnected = true;
+          _monadWalletAddress = address;
+        });
+        _fetchMonadBalance(address);
+      }
+    } catch (e) {
+      debugPrint('[Step3DownloadVertical] Error check initial wallet: $e');
+    }
+  }
+
+  Future<void> _fetchMonadBalance(String address) async {
+    setState(() => _isLoadingBalance = true);
+    try {
+      final bal = await ref.read(monadPaymentServiceProvider).getMonBalance(address);
+      if (!mounted) return;
+      setState(() {
+        _monadBalance = bal;
+        _isLoadingBalance = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingBalance = false);
+    }
   }
 
   @override
@@ -135,22 +175,264 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
   // ── Monad wallet ────────────────────────────────────────────────────────────
   Future<void> _connectMonadWallet() async {
     setState(() => _isConnectingMonad = true);
-    await Future.delayed(const Duration(milliseconds: 1800)); // simulasi koneksi
-    if (!mounted) return;
-    setState(() {
-      _isConnectingMonad = false;
-      _monadConnected = true;
-      _monadWalletAddress = '0x3Fa2...C7b1'; // alamat wallet simulasi
-    });
-    HapticFeedback.mediumImpact();
+    try {
+      final wallets = DynamicSDK.instance.wallets.userWallets;
+      if (wallets.isNotEmpty) {
+        final address = wallets.first.address;
+        setState(() {
+          _isConnectingMonad = false;
+          _monadConnected = true;
+          _monadWalletAddress = address;
+        });
+        await _fetchMonadBalance(address);
+        HapticFeedback.mediumImpact();
+      } else {
+        DynamicSDK.instance.ui.showAuth();
+        setState(() => _isConnectingMonad = false);
+      }
+    } catch (e) {
+      debugPrint('Error connect monad: $e');
+      setState(() => _isConnectingMonad = false);
+    }
   }
 
   void _disconnectMonadWallet() {
     setState(() {
       _monadConnected = false;
       _monadWalletAddress = null;
+      _monadBalance = 0.0;
     });
   }
+
+  Future<void> _payWithMonadOnChain() async {
+    if (_monadWalletAddress == null) {
+      await _connectMonadWallet();
+      return;
+    }
+
+    if (_monadBalance < 0.80) {
+      SmileToast.showError(
+        context,
+        title: 'Saldo MON Kurang',
+        message: 'Saldo: ${_monadBalance.toStringAsFixed(3)} MON. Diperlukan: 0.80 MON.',
+        alignment: Alignment.topCenter,
+      );
+      return;
+    }
+
+    setState(() => _isPayingMonad = true);
+    HapticFeedback.lightImpact();
+
+    final orderRef = 'ORD-SSN-${DateTime.now().millisecondsSinceEpoch}';
+
+    // Tampilkan Dialog Loading Progress
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF836EF9)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Memproses Transaksi Monad',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Order Ref: $orderRef\nMengirim 0.80 MON ke SmileOn Payment Hub...',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final paymentService = ref.read(monadPaymentServiceProvider);
+      final result = await paymentService.payForPhotoSession(
+        orderRef: orderRef,
+        monAmount: 0.80,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Tutup loading dialog
+      setState(() => _isPayingMonad = false);
+
+      if (result.isSuccess) {
+        setState(() {
+          _isPaid = true;
+          _monadTxHash = result.txHash;
+        });
+        HapticFeedback.heavyImpact();
+
+        // Refresh balance setelah pembayaran
+        if (_monadWalletAddress != null) {
+          _fetchMonadBalance(_monadWalletAddress!);
+        }
+
+        // Dual-Rail Instant Verifier ke Backend (asynchronous background notification)
+        if (result.txHash != null) {
+          paymentService.verifyWithBackend(
+            orderRef: orderRef,
+            txHash: result.txHash!,
+            amount: 0.80,
+          );
+        }
+
+        _showPaymentSuccessModal(orderRef, result.txHash ?? '');
+      } else {
+        SmileToast.showError(
+          context,
+          title: 'Pembayaran Gagal',
+          message: result.errorMessage ?? 'Gagal memproses transaksi di Monad Testnet.',
+          alignment: Alignment.topCenter,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      setState(() => _isPayingMonad = false);
+      SmileToast.showError(
+        context,
+        title: 'Error Jaringan',
+        message: 'Kendala: $e',
+        alignment: Alignment.topCenter,
+      );
+    }
+  }
+
+  void _showPaymentSuccessModal(String orderRef, String txHash) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEFEAFF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF836EF9), size: 36),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Pembayaran Monad Berhasil! ◈',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF200052)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '0.80 MON telah diterima oleh SmileOn Payment Hub.',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9F7FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5DEFF)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Order Ref', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(orderRef, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Smart Contract', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        '${MonadContracts.paymentHubAddress.substring(0, 6)}...${MonadContracts.paymentHubAddress.substring(MonadContracts.paymentHubAddress.length - 4)}',
+                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Color(0xFF836EF9), fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final url = Uri.parse(MonadContracts.txUrl(txHash));
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: const Text('Explorer'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF836EF9),
+                      side: const BorderSide(color: Color(0xFF836EF9)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF836EF9),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Unduh Foto', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // ── Helpers frame asset ────────────────────────────────────────────────────
   String _bgAsset() {
@@ -1200,7 +1482,16 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Saldo MON', style: TextStyle(fontSize: 12, color: Color(0xFF836EF9))),
-            const Text('12.50 MON', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF200052))),
+            _isLoadingBalance
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF836EF9)),
+                  )
+                : Text(
+                    '${_monadBalance.toStringAsFixed(3)} MON',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF200052)),
+                  ),
           ],
         ),
         const SizedBox(height: 4),
@@ -1208,35 +1499,60 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Biaya Transaksi', style: TextStyle(fontSize: 12, color: Color(0xFF836EF9))),
-            Text('~0.001 MON', style: TextStyle(fontSize: 12, color: const Color(0xFF836EF9).withValues(alpha: 0.7))),
+            Text('~0.0001 MON', style: TextStyle(fontSize: 12, color: const Color(0xFF836EF9).withValues(alpha: 0.7))),
           ],
         ),
         const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              setState(() => _isPaid = true);
-              HapticFeedback.mediumImpact();
-              _showSnack('Pembayaran Monad berhasil! 0.80 MON ◈');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF836EF9),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              elevation: 0,
+        if (_isPaid)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF86EFAC)),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('◈', style: TextStyle(fontSize: 16, color: Colors.white)),
-                SizedBox(width: 8),
-                Text('Bayar 0.80 MON', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  _monadTxHash != null && _monadTxHash!.length > 12
+                      ? 'Lunas • Tx: ${_monadTxHash!.substring(0, 8)}...'
+                      : 'Lunas On-Chain',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF15803D)),
+                ),
               ],
             ),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isPayingMonad ? null : _payWithMonadOnChain,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF836EF9),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                elevation: 0,
+              ),
+              child: _isPayingMonad
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('◈', style: TextStyle(fontSize: 16, color: Colors.white)),
+                        SizedBox(width: 8),
+                        Text('Bayar 0.80 MON', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+            ),
           ),
-        ),
       ],
     );
   }

@@ -1,0 +1,17 @@
+{
+  "network": "monadTestnet",
+  "chainId": 10143,
+  "deployedAt": "2026-10-11T23:39:49.172Z",
+  "deployer": "0xFeff727205Fe524A3A8A16C404FeC9Cfe4124aCd",
+  "treasury": "0xFeff727205Fe524A3A8A16C404FeC9Cfe4124aCd",
+  "contracts": {
+    "SmileOnPaymentHub": {
+      "address": "0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff",
+      "explorerUrl": "https://testnet.monadexplorer.com/address/0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff"
+    },
+    "SmileOnNFT": {
+      "address": "0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48",
+      "explorerUrl": "https://testnet.monadexplorer.com/address/0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48"
+    }
+  }
+}

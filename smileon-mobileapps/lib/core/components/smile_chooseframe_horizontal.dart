@@ -38,6 +38,7 @@ class _SmileChooseframeHorizontalState extends State<SmileChooseframeHorizontal>
     _categories = widget.categories ??
         [
           {'title': 'Semua', 'icon': Icons.grid_view},
+          {'title': 'Favorit', 'icon': Icons.favorite, 'badge': 'SAVE'},
           {'title': 'Terbaru', 'icon': Icons.schedule, 'badge': 'NEW'},
           {'title': 'Paling Populer', 'icon': Icons.local_fire_department_outlined},
           {'title': 'Vintage', 'icon': Icons.auto_awesome_outlined},

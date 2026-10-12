@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'monad' => [
+        'chain_id' => env('MONAD_CHAIN_ID', 10143),
+        'rpc_url' => env('MONAD_RPC_URL', 'https://testnet-rpc.monad.xyz'),
+        'payment_hub_address' => env('MONAD_PAYMENT_HUB_ADDRESS', '0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff'),
+        'nft_address' => env('MONAD_NFT_ADDRESS', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48'),
+        'explorer_url' => env('MONAD_EXPLORER_URL', 'https://testnet.monadexplorer.com'),
+    ],
+
 ];

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:smileon/core/components/smile_toast.dart';
 
 class AllFramesDialog extends StatefulWidget {
   const AllFramesDialog({super.key});
@@ -11,9 +13,14 @@ class AllFramesDialog extends StatefulWidget {
 class _AllFramesDialogState extends State<AllFramesDialog> {
   int _selectedCategoryIndex = 0;
   int _selectedStripIndex = 0; // 0 for 1 Strip, 1 for 2 Strip
+  int _selectedFrameIndex = 0;
+
+  // Set untuk menyimpan judul/ID frame favorit & disimpan
+  final Set<String> _favoriteFrames = {'Romantic Love', 'Blush Flowers'};
 
   final List<Map<String, dynamic>> categories = [
     {'title': 'Semua', 'icon': Icons.grid_view},
+    {'title': 'Favorit', 'icon': Icons.favorite, 'badge': 'SAVE'},
     {'title': 'Terbaru', 'icon': Icons.schedule, 'badge': 'NEW'},
     {'title': 'Paling Populer', 'icon': Icons.local_fire_department_outlined},
     {'title': 'Vintage', 'icon': Icons.auto_awesome_outlined},
@@ -35,12 +42,48 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
     {'title': 'Arcade Game'},
   ];
 
+  List<Map<String, dynamic>> get _filteredFrames {
+    final currentCat = categories[_selectedCategoryIndex]['title'] as String;
+    if (currentCat == 'Favorit') {
+      return dummyFrames
+          .where((f) => _favoriteFrames.contains(f['title']))
+          .toList();
+    }
+    return dummyFrames;
+  }
+
+  void _toggleFavorite(String title) {
+    HapticFeedback.lightImpact();
+    final wasFav = _favoriteFrames.contains(title);
+    setState(() {
+      if (wasFav) {
+        _favoriteFrames.remove(title);
+      } else {
+        _favoriteFrames.add(title);
+      }
+    });
+
+    if (!wasFav) {
+      SmileToast.showSuccess(
+        context,
+        title: 'Favorit Disimpan',
+        message: '$title berhasil disimpan ke favorit ❤️',
+      );
+    } else {
+      SmileToast.showInfo(
+        context,
+        title: 'Favorit Dihapus',
+        message: '$title dihapus dari simpanan favorit',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // For large tablet-like dialogs, we constrain the size
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     // Making sure the dialog is large enough but fits on screen
     final dialogWidth = screenWidth > 800 ? 800.0 : screenWidth * 0.95;
     final dialogHeight = screenHeight > 600 ? 600.0 : screenHeight * 0.95;
@@ -58,7 +101,8 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
               padding: const EdgeInsets.fromLTRB(24, 20, 20, 16),
               child: Row(
                 children: [
-                  const Icon(Icons.grid_view, color: AppTheme.primaryRose, size: 28),
+                  const Icon(Icons.grid_view,
+                      color: AppTheme.primaryRose, size: 28),
                   const SizedBox(width: 12),
                   const Text(
                     'Semua Strip Foto',
@@ -69,7 +113,7 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                     ),
                   ),
                   const SizedBox(width: 24),
-                  
+
                   // Strip Toggle
                   Container(
                     decoration: BoxDecoration(
@@ -84,9 +128,9 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                       ],
                     ),
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // Close Button
                   IconButton(
                     icon: const Icon(Icons.close, color: AppTheme.muted),
@@ -96,7 +140,7 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
               ),
             ),
             const Divider(height: 1, color: Color(0xFFF0F0F0)),
-            
+
             // Content (Sidebar + Grid)
             Expanded(
               child: Row(
@@ -113,41 +157,56 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                             itemCount: categories.length,
                             itemBuilder: (context, index) {
                               final cat = categories[index];
-                              final isSelected = _selectedCategoryIndex == index;
-                              
+                              final isSelected =
+                                  _selectedCategoryIndex == index;
+
                               return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 4),
                                 child: InkWell(
-                                  onTap: () => setState(() => _selectedCategoryIndex = index),
+                                  onTap: () => setState(
+                                      () => _selectedCategoryIndex = index),
                                   borderRadius: BorderRadius.circular(24),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     decoration: BoxDecoration(
-                                      color: isSelected ? AppTheme.pinkCard : Colors.transparent,
+                                      color: isSelected
+                                          ? AppTheme.pinkCard
+                                          : Colors.transparent,
                                       borderRadius: BorderRadius.circular(24),
                                     ),
                                     child: Row(
                                       children: [
                                         Icon(
                                           cat['icon'] as IconData,
-                                          color: isSelected ? AppTheme.primaryRose : AppTheme.muted,
+                                          color: isSelected
+                                              ? AppTheme.primaryRose
+                                              : AppTheme.muted,
                                           size: 20,
                                         ),
                                         const SizedBox(width: 12),
                                         Text(
                                           cat['title'] as String,
                                           style: TextStyle(
-                                            color: isSelected ? AppTheme.primaryRose : AppTheme.text,
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            color: isSelected
+                                                ? AppTheme.primaryRose
+                                                : AppTheme.text,
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.w500,
                                           ),
                                         ),
                                         if (cat.containsKey('badge')) ...[
                                           const Spacer(),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                                horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: AppTheme.lightPink,
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               cat['badge'] as String,
@@ -167,15 +226,26 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                             },
                           ),
                         ),
-                        
+
                         // Reset Button
                         Padding(
                           padding: const EdgeInsets.all(24.0),
                           child: InkWell(
-                            onTap: () {},
+                            onTap: () {
+                              setState(() {
+                                _selectedCategoryIndex = 0;
+                                _selectedFrameIndex = 0;
+                              });
+                              SmileToast.showInfo(
+                                context,
+                                title: 'Filter Direset',
+                                message: 'Kategori dikembalikan ke Semua',
+                              );
+                            },
                             child: Row(
                               children: const [
-                                Icon(Icons.refresh, color: AppTheme.muted, size: 20),
+                                Icon(Icons.refresh,
+                                    color: AppTheme.muted, size: 20),
                                 SizedBox(width: 8),
                                 Text(
                                   'Reset',
@@ -191,35 +261,71 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                       ],
                     ),
                   ),
-                  
+
                   // Vertical Divider
                   const VerticalDivider(width: 1, color: Color(0xFFF0F0F0)),
-                  
+
                   // Main Grid Area
                   Expanded(
                     child: Column(
                       children: [
                         Expanded(
-                          child: GridView.builder(
-                            padding: const EdgeInsets.all(24),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              childAspectRatio: 0.6,
-                              crossAxisSpacing: 24,
-                              mainAxisSpacing: 24,
-                            ),
-                            itemCount: dummyFrames.length,
-                            itemBuilder: (context, index) {
-                              return _buildFrameItem(dummyFrames[index]['title'] as String);
-                            },
-                          ),
+                          child: _filteredFrames.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.favorite_border_rounded,
+                                        size: 54,
+                                        color: AppTheme.primaryRose
+                                            .withValues(alpha: 0.4),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Belum Ada Frame Favorit',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: AppTheme.text,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        'Ketuk ikon hati pada frame untuk menyimpannya ke favorit.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppTheme.muted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : GridView.builder(
+                                  padding: const EdgeInsets.all(24),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    childAspectRatio: 0.6,
+                                    crossAxisSpacing: 24,
+                                    mainAxisSpacing: 24,
+                                  ),
+                                  itemCount: _filteredFrames.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildFrameItem(
+                                        _filteredFrames[index], index);
+                                  },
+                                ),
                         ),
-                        
+
                         // Footer Actions
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
                           decoration: const BoxDecoration(
-                            border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
+                            border: Border(
+                                top: BorderSide(color: Color(0xFFF0F0F0))),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
@@ -229,23 +335,37 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppTheme.text,
                                   side: const BorderSide(color: Colors.grey),
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 16),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
                                   ),
                                 ),
-                                child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+                                child: const Text('Tutup',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(width: 16),
                               ElevatedButton(
                                 onPressed: () {
-                                  // Apply selection
+                                  if (_filteredFrames.isNotEmpty) {
+                                    final chosen =
+                                        _filteredFrames[_selectedFrameIndex
+                                            .clamp(0, _filteredFrames.length - 1)];
+                                    SmileToast.showSuccess(
+                                      context,
+                                      title: 'Frame Dipilih',
+                                      message:
+                                          'Menggunakan frame ${chosen['title']}',
+                                    );
+                                  }
                                   Navigator.of(context).pop();
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primaryRose,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
                                   ),
@@ -255,7 +375,9 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
                                   children: const [
                                     Icon(Icons.check_circle_outline, size: 20),
                                     SizedBox(width: 8),
-                                    Text('Terapkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    Text('Terapkan',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
@@ -284,7 +406,12 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           boxShadow: isSelected
-              ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+              ? [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2))
+                ]
               : null,
         ),
         child: Text(
@@ -298,53 +425,93 @@ class _AllFramesDialogState extends State<AllFramesDialog> {
     );
   }
 
-  Widget _buildFrameItem(String title) {
-    return Column(
-      children: [
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppTheme.cream,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Stack(
-              children: [
-                // Placeholder image
-                Center(
-                  child: Icon(Icons.image_outlined, size: 48, color: Colors.grey.shade400),
+  Widget _buildFrameItem(Map<String, dynamic> frame, int index) {
+    final title = frame['title'] as String;
+    final isFav = _favoriteFrames.contains(title);
+    final isSelected = _selectedFrameIndex == index;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFrameIndex = index),
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.lightPink : AppTheme.cream,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color:
+                      isSelected ? AppTheme.primaryRose : Colors.grey.shade200,
+                  width: isSelected ? 2.5 : 1,
                 ),
-                // Heart icon
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      shape: BoxShape.circle,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.primaryRose.withValues(alpha: 0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Stack(
+                children: [
+                  // Placeholder image / preview
+                  Center(
+                    child: Icon(
+                      isSelected ? Icons.check_circle : Icons.image_outlined,
+                      size: 48,
+                      color: isSelected
+                          ? AppTheme.primaryRose
+                          : Colors.grey.shade400,
                     ),
-                    child: const Icon(Icons.favorite_border, color: AppTheme.primaryRose, size: 18),
                   ),
-                ),
-              ],
+                  // Heart icon (Favorite / Save button)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _toggleFavorite(title),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: AppTheme.primaryRose,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.primaryRose,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+          const SizedBox(height: 12),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? AppTheme.primaryRose : AppTheme.text,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 13,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

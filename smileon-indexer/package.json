@@ -1,0 +1,16 @@
+{
+  "name": "smileon-indexer",
+  "version": "1.0.0",
+  "description": "Envio HyperIndex indexer for SmileOn Payment Hub smart contracts on Monad Testnet (Chain ID 10143)",
+  "scripts": {
+    "codegen": "envio codegen",
+    "start": "envio start",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "envio": "3.0.0-alpha.21"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

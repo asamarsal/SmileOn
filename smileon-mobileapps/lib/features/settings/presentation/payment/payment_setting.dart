@@ -3,8 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/auth/auth_provider.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/core/constants/monad_contracts.dart';
 import 'package:smileon/core/localization/app_translations.dart';
+import 'package:smileon/core/services/monad_payment_service.dart';
 import 'package:smileon/core/theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Membuka Bottom Sheet Pengaturan Pembayaran & Jaringan
 void showPaymentBottomSheet(BuildContext context, WidgetRef ref) {
@@ -345,6 +348,8 @@ class _PaymentSettingBottomSheetState
       displayAddress = '0xf091e0...6F8D50';
     }
 
+    final monBalanceAsync = ref.watch(monBalanceProvider(fullAddress));
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
       decoration: const BoxDecoration(
@@ -549,25 +554,54 @@ class _PaymentSettingBottomSheetState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Alamat Dompet',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      displayAddress,
-                      style: const TextStyle(
-                        fontSize: 14,
+                    const Text(
+                      'Alamat Dompet Terhubung',
+                      style: TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF0F172A),
-                        fontFamily: 'monospace',
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () async {
+                        final uri = Uri.parse(MonadContracts.explorerAddressUrl(fullAddress));
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Row(
+                        children: const [
+                          Icon(Icons.open_in_new_rounded, size: 12, color: Color(0xFF836EF9)),
+                          SizedBox(width: 3),
+                          Text(
+                            'Explorer',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF836EF9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        displayAddress,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A),
+                          fontFamily: 'monospace',
+                        ),
                       ),
                     ),
                     InkWell(
@@ -590,6 +624,195 @@ class _PaymentSettingBottomSheetState
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Card 4: Saldo Monad Testnet (Real-time Live RPC)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF200052), Color(0xFF330870)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF200052).withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF836EF9)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Saldo Monad Testnet',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFC4B5FD),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    monBalanceAsync.when(
+                      data: (bal) => Text(
+                        '${bal.toStringAsFixed(4)} MON',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      loading: () => const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      error: (err, stack) => const Text(
+                        '0.00 MON',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Monad Testnet (Chain ID 10143)',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  tooltip: 'Segarkan Saldo',
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
+                  onPressed: () {
+                    ref.invalidate(monBalanceProvider(fullAddress));
+                    SmileToast.showSuccess(
+                      context,
+                      title: 'Memperbarui Saldo',
+                      message: 'Mengambil saldo terbaru dari Monad RPC...',
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Card 5: Smart Contracts Verified
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.verified_rounded, size: 14, color: Color(0xFF10B981)),
+                    SizedBox(width: 5),
+                    Text(
+                      'Smart Contracts Terverifikasi (Full Match)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri.parse(MonadContracts.explorerAddressUrl(MonadContracts.paymentHubContract));
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'SmileOnPaymentHub:',
+                        style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            '${MonadContracts.paymentHubContract.substring(0, 6)}...${MonadContracts.paymentHubContract.substring(MonadContracts.paymentHubContract.length - 4)}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF836EF9),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.open_in_new_rounded, size: 10, color: Color(0xFF836EF9)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri.parse(MonadContracts.explorerAddressUrl(MonadContracts.nftContract));
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'SmileOnNFT (ERC-721):',
+                        style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            '${MonadContracts.nftContract.substring(0, 6)}...${MonadContracts.nftContract.substring(MonadContracts.nftContract.length - 4)}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF836EF9),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(Icons.open_in_new_rounded, size: 10, color: Color(0xFF836EF9)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

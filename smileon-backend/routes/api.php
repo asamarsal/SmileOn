@@ -82,7 +82,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('activity-logs', [AdminAuditLogController::class, 'activityFeed'])->name('activity-logs.index');
 
-        // Frame Moderation
+        // Frame Management (CRUD) & Moderation
+        Route::get('frames', [AdminFrameController::class, 'index'])->name('frames.index');
+        Route::post('frames', [AdminFrameController::class, 'store'])->name('frames.store');
+        Route::get('frames/{uuid}', [AdminFrameController::class, 'show'])->name('frames.show');
+        Route::put('frames/{uuid}', [AdminFrameController::class, 'update'])->name('frames.update');
+        Route::patch('frames/{uuid}', [AdminFrameController::class, 'update'])->name('frames.patch');
+        Route::delete('frames/{uuid}', [AdminFrameController::class, 'destroy'])->name('frames.destroy');
         Route::get('frames/reports', [AdminFrameController::class, 'reports'])->name('frames.reports');
         Route::post('frames/{uuid}/reports/resolve', [AdminFrameController::class, 'resolveReport'])->name('frames.reports.resolve');
         Route::post('frames/{uuid}/promote', [AdminFrameController::class, 'promote'])->name('frames.promote');
@@ -142,6 +148,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('frames/{uuid}/report', [FrameController::class, 'report'])->name('frames.report');
         Route::post('user/frames/save', [FrameController::class, 'save'])->name('frames.save');
         Route::delete('user/frames/{uuid}/unsave', [FrameController::class, 'unsave'])->name('frames.unsave');
+        Route::post('user/frames/{uuid}/favorite', [FrameController::class, 'toggleFavorite'])->name('frames.favorite');
         Route::get('user/frames/saved', [FrameController::class, 'savedFrames'])->name('frames.saved');
     });
 
@@ -270,6 +277,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::get('pricing-settings', [AdminPricingSettingController::class, 'publicPricing'])->name('pricing-settings.public');
     Route::get('payment-methods', [AdminPaymentMethodController::class, 'publicIndex'])->name('payment-methods.public');
     Route::get('web3/contracts', [OrderController::class, 'web3Contracts'])->name('web3.contracts');
+    Route::post('payments/verify-monad', [OrderController::class, 'verifyMonad'])->name('payments.verify-monad');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('orders', [OrderController::class, 'store'])->middleware('idempotency')->name('orders.store');
@@ -277,6 +285,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('user/orders/latest', [OrderController::class, 'latest'])->name('orders.latest');
         Route::get('orders/{uuid}', [OrderController::class, 'show'])->name('orders.show');
         Route::post('orders/{uuid}/verify-payment', [OrderController::class, 'verifyPayment'])->name('orders.verify-payment');
+        Route::post('orders/{uuid}/verify-monad', [OrderController::class, 'verifyMonad'])->name('orders.verify-monad');
         Route::get('orders/{uuid}/onchain-status', [OrderController::class, 'onchainStatus'])->name('orders.onchain-status');
     });
 

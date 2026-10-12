@@ -12,6 +12,7 @@ use App\Models\NftCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 /**
  * OrderController — Handles credit package purchases and payment verification.
@@ -189,5 +190,159 @@ class OrderController extends Controller
     public function web3SyncStatus(): JsonResponse
     {
         return response()->json(['success' => true, 'data' => ['synced' => true, 'last_block' => null]]);
+    }
+
+    /**
+     * POST /api/v1/payments/verify-monad
+     *
+     * Dual-Rail Instant Verifier: Queries Monad Testnet RPC directly
+     * via eth_getTransactionReceipt to verify on-chain payment.
+     */
+    public function verifyMonad(Request $request): JsonResponse
+    {
+        $request->validate([
+            'order_ref' => 'required|string',
+            'tx_hash'   => ['required', 'string', 'regex:/^0x[a-fA-F0-9]{64}$/'],
+            'amount'    => 'nullable|string',
+        ]);
+
+        $orderRef = $request->input('order_ref');
+        $txHash   = strtolower($request->input('tx_hash'));
+
+        $rpcUrl = config('services.monad.rpc_url', 'https://testnet-rpc.monad.xyz');
+        $expectedPaymentHub = strtolower(config('services.monad.payment_hub_address', '0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff'));
+
+        try {
+            $rpcResponse = Http::timeout(10)->post($rpcUrl, [
+                'jsonrpc' => '2.0',
+                'method'  => 'eth_getTransactionReceipt',
+                'params'  => [$txHash],
+                'id'      => 1,
+            ]);
+
+            if (!$rpcResponse->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghubungi Monad Testnet RPC node.',
+                ], 502);
+            }
+
+            $receipt = $rpcResponse->json('result');
+
+            if (!$receipt) {
+                return response()->json([
+                    'success'  => false,
+                    'verified' => false,
+                    'status'   => 'pending',
+                    'message'  => 'Transaksi belum ditambang atau sedang diproses di Monad Testnet mempool.',
+                ], 202);
+            }
+
+            // Check transaction status: 0x1 is success
+            $statusHex = $receipt['status'] ?? '0x0';
+            if ($statusHex !== '0x1') {
+                return response()->json([
+                    'success'  => false,
+                    'verified' => false,
+                    'status'   => 'reverted',
+                    'message'  => 'Transaksi on-chain gagal atau dibatalkan (reverted).',
+                ], 422);
+            }
+
+            // Verify contract destination
+            $toAddress = strtolower($receipt['to'] ?? '');
+            if ($toAddress !== $expectedPaymentHub) {
+                return response()->json([
+                    'success'  => false,
+                    'verified' => false,
+                    'message'  => "Alamat kontrak tujuan ({$toAddress}) tidak sesuai dengan SmileOnPaymentHub ({$expectedPaymentHub}).",
+                ], 422);
+            }
+
+            $blockNumber = isset($receipt['blockNumber']) ? hexdec($receipt['blockNumber']) : null;
+            $fromAddress = strtolower($receipt['from'] ?? '');
+
+            // Idempotent audit record in payment_webhooks
+            $existingWebhook = DB::table('payment_webhooks')
+                ->where('provider', 'monad')
+                ->where('event_id', $txHash)
+                ->first();
+
+            if (!$existingWebhook) {
+                DB::table('payment_webhooks')->insert([
+                    'provider'    => 'monad',
+                    'event_id'    => $txHash,
+                    'raw_payload' => json_encode([
+                        'order_ref'    => $orderRef,
+                        'tx_hash'      => $txHash,
+                        'from_address' => $fromAddress,
+                        'block_number' => $blockNumber,
+                        'verified_by'  => 'instant_rpc_rail',
+                    ]),
+                    'status'      => 'processed',
+                    'received_at' => now(),
+                ]);
+            }
+
+            // Try to match with internal Order record
+            $order = Order::where('order_number', $orderRef)
+                ->orWhere('uuid', $orderRef)
+                ->first();
+
+            if ($order && $order->status === 'pending') {
+                DB::transaction(function () use ($order, $txHash, $blockNumber, $fromAddress) {
+                    $order->update([
+                        'status'   => 'paid',
+                        'paid_at'  => now(),
+                        'payment_details' => array_merge($order->payment_details ?? [], [
+                            'tx_hash'      => $txHash,
+                            'block_number' => $blockNumber,
+                            'from_address' => $fromAddress,
+                            'chain_id'     => 10143,
+                            'verified_via' => 'instant_rpc',
+                        ]),
+                    ]);
+
+                    $creditsToGrant = $order->payment_details['credits_to_grant'] ?? 0;
+                    if ($creditsToGrant > 0) {
+                        $credit = $order->user->photoCredit ?? PhotoCredit::create(['user_id' => $order->user_id]);
+                        $before = $credit->balance;
+                        $credit->increment('balance', $creditsToGrant);
+                        $credit->increment('lifetime_earned', $creditsToGrant);
+
+                        CreditTransaction::create([
+                            'user_id'        => $order->user_id,
+                            'type'           => 'purchase',
+                            'amount'         => $creditsToGrant,
+                            'balance_before' => $before,
+                            'balance_after'  => $before + $creditsToGrant,
+                            'reference_type' => 'Order',
+                            'reference_id'   => $order->id,
+                            'created_at'     => now(),
+                        ]);
+                    }
+                ]);
+            }
+
+            return response()->json([
+                'success'      => true,
+                'verified'     => true,
+                'status'       => 'paid',
+                'order_ref'    => $orderRef,
+                'tx_hash'      => $txHash,
+                'block_number' => $blockNumber,
+                'chain_id'     => 10143,
+                'network'      => 'Monad Testnet',
+                'explorer_url' => "https://testnet.monadexplorer.com/tx/{$txHash}",
+                'message'      => 'Pembayaran on-chain Monad berhasil diverifikasi secara instan.',
+                'order'        => $order ? $order->fresh(['items']) : null,
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan internal saat verifikasi transaksi: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: smileon-indexer
+description: Official Envio HyperIndex for SmileOn Photobox Ecosystem on Monad Testnet (Chain ID 10143)
+
+field_selection:
+  transaction_fields:
+    - hash
+    - from
+    - to
+
+networks:
+  - id: 10143
+    rpc_config:
+      url: https://testnet-rpc.monad.xyz
+    start_block: 0
+    contracts:
+      - name: SmileOnPaymentHub
+        address:
+          - 0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff
+        handler: src/EventHandlers.ts
+        events:
+          - event: PaymentReceived(string indexed orderRef, address indexed payer, uint8 indexed category, uint256 amount, bytes32 itemId, uint256 timestamp, uint256 chainId)
+          - event: FundsWithdrawn(address indexed recipient, uint256 amount)
+          - event: PriceTierUpdated(bytes32 indexed itemId, uint256 priceInWei, bool isActive, string description)

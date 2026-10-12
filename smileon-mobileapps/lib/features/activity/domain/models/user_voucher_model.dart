@@ -17,6 +17,7 @@ class UserVoucherModel {
   final String status; // 'Aktif', 'Digunakan', 'Kadaluarsa'
   final String imagePath;
   final String? usedForEvent;
+  final String? txHash;
 
   const UserVoucherModel({
     required this.id,
@@ -33,6 +34,7 @@ class UserVoucherModel {
     this.status = 'Aktif',
     this.imagePath = 'assets/images/voucher/wedding_package.jpg',
     this.usedForEvent,
+    this.txHash,
   });
 
   bool get isActive => status == 'Aktif';
@@ -70,6 +72,7 @@ class UserVoucherModel {
     String? status,
     String? imagePath,
     String? usedForEvent,
+    String? txHash,
   }) {
     return UserVoucherModel(
       id: id ?? this.id,
@@ -86,6 +89,7 @@ class UserVoucherModel {
       status: status ?? this.status,
       imagePath: imagePath ?? this.imagePath,
       usedForEvent: usedForEvent ?? this.usedForEvent,
+      txHash: txHash ?? this.txHash,
     );
   }
 
@@ -104,6 +108,7 @@ class UserVoucherModel {
         'status': status,
         'imagePath': imagePath,
         'usedForEvent': usedForEvent,
+        'txHash': txHash,
       };
 
   factory UserVoucherModel.fromJson(Map<String, dynamic> json) =>
@@ -123,6 +128,7 @@ class UserVoucherModel {
         imagePath: json['imagePath'] as String? ??
             'assets/images/voucher/wedding_package.jpg',
         usedForEvent: json['usedForEvent'] as String?,
+        txHash: json['txHash'] as String?,
       );
 
   /// Default voucher contoh yang sudah dibeli oleh pengguna

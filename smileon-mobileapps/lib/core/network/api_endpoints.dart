@@ -35,4 +35,8 @@ class ApiEndpoints {
   static const String sessions = '/sessions';
   static String sessionDetail(String id) => '/sessions/$id';
   static const String uploadPhotoStrip = '/sessions/upload';
+
+  // 6. Payments & Monad Testnet Endpoints
+  static const String verifyMonadPayment = '/payments/verify-monad';
+  static const String web3Contracts = '/web3/contracts';
 }

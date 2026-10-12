@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/core/constants/monad_contracts.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/activity/domain/models/user_voucher_model.dart';
 import 'package:smileon/features/activity/presentation/category/myvoucher_activity.dart';
 import 'package:smileon/features/activity/presentation/providers/user_voucher_provider.dart';
 import 'package:smileon/features/camera/presentation/newsession_event_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Komponen Reusable Slider / List untuk Voucher Saya pada Layar Aktivitas
 class MyVoucherSlider extends ConsumerWidget {
@@ -561,6 +563,54 @@ class MyVoucherSlider extends ConsumerWidget {
                     const Divider(color: Color(0xFFE2E8F0), height: 16),
                     _buildRow('Status', voucher.status,
                         isHighlight: voucher.isActive),
+                    if (voucher.txHash != null) ...[
+                      const Divider(color: Color(0xFFE2E8F0), height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF836EF9)),
+                              SizedBox(width: 4),
+                              Text(
+                                'On-Chain Monad',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF836EF9),
+                                ),
+                              ),
+                            ],
+                          ),
+                          InkWell(
+                            onTap: () async {
+                              final uri = Uri.parse(MonadContracts.explorerTxUrl(voucher.txHash!));
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                Text(
+                                  voucher.txHash!.length > 14
+                                      ? '${voucher.txHash!.substring(0, 6)}...${voucher.txHash!.substring(voucher.txHash!.length - 4)}'
+                                      : voucher.txHash!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF836EF9),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(Icons.open_in_new_rounded, size: 12, color: Color(0xFF836EF9)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
