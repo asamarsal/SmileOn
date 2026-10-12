@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/localization/app_translations.dart';
+import 'package:smileon/core/network/api_client.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/settings/presentation/event-voucher/eventvoucher_setting.dart';
 import 'package:smileon/features/activity/presentation/providers/user_voucher_provider.dart';
@@ -17,6 +18,8 @@ class EventCategoryEventVoucherScreen extends ConsumerStatefulWidget {
 class _EventCategoryEventVoucherScreenState
     extends ConsumerState<EventCategoryEventVoucherScreen> {
   String _selectedPayment = 'monad';
+  List<Map<String, dynamic>> _dynamicPackages = [];
+  bool _isLoadingPackages = false;
 
   final List<Map<String, dynamic>> _eventList = const [
     {
@@ -61,6 +64,55 @@ class _EventCategoryEventVoucherScreenState
     },
   ];
 
+  List<Map<String, dynamic>> get _effectiveEventList =>
+      _dynamicPackages.isNotEmpty ? _dynamicPackages : _eventList;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackagesFromBackend();
+  }
+
+  Future<void> _loadPackagesFromBackend() async {
+    setState(() => _isLoadingPackages = true);
+    try {
+      final response = await ApiClient.instance.get('/packages');
+      if (response.statusCode == 200 && response.data != null) {
+        final list = response.data['data'] as List<dynamic>?;
+        if (list != null && list.isNotEmpty) {
+          final mapped = list.map((pkg) {
+            final p = pkg as Map<String, dynamic>;
+            final credits = p['credits_amount'] ?? 100;
+            final priceNum = p['price'] ?? 100000;
+            final priceStr = priceNum.toString().split('.').first;
+            final formattedPrice = 'Rp ${priceStr.replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+            return {
+              'id': p['id'],
+              'title': p['name'] ?? 'Paket Event',
+              'photos': '$credits Foto',
+              'price': formattedPrice,
+              'crypto': p['crypto_price'] ?? '${(double.tryParse(priceNum.toString()) ?? 100000) / 100000} MON',
+              'discount': p['badge_label'] ?? 'Hemat 25%',
+              'image': 'assets/images/voucher/wedding_package.jpg',
+            };
+          }).toList();
+          if (mounted) {
+            setState(() {
+              _dynamicPackages = mapped;
+              _isLoadingPackages = false;
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[EventCategoryEventVoucherScreen] Error load backend packages: $e');
+    }
+    if (mounted) {
+      setState(() => _isLoadingPackages = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(tProvider);
@@ -85,10 +137,13 @@ class _EventCategoryEventVoucherScreenState
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-          child: Column(
+        child: RefreshIndicator(
+          color: AppTheme.primaryRose,
+          onRefresh: _loadPackagesFromBackend,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Hero Promo Banner
@@ -210,18 +265,29 @@ class _EventCategoryEventVoucherScreenState
               const SizedBox(height: 20),
 
               // 2. Daftar Paket Event
-              Column(
-                children: _eventList.map((item) {
-                  return _buildEventItemCard(context, item, t);
-                }).toList(),
-              ),
+              if (_isLoadingPackages)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRose),
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  children: _effectiveEventList.map((item) {
+                    return _buildEventItemCard(context, item, t);
+                  }).toList(),
+                ),
               const SizedBox(height: 24),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEventItemCard(
     BuildContext context,

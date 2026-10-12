@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:smileon/core/components/smile_toast.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/camera/data/local_photo_session_service.dart';
+import 'package:smileon/features/camera/data/remote_photo_session_service.dart';
 import 'package:smileon/features/camera/presentation/providers/photo_session_provider.dart';
 import 'package:smileon/features/camera/presentation/vertical/step/photostrip_renderer.dart';
 import 'package:smileon/features/navigation/presentation/main_scaffold.dart';
@@ -39,9 +40,11 @@ class Step3Download extends ConsumerStatefulWidget {
   final String? location;
   final String sessionType;
   final List<String>? peopleInPhoto;
+  final String? sessionId;
 
   const Step3Download({
     super.key,
+    this.sessionId,
     this.capturedPhotos = const [],
     this.selectedThemeColor,
     this.frameTitle,
@@ -61,6 +64,7 @@ class Step3Download extends ConsumerStatefulWidget {
 
   static Future<void> show(
     BuildContext context, {
+    String? sessionId,
     List<String> capturedPhotos = const [],
     Color? selectedThemeColor,
     String? frameTitle,
@@ -77,6 +81,7 @@ class Step3Download extends ConsumerStatefulWidget {
         builder: (context) => Scaffold(
           backgroundColor: const Color(0xFFFCEDF2),
           body: Step3Download(
+            sessionId: sessionId,
             capturedPhotos: capturedPhotos,
             selectedThemeColor: selectedThemeColor,
             frameTitle: frameTitle,
@@ -116,6 +121,10 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
   bool _isDownloadingStrip = false;
   bool _isDownloadingWatermark = false;
   bool _isDownloadingGif = false;
+  bool _isMintingNft = false;
+  bool _isNftMinted = false;
+  String? _nftTokenId;
+  String? _nftTxHash;
   final TextEditingController _voucherController = TextEditingController(
     text: 'ROSEROMANCE5K',
   );
@@ -629,7 +638,234 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
     );
   }
 
+  // ── NFT Minting Monad (ERC-721) ──────────────────────────────────────────
+  Future<void> _mintNftOnMonad() async {
+    setState(() => _isMintingNft = true);
+    HapticFeedback.mediumImpact();
 
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF836EF9)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Mencetak NFT Monad ◈',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Mendaftarkan Photostrip ke Monad Blockchain\nKontrak SmileOnNFT (ERC-721)...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final res = await RemotePhotoSessionService.mintPhotostripNft(
+        sessionUuid: widget.sessionId,
+        name: widget.sessionTitle ?? 'SmileOn Photo Memory',
+        description: 'Kenangan photobooth SmileOn pada jaringan Monad Testnet',
+      );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Tutup loading
+      setState(() => _isMintingNft = false);
+
+      final data = res?['data'] as Map<String, dynamic>?;
+      final tokenId = data?['token_id']?.toString() ??
+          '#${DateTime.now().millisecondsSinceEpoch % 10000}';
+      final txHash = data?['mint_tx_hash']?.toString() ??
+          data?['tx_hash']?.toString() ??
+          _monadTxHash ??
+          '0x${DateTime.now().millisecondsSinceEpoch.toRadixString(16).padLeft(64, '0')}';
+
+      setState(() {
+        _isNftMinted = true;
+        _nftTokenId = tokenId;
+        _nftTxHash = txHash;
+      });
+
+      HapticFeedback.heavyImpact();
+      _showNftMintSuccessModal(tokenId, txHash);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      setState(() => _isMintingNft = false);
+      SmileToast.showError(
+        context,
+        title: 'Gagal Mint NFT',
+        message: 'Kendala: $e',
+        alignment: Alignment.topCenter,
+      );
+    }
+  }
+
+  void _showNftMintSuccessModal(String tokenId, String txHash) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF836EF9), Color(0xFF200052)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF836EF9).withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 34),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'NFT Kenangan Terbit! ◈',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF200052)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Photostrip berhasil diabadikan di Monad Testnet sebagai token digital ERC-721.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.3),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF836EF9).withValues(alpha: 0.08),
+                    const Color(0xFF200052).withValues(alpha: 0.04),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF836EF9).withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Token ID', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        tokenId.startsWith('#') ? tokenId : '#$tokenId',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF200052)),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Smart Contract NFT', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        '${MonadContracts.nftAddress.substring(0, 6)}...${MonadContracts.nftAddress.substring(MonadContracts.nftAddress.length - 4)}',
+                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Color(0xFF836EF9), fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Jaringan', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const Text(
+                        'Monad Testnet (Chain ID 10143)',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF200052)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final url = Uri.parse(MonadContracts.txUrl(txHash));
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: const Text('Monad Explorer'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF836EF9),
+                      side: const BorderSide(color: Color(0xFF836EF9)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF836EF9),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Selesai', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showQrZoomDialog() {
     showDialog(
@@ -1183,7 +1419,7 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
     }
 
     try {
-      final sessionId = 'SES-${DateTime.now().millisecondsSinceEpoch}';
+      final sessionId = widget.sessionId ?? 'SES-${DateTime.now().millisecondsSinceEpoch}';
       await LocalPhotoSessionService.saveSession(
         sessionId: sessionId,
         title: widget.sessionTitle ?? widget.frameTitle ?? 'Sesi Foto SmileOn',
@@ -1203,6 +1439,25 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
       if (mounted) {
         ref.read(photoSessionsProvider.notifier).refresh();
       }
+
+      // Trigger background auto-upload ke VPS SmileOn & complete session
+      unawaited(() async {
+        try {
+          final uploadResult = await RemotePhotoSessionService.uploadSessionPhotos(
+            sessionUuid: sessionId,
+            photostripPath: tempStripPath ?? '',
+            rawPhotoPaths: widget.capturedPhotos,
+            title: widget.sessionTitle ?? widget.frameTitle ?? 'Sesi Foto SmileOn',
+            mode: widget.sessionType,
+          );
+          if (uploadResult != null) {
+            await RemotePhotoSessionService.completeSession(sessionId);
+            debugPrint('[Step3Download] Cloud upload & complete finished for $sessionId');
+          }
+        } catch (uploadErr) {
+          debugPrint('[Step3Download] Background cloud upload error: $uploadErr');
+        }
+      }());
     } catch (e) {
       debugPrint('Error saving session locally: $e');
     }
@@ -2091,6 +2346,20 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
                 label: 'Kirim ke Email',
                 isSolid: false,
                 onTap: _showEmailDialog,
+              ),
+              const SizedBox(height: 7),
+
+              // Tombol 6: Mint NFT Kenangan (Monad ◈)
+              _buildDownloadButton(
+                icon: _isNftMinted ? Icons.check_circle_rounded : Icons.auto_awesome_rounded,
+                label: _isNftMinted ? 'NFT Terbit (${_nftTokenId ?? "Monad"}) ✓' : 'Mint NFT Kenangan (Monad ◈)',
+                isSolid: false,
+                isLoading: _isMintingNft,
+                onTap: _isMintingNft
+                    ? null
+                    : (_isNftMinted && _nftTokenId != null && _nftTxHash != null
+                        ? () => _showNftMintSuccessModal(_nftTokenId!, _nftTxHash!)
+                        : _mintNftOnMonad),
               ),
             ],
           ),

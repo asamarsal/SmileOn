@@ -43,4 +43,17 @@ return [
         'explorer_url' => env('MONAD_EXPLORER_URL', 'https://testnet.monadexplorer.com'),
     ],
 
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+        'sender_id' => env('FCM_SENDER_ID'),
+        'project_id' => env('FCM_PROJECT_ID', 'smileon-hackathon'),
+        'service_account_json' => env('FCM_SERVICE_ACCOUNT_JSON'),
+    ],
+
+    'pinata' => [
+        'api_key' => env('PINATA_API_KEY'),
+        'secret_key' => env('PINATA_SECRET_KEY'),
+    ],
+
 ];
+

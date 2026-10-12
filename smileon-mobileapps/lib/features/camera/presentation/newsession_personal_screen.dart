@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/features/camera/data/remote_photo_session_service.dart';
 import 'package:smileon/features/camera/presentation/active_camera_screen.dart';
 
 /// Screen "Siapkan Sesi Foto" (Mode Personal)
@@ -62,7 +63,7 @@ class _NewSessionPersonalScreenState
     Navigator.pop(context);
   }
 
-  void _handleSaveAndStart() {
+  Future<void> _handleSaveAndStart() async {
     final title = _sessionNameController.text.trim();
     if (title.isEmpty) {
       SmileToast.showWarning(
@@ -86,11 +87,22 @@ class _NewSessionPersonalScreenState
       frameIdx = 1;
     }
 
+    // Buat tiket sesi resmi di VPS di latar belakang / sebelum buka kamera
+    final serverSessionUuid = await RemotePhotoSessionService.createSession(
+      mode: 'personal',
+      orientation: 'portrait',
+      creditsRequired: 1,
+      photosCount: 4,
+    );
+
+    if (!mounted) return;
+
     // Buka ActiveCameraScreen dengan metadata sesi
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ActiveCameraScreen(
+          sessionId: serverSessionUuid,
           sessionTitle: title,
           location: _selectedLocation.isNotEmpty ? _selectedLocation : null,
           peopleInPhoto: List<String>.from(_friends),

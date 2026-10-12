@@ -19,8 +19,11 @@ class ActiveCameraScreen extends StatefulWidget {
   final String? frameAsset;
   final List<String>? peopleInPhoto;
 
+  final String? sessionId;
+
   const ActiveCameraScreen({
     super.key,
+    this.sessionId,
     this.initialCapturedPhotos,
     this.initialCapturedPhotosMirrorState,
     this.sessionTitle,
@@ -52,6 +55,7 @@ class _ActiveCameraScreenState extends State<ActiveCameraScreen> {
   Widget build(BuildContext context) {
     if (_isLandscape == true) {
       return HorizontalActiveCamScreen(
+        sessionId: widget.sessionId,
         initialCapturedPhotos: widget.initialCapturedPhotos,
         initialCapturedPhotosMirrorState:
             widget.initialCapturedPhotosMirrorState,
@@ -64,6 +68,7 @@ class _ActiveCameraScreenState extends State<ActiveCameraScreen> {
       );
     } else {
       return VerticalActiveCamScreen(
+        sessionId: widget.sessionId,
         initialCapturedPhotos: widget.initialCapturedPhotos,
         initialCapturedPhotosMirrorState:
             widget.initialCapturedPhotosMirrorState,

@@ -26,9 +26,11 @@ class HorizontalActiveCamScreen extends StatefulWidget {
   final int initialFrameIndex;
   final String? frameTitle;
   final List<String>? peopleInPhoto;
+  final String? sessionId;
 
   const HorizontalActiveCamScreen({
     super.key,
+    this.sessionId,
     this.initialCapturedPhotos,
     this.initialCapturedPhotosMirrorState,
     this.sessionTitle,
@@ -1437,6 +1439,7 @@ class _HorizontalActiveCamScreenState extends State<HorizontalActiveCamScreen> w
       return Scaffold(
         backgroundColor: const Color(0xFFFCEDF2),
         body: Step3Download(
+          sessionId: widget.sessionId,
           capturedPhotos: _capturedPhotos,
           mirroredStates: _capturedPhotosMirrorState,
           selectedThemeColor: _selectedSidebarColor,

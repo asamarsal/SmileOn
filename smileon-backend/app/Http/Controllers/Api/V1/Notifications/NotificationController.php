@@ -111,5 +111,32 @@ class NotificationController extends Controller
             ],
         ]);
     }
+
+    /**
+     * POST /api/v1/notifications/send-test
+     * Kirim notifikasi uji coba ke akun / perangkat aktif.
+     */
+    public function sendTest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $title = $request->title ?? "Halo dari SmileOn! 🎉";
+        $body = $request->body ?? "Push notification berhasil dikirim dari backend VPS ke aplikasi mobile.";
+
+        $sent = app(\App\Services\Notification\FcmService::class)->sendToUser($user, $title, $body, [
+            'type'      => 'test_push',
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notifikasi uji coba berhasil diproses.',
+            'data'    => [
+                'user_id'   => $user->id,
+                'fcm_token' => $user->fcm_token ? substr($user->fcm_token, 0, 20) . '...' : null,
+                'sent_fcm'  => $sent,
+            ],
+        ]);
+    }
 }
+
 

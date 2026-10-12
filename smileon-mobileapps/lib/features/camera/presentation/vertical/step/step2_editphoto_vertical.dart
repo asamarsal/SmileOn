@@ -48,9 +48,11 @@ class Step2EditPhotoVertical extends StatefulWidget {
   final String? location;
   final String sessionType;
   final List<String>? peopleInPhoto;
+  final String? sessionId;
 
   const Step2EditPhotoVertical({
     super.key,
+    this.sessionId,
     this.capturedPhotos = const [],
     this.selectedThemeColor,
     this.frameTitle,
@@ -182,6 +184,7 @@ class _Step2EditPhotoVerticalState extends State<Step2EditPhotoVertical> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Step3DownloadVertical(
+          sessionId: widget.sessionId,
           capturedPhotos: widget.capturedPhotos,
           selectedThemeColor: widget.selectedThemeColor,
           selectedFrameIndex: _selectedFrameIndex,

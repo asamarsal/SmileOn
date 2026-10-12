@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:smileon/core/config/app_config.dart';
 import 'package:smileon/core/network/api_client.dart';
 import 'package:smileon/core/network/api_endpoints.dart';
 import 'package:smileon/core/network/api_response.dart';
@@ -129,11 +130,10 @@ class RemoteEventQuotaRepository implements EventQuotaRepository {
 }
 
 /// Provider Repository Kuota Event
-/// CUKUP GANTI RETURN VALUE KE RemoteEventQuotaRepository() SAAT BACKEND SIAP!
+/// Otomatis switch antara Local Storage (Mock) dan Real REST API via USE_MOCK_API di .env!
 final eventQuotaRepositoryProvider = Provider<EventQuotaRepository>((ref) {
-  // Mode Saat ini: 100% Local Storage Offline
-  return LocalEventQuotaRepository();
-
-  // Mode Masa Depan: Cukup ganti dengan:
-  // return RemoteEventQuotaRepository(ApiClient());
+  if (AppConfig.useMockApi) {
+    return LocalEventQuotaRepository();
+  }
+  return RemoteEventQuotaRepository(ApiClient());
 });

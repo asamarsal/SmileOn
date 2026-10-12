@@ -11,6 +11,8 @@ import 'package:smileon/features/activity/presentation/components/lastphoto_slid
 import 'package:smileon/features/activity/presentation/components/lasttransaction_slider.dart';
 import 'package:smileon/features/activity/presentation/components/myvoucher_slider.dart';
 import 'package:smileon/features/activity/presentation/components/savedframe_slider.dart';
+import 'package:smileon/features/activity/presentation/providers/activity_providers.dart';
+import 'package:smileon/features/activity/presentation/providers/user_voucher_provider.dart';
 
 export 'package:smileon/features/activity/presentation/components/ctacard_activity.dart';
 export 'package:smileon/features/activity/presentation/components/ctacard_noactivity.dart';
@@ -40,8 +42,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
   /// Function pemuatan data dari API (Programmatic Trigger)
   Future<void> fetchActivityDataFromApi() async {
     setState(() => _isLoadingApi = true);
-    // Simulasi request API
-    await Future.delayed(const Duration(milliseconds: 1400));
+    ref.invalidate(activityTransactionsProvider);
+    ref.invalidate(activityCreatedEventsProvider);
+    ref.invalidate(activityJoinedEventsProvider);
+    ref.invalidate(activitySavedFramesProvider);
+    await ref.read(userVoucherProvider.notifier).syncWithBackend();
     if (mounted) {
       setState(() => _isLoadingApi = false);
     }
@@ -49,8 +54,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
   /// Fungsi pemuatan/refresh saat layar ditarik dari atas ke bawah (Pull-To-Refresh Trigger)
   Future<void> _handlePullRefresh() async {
-    // Simulasi request API saat ditarik
-    await Future.delayed(const Duration(milliseconds: 1200));
+    ref.invalidate(activityTransactionsProvider);
+    ref.invalidate(activityCreatedEventsProvider);
+    ref.invalidate(activityJoinedEventsProvider);
+    ref.invalidate(activitySavedFramesProvider);
+    await ref.read(userVoucherProvider.notifier).syncWithBackend();
     if (mounted) {
       setState(() {});
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/activity/presentation/category/lasttransaction_activity.dart';
+import 'package:smileon/features/activity/presentation/providers/activity_providers.dart';
 
 /// Model item Transaksi Terakhir
 class TransactionActivityItem {
@@ -98,17 +99,14 @@ class LastTransactionSlider extends ConsumerWidget {
     this.onItemTap,
   });
 
-  List<TransactionActivityItem> get _effectiveItems {
-    final list = (items != null && items!.isNotEmpty)
-        ? items!
-        : TransactionActivityItem.defaultItems;
-    return isExpanded ? list : list.take(2).toList();
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
-    final data = _effectiveItems;
+    final asyncData = ref.watch(activityTransactionsProvider);
+    final baseList = (items != null && items!.isNotEmpty)
+        ? items!
+        : (asyncData.value ?? TransactionActivityItem.defaultItems);
+    final data = isExpanded ? baseList : baseList.take(2).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

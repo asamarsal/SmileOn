@@ -18,6 +18,13 @@ class UserVoucherController extends Controller
     public function myVouchers(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        // Auto-update status kadaluarsa di database
+        UserVoucher::where('user_id', $user->id)
+            ->where('status', 'Aktif')
+            ->where('expires_at', '<', now())
+            ->update(['status' => 'Kadaluarsa']);
+
         $query = UserVoucher::where('user_id', $user->id);
 
         if ($request->has('status') && !empty($request->status) && $request->status !== 'Semua') {
@@ -29,15 +36,19 @@ class UserVoucherController extends Controller
         // Calculate summary metrics
         $allUserVouchers = UserVoucher::where('user_id', $user->id)->get();
         $activeCount = $allUserVouchers->where('status', 'Aktif')->count();
+        $usedCount = $allUserVouchers->whereIn('status', ['Terpakai', 'Digunakan'])->count();
+        $expiredCount = $allUserVouchers->where('status', 'Kadaluarsa')->count();
         $totalCreditsAvailable = $allUserVouchers->where('status', 'Aktif')->sum('credit_amount');
 
         return response()->json([
             'success' => true,
             'data'    => $vouchers,
             'meta'    => [
-                'total_vouchers'  => $allUserVouchers->count(),
-                'active_vouchers' => $activeCount,
-                'total_credits'   => $totalCreditsAvailable,
+                'total_vouchers'   => $allUserVouchers->count(),
+                'active_vouchers'  => $activeCount,
+                'used_vouchers'    => $usedCount,
+                'expired_vouchers' => $expiredCount,
+                'total_credits'    => $totalCreditsAvailable,
             ],
         ]);
     }
@@ -135,6 +146,37 @@ class UserVoucherController extends Controller
             'success' => true,
             'message' => "Voucher {$voucher->title} ({$voucher->credit_amount} foto) siap digunakan.",
             'data'    => $voucher,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/vouchers/my/{uuid}
+     * Menampilkan detail satu voucher yang dimiliki pengguna.
+     */
+    public function show(Request $request, string $uuid): JsonResponse
+    {
+        $voucher = $request->user()->userVouchers()
+            ->where(fn($q) => $q->where('uuid', $uuid)->orWhere('voucher_code', $uuid))
+            ->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => $voucher]);
+    }
+
+    /**
+     * DELETE /api/v1/vouchers/my/{uuid}
+     * Menghapus voucher dari daftar pengguna.
+     */
+    public function destroy(Request $request, string $uuid): JsonResponse
+    {
+        $voucher = $request->user()->userVouchers()
+            ->where(fn($q) => $q->where('uuid', $uuid)->orWhere('voucher_code', $uuid))
+            ->firstOrFail();
+
+        $voucher->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Voucher berhasil dihapus dari daftar Voucher Saya.'
         ]);
     }
 }

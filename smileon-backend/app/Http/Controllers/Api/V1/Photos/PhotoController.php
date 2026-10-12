@@ -72,14 +72,14 @@ class PhotoController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            // Fallback: return a placeholder (for local SQLite dev env without real R2)
+            // Fallback: return direct VPS upload URL
             return response()->json([
                 'success' => true,
                 'data'    => [
-                    'upload_url'  => 'https://r2.smileon.app/upload/presigned-placeholder',
+                    'upload_url'  => url("/api/v1/photos/upload"),
                     'storage_key' => $storageKey,
                     'expires_in'  => 900,
-                    'fields'      => [],
+                    'fields'      => ['session_uuid' => $session->uuid],
                 ],
             ]);
         }
@@ -150,14 +150,41 @@ class PhotoController extends Controller
      */
     public function sessionPhotos(Request $request, string $uuid): JsonResponse
     {
-        $session = PhotoSession::where('uuid', $uuid)
-            ->where('user_id', $request->user()->id)
-            ->firstOrFail();
+        $session = PhotoSession::where('uuid', $uuid)->firstOrFail();
 
-        $photos = $session->photos()->orderBy('shot_number')->get();
+        // Verifikasi kepemilikan sesi / peserta event
+        if ($session->user_id !== $request->user()->id && !$request->user()->isAdmin()) {
+            if ($session->event_id) {
+                $isParticipant = \App\Models\EventParticipant::where('event_id', $session->event_id)
+                    ->where('user_id', $request->user()->id)
+                    ->exists();
+                if (!$isParticipant && $session->event?->organizer_id !== $request->user()->id) {
+                    abort(403, 'Akses sesi foto ditolak.');
+                }
+            } else {
+                abort(403, 'Akses sesi foto ditolak.');
+            }
+        }
+
+        $photos = $session->photos()->orderBy('shot_number')->get()->map(function (Photo $photo) {
+            $photo->shot_index = $photo->shot_number;
+            $photo->taken_at = $photo->created_at?->toIso8601String();
+            $photo->taken_at_formatted = $photo->created_at?->format('d M Y, H:i') . ' WIB';
+            $photo->clean_url = $photo->original_url;
+            $photo->download_url = url("/api/v1/photos/{$photo->uuid}/download?watermark=true");
+            $photo->download_clean_url = url("/api/v1/photos/{$photo->uuid}/download?watermark=false");
+            $photo->toggle_watermark_url = url("/api/v1/photos/{$photo->uuid}/watermark");
+            return $photo;
+        });
 
         return response()->json([
             'success' => true,
+            'session' => [
+                'uuid'         => $session->uuid,
+                'session_code' => $session->session_code,
+                'title'        => $session->title,
+                'total_shots'  => $photos->count(),
+            ],
             'data'    => $photos,
         ]);
     }
@@ -218,5 +245,79 @@ class PhotoController extends Controller
             'success' => true,
             'data'    => $photos,
         ]);
+    }
+
+    /**
+     * POST /api/v1/photos/upload
+     * Upload foto satuan langsung ke storage VPS (public disk).
+     */
+    public function upload(Request $request): JsonResponse
+    {
+        $request->validate([
+            'session_uuid' => 'required|string',
+            'shot_index'   => 'nullable|integer|min:1|max:8',
+            'photo'        => 'nullable|file|mimes:jpeg,png,webp|max:20480',
+        ]);
+
+        $session = PhotoSession::where('uuid', $request->session_uuid)->firstOrFail();
+        $shotNumber = (int) ($request->shot_index ?? ($session->photos()->count() + 1));
+        
+        $path = null;
+        if ($request->hasFile('photo')) {
+            $ext = $request->file('photo')->getClientOriginalExtension();
+            $path = $request->file('photo')->storePubliclyAs(
+                "photos/{$session->uuid}",
+                "shot_{$shotNumber}.{$ext}",
+                'public'
+            );
+        } else {
+            // Raw binary upload
+            $path = "photos/{$session->uuid}/shot_{$shotNumber}.jpg";
+            $raw = $request->getContent();
+            if ($raw) {
+                Storage::disk('public')->put($path, $raw);
+            }
+        }
+
+        $url = $path ? Storage::disk('public')->url($path) : null;
+
+        $photo = Photo::updateOrCreate(
+            ['session_id' => $session->id, 'shot_number' => $shotNumber],
+            [
+                'user_id'         => $session->user_id,
+                'storage_key'     => $path ?? "photos/{$session->uuid}/shot_{$shotNumber}.jpg",
+                'original_url'    => $url,
+                'watermarked_url' => $url,
+                'status'          => 'ready',
+                'show_watermark'  => true,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Foto shot {$shotNumber} berhasil disimpan di VPS.",
+            'data'    => $photo,
+        ], 201);
+    }
+
+    /**
+     * GET /api/v1/photos/{uuid}/download
+     * Unduh foto satuan dari storage VPS.
+     */
+    public function download(Request $request, string $uuid)
+    {
+        $photo = Photo::where('uuid', $uuid)->firstOrFail();
+        $withWatermark = $request->boolean('watermark', $photo->show_watermark);
+
+        $localPath = storage_path("app/public/" . ltrim($photo->storage_key, '/'));
+        if (file_exists($localPath)) {
+            $fileName = "SmileOn_Photo_Shot{$photo->shot_number}_{$photo->uuid}.jpg";
+            return response()->download($localPath, $fileName, [
+                'Content-Type' => 'image/jpeg',
+            ]);
+        }
+
+        $targetUrl = (!$withWatermark && $photo->original_url) ? $photo->original_url : ($photo->watermarked_url ?? $photo->original_url);
+        return redirect()->away($targetUrl);
     }
 }

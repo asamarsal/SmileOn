@@ -10,9 +10,12 @@ use App\Models\EventGuestVoucher;
 use App\Models\UserVoucher;
 use App\Models\Frame;
 use App\Events\EventQuotaUpdated;
+use App\Jobs\ExportEventToDriveJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class EventController extends Controller
 {
@@ -97,15 +100,54 @@ class EventController extends Controller
 
     public function show(string $uuid): JsonResponse
     {
-        $event = Event::with('frames.frame', 'organizer:id,name,avatar_url', 'guestVouchers')
+        $event = Event::with('frames.frame', 'organizer:id,name,email,avatar_url', 'guestVouchers')
             ->where('uuid', $uuid)
             ->firstOrFail();
 
+        $totalGuests = $event->guestVouchers->count();
+        $alreadyPhoto = $event->guestVouchers->where('has_photo', true)->count();
+        $notYetPhoto = $totalGuests - $alreadyPhoto;
+
+        $event->total_guests = $totalGuests;
+        $event->already_photo_count = $alreadyPhoto;
+        $event->not_yet_photo_count = $notYetPhoto;
         $event->remaining_credits = $event->availablePoolCredits();
         $event->quota_display = $event->quotaDisplayString();
         $event->is_exhausted = $event->isExhausted();
+        $event->invite_url = url("/events/join/{$event->access_code}");
+        $event->host_url = url("/events/host/{$event->access_code}");
+        $event->starts_at_formatted = $event->starts_at?->format('d M Y, H:i');
+        $event->ends_at_formatted = $event->ends_at?->format('d M Y, H:i');
 
         return response()->json(['success' => true, 'data' => $event]);
+    }
+
+    /**
+     * POST /api/v1/events/{uuid}/cover
+     * Upload cover photo / banner visual event langsung ke storage VPS.
+     */
+    public function uploadCover(Request $request, string $uuid): JsonResponse
+    {
+        $request->validate([
+            'cover' => 'required|image|mimes:jpeg,png,webp|max:10240',
+        ]);
+
+        $event = Event::where('uuid', $uuid)->where('organizer_id', $request->user()->id)->firstOrFail();
+        $file = $request->file('cover');
+        $ext = $file->getClientOriginalExtension();
+        $path = $file->storePubliclyAs("events/{$event->uuid}", "cover.{$ext}", 'public');
+
+        $url = Storage::disk('public')->url($path);
+        $event->update(['banner_url' => $url]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cover photo event berhasil disimpan di VPS.',
+            'data'    => [
+                'event_uuid' => $event->uuid,
+                'banner_url' => $url,
+            ],
+        ]);
     }
 
     public function update(Request $request, string $uuid): JsonResponse
@@ -307,23 +349,94 @@ class EventController extends Controller
     // =========================================================================
 
     /**
+     * Helper fleksibel untuk mencari event berdasarkan UUID, access_code, host_voucher_code, atau ID.
+     */
+    private function findEventFlexible(string $uuid, ?int $userId = null): Event
+    {
+        $query = Event::where(function ($q) use ($uuid) {
+            $q->where('uuid', $uuid)
+              ->orWhere('access_code', $uuid)
+              ->orWhere('host_voucher_code', $uuid);
+            if (is_numeric($uuid)) {
+                $q->orWhere('id', (int) $uuid);
+            }
+        });
+
+        if ($userId) {
+            $event = (clone $query)->where('organizer_id', $userId)->first();
+            if ($event) return $event;
+        }
+
+        return $query->firstOrFail();
+    }
+
+    /**
      * GET /api/v1/events/{uuid}/guests
-     * Mengambil daftar seluruh tamu undangan dan kuota sesi masing-masing.
+     * Mengambil daftar seluruh tamu undangan, pencarian (search), filter sudah/belum foto, dan ringkasan metrik.
      */
     public function guestList(Request $request, string $uuid): JsonResponse
     {
-        $event = Event::where('uuid', $uuid)->where('organizer_id', $request->user()->id)->firstOrFail();
-        $guests = $event->guestVouchers()->orderByDesc('created_at')->get();
+        $event = $this->findEventFlexible($uuid, $request->user()?->id);
+        
+        $query = $event->guestVouchers()->orderByDesc('created_at');
+
+        // Search by guest name, voucher code, or category
+        $search = $request->query('search') ?? $request->query('q');
+        if ($search) {
+            $search = strtolower(trim($search));
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(guest_name) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(voucher_code) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(category) LIKE ?', ["%{$search}%"]);
+            });
+        }
+
+        // Filter: sudah_foto / belum_foto / all
+        $filter = $request->query('filter');
+        if ($filter === 'sudah_foto' || $filter === 'sudah') {
+            $query->where('has_photo', true);
+        } elseif ($filter === 'belum_foto' || $filter === 'belum') {
+            $query->where('has_photo', false);
+        }
+
+        // Filter category: VIP / Keluarga / Teman
+        if ($request->has('category') && !empty($request->category)) {
+            $query->where('category', $request->category);
+        }
+
+        $allGuests = $event->guestVouchers()->get();
+        $totalGuests = $allGuests->count();
+        $alreadyPhoto = $allGuests->where('has_photo', true)->count();
+        $notYetPhoto = $totalGuests - $alreadyPhoto;
+        $totalQuotaAllocated = $allGuests->sum('quota_limit');
+        $totalQuotaUsed = $allGuests->sum('quota_used');
+
+        $guests = $query->get()->map(function (EventGuestVoucher $guest) use ($event) {
+            $inviteUrl = "https://smileon-dapps.my.id/invite/{$guest->voucher_code}";
+            $guest->remaining_quota = $guest->remainingQuota();
+            $guest->invite_url = $inviteUrl;
+            $guest->qr_image_url = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" . urlencode($inviteUrl);
+            $guest->share_text = "Halo {$guest->guest_name}! Kamu diundang ke acara '{$event->name}'. Nikmati photobox gratis dengan tiketmu di: {$inviteUrl}";
+            return $guest;
+        });
 
         return response()->json([
             'success' => true,
+            'summary' => [
+                'total_guests'            => $totalGuests,
+                'already_photo'           => $alreadyPhoto,
+                'not_yet_photo'           => $notYetPhoto,
+                'total_quota_allocated'   => $totalQuotaAllocated,
+                'total_quota_used'        => $totalQuotaUsed,
+                'remaining_event_credits' => $event->availablePoolCredits(),
+            ],
             'data'    => $guests,
         ]);
     }
 
     /**
-     * POST /api/v1/events/{uuid}/guests/split-voucher
-     * Membuat split voucher unik untuk tamu tertentu (VIP/Keluarga/Teman).
+     * POST /api/v1/events/{uuid}/guests/split-voucher (dan POST /api/v1/events/{uuid}/guests)
+     * Tambah tamu event & buat kode split voucher unik.
      */
     public function splitGuestVoucher(Request $request, string $uuid): JsonResponse
     {
@@ -331,9 +444,10 @@ class EventController extends Controller
             'guest_name'  => 'required|string|max:150',
             'category'    => 'nullable|string|max:50',
             'quota_limit' => 'nullable|integer|min:1|max:10',
+            'fcm_token'   => 'nullable|string|max:500',
         ]);
 
-        $event = Event::where('uuid', $uuid)->where('organizer_id', $request->user()->id)->firstOrFail();
+        $event = $this->findEventFlexible($uuid, $request->user()?->id);
 
         $baseCode = EventGuestVoucher::generateCode($request->guest_name, $event->name);
         $code = $baseCode;
@@ -342,6 +456,8 @@ class EventController extends Controller
             $code = "{$baseCode}-{$counter}";
             $counter++;
         }
+
+        $inviteUrl = "https://smileon-dapps.my.id/invite/{$code}";
 
         $voucher = EventGuestVoucher::create([
             'event_id'     => $event->id,
@@ -352,15 +468,70 @@ class EventController extends Controller
             'quota_limit'  => $request->quota_limit ?? 1,
             'quota_used'   => 0,
             'has_photo'    => false,
-            'qr_code_url'  => "https://smileon.id/invite/{$code}",
+            'qr_code_url'  => "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" . urlencode($inviteUrl),
             'status'       => 'active',
         ]);
 
+        $voucher->remaining_quota = $voucher->remainingQuota();
+        $voucher->invite_url = $inviteUrl;
+        $voucher->share_text = "Halo {$voucher->guest_name}! Kamu diundang ke acara '{$event->name}'. Nikmati photobox gratis dengan tiketmu di: {$inviteUrl}";
+
+        // Opsional: Kirim push notifikasi jika FCM token tamu disertakan
+        if ($request->fcm_token) {
+            try {
+                app(\App\Services\Notification\FcmService::class)->sendGuestInvite($voucher, $request->fcm_token);
+            } catch (\Throwable) {}
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Split voucher tamu berhasil dibuat.',
+            'message' => "Tamu '{$voucher->guest_name}' berhasil ditambahkan ke acara.",
             'data'    => $voucher,
         ], 201);
+    }
+
+    /**
+     * DELETE /api/v1/events/{uuid}/guests/{guest_id}
+     * Hapus tamu event.
+     */
+    public function destroyGuest(Request $request, string $uuid, int $guestId): JsonResponse
+    {
+        $event = $this->findEventFlexible($uuid, $request->user()?->id);
+        $guest = EventGuestVoucher::where('event_id', $event->id)->where('id', $guestId)->firstOrFail();
+
+        $guestName = $guest->guest_name;
+        $guest->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Tamu '{$guestName}' berhasil dihapus dari acara.",
+        ]);
+    }
+
+    /**
+     * GET /api/v1/events/{uuid}/guests/{guest_id}/share
+     * Dapatkan link dan teks siap kirim ke WhatsApp/SMS untuk tamu.
+     */
+    public function shareGuestLink(Request $request, string $uuid, int $guestId): JsonResponse
+    {
+        $event = $this->findEventFlexible($uuid, $request->user()?->id);
+        $guest = EventGuestVoucher::where('event_id', $event->id)->where('id', $guestId)->firstOrFail();
+
+        $inviteUrl = "https://smileon-dapps.my.id/invite/{$guest->voucher_code}";
+        $shareText = "Halo {$guest->guest_name}! Kamu mendapatkan {$guest->quota_limit} kuota foto photobox di acara '{$event->name}'. Klik link tiket kamu di sini: {$inviteUrl}";
+        $waUrl = "https://api.whatsapp.com/send?text=" . urlencode($shareText);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'guest_name'   => $guest->guest_name,
+                'voucher_code' => $guest->voucher_code,
+                'invite_url'   => $inviteUrl,
+                'share_text'   => $shareText,
+                'whatsapp_url' => $waUrl,
+                'qr_image_url' => "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" . urlencode($inviteUrl),
+            ],
+        ]);
     }
 
     /**
@@ -460,7 +631,48 @@ class EventController extends Controller
 
     public function uploadCustomFrame(Request $request, string $uuid): JsonResponse
     {
-        return response()->json(['success' => false, 'message' => 'Custom frame upload akan segera hadir.'], 501);
+        $request->validate([
+            'title'          => 'required|string|max:150',
+            'frame_file'     => 'required_without:frame_url|nullable|file|mimes:png,webp|max:20480',
+            'frame_url'      => 'nullable|string',
+            'thumbnail_file' => 'nullable|file|mimes:jpeg,png,webp|max:10240',
+            'slot_index'     => 'nullable|integer|between:1,3',
+        ]);
+
+        $event = Event::where('uuid', $uuid)->where('organizer_id', $request->user()->id)->firstOrFail();
+
+        $frameUrl = $request->frame_url;
+        if ($request->hasFile('frame_file')) {
+            $path = $request->file('frame_file')->storePublicly('frames/custom', 'public');
+            $frameUrl = Storage::disk('public')->url($path);
+        }
+
+        $thumbnailUrl = $frameUrl;
+        if ($request->hasFile('thumbnail_file')) {
+            $thumbPath = $request->file('thumbnail_file')->storePublicly('frames/thumbnails', 'public');
+            $thumbnailUrl = Storage::disk('public')->url($thumbPath);
+        }
+
+        $frame = Frame::create([
+            'title'         => $request->title,
+            'creator_id'    => $request->user()->id,
+            'thumbnail_url' => $thumbnailUrl,
+            'frame_url'     => $frameUrl,
+            'orientation'   => 'portrait',
+            'is_free'       => true,
+            'status'        => 'active',
+        ]);
+
+        EventFrame::updateOrCreate(
+            ['event_id' => $event->id, 'slot_index' => $request->slot_index ?? 1],
+            ['frame_id' => $frame->id, 'is_custom' => true]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Custom frame berhasil diupload dan dipasang ke event.',
+            'data'    => $frame,
+        ], 201);
     }
 
     public function detachFrame(Request $request, string $uuid, int $frameId): JsonResponse
@@ -473,13 +685,62 @@ class EventController extends Controller
     public function inviteQr(string $uuid): JsonResponse
     {
         $event = Event::where('uuid', $uuid)->firstOrFail();
-        return response()->json(['success' => true, 'data' => ['access_code' => $event->access_code, 'qr_url' => "https://smileon.app/join/{$event->access_code}"]]);
+        $joinUrl = url("/events/join/{$event->access_code}");
+        $qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" . urlencode($joinUrl);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'event_uuid'   => $event->uuid,
+                'event_name'   => $event->name,
+                'access_code'  => $event->access_code,
+                'invite_url'   => $joinUrl,
+                'qr_data'      => $joinUrl,
+                'qr_image_url' => $qrImageUrl,
+                'total_credits'=> $event->total_credits,
+                'remaining'    => $event->availablePoolCredits(),
+            ],
+        ]);
     }
 
     public function hostQr(string $uuid): JsonResponse
     {
         $event = Event::where('uuid', $uuid)->firstOrFail();
-        return response()->json(['success' => true, 'data' => ['access_code' => $event->access_code]]);
+        $hostJoinUrl = url("/events/host/{$event->access_code}");
+        $qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" . urlencode($hostJoinUrl);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'event_uuid'   => $event->uuid,
+                'event_name'   => $event->name,
+                'access_code'  => $event->access_code,
+                'host_url'     => $hostJoinUrl,
+                'qr_data'      => $hostJoinUrl,
+                'qr_image_url' => $qrImageUrl,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/events/{uuid}/export/drive
+     * Simpan foto bulk seluruh sesi foto event ke Google Drive folder event.
+     */
+    public function exportDrive(Request $request, string $uuid): JsonResponse
+    {
+        $event = Event::where('uuid', $uuid)->where('organizer_id', $request->user()->id)->firstOrFail();
+
+        ExportEventToDriveJob::dispatch($event->id, $request->user()->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Proses backup bulk foto event '{$event->name}' ke Google Drive telah dijadwalkan.",
+            'data'    => [
+                'event_uuid' => $event->uuid,
+                'event_name' => $event->name,
+                'status'     => 'queued',
+            ],
+        ]);
     }
 
     public function joinEvent(Request $request, string $accessCode): JsonResponse
@@ -539,3 +800,5 @@ class EventController extends Controller
         ]);
     }
 }
+
+

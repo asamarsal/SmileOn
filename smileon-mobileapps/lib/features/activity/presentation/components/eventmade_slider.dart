@@ -6,6 +6,7 @@ import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/activity/presentation/category/eventmade_activity.dart';
 import 'package:smileon/features/camera/presentation/newsession_event_finish.dart';
 import 'package:smileon/features/camera/presentation/onboarding_event_screen.dart';
+import 'package:smileon/features/activity/presentation/providers/activity_providers.dart';
 
 /// Model item Event yang Dibuat (Pengguna sebagai Pembuat Acara / Host)
 class CreatedEventActivityItem {
@@ -139,17 +140,14 @@ class EventMadeSlider extends ConsumerWidget {
     this.onItemTap,
   });
 
-  List<CreatedEventActivityItem> get _effectiveItems {
-    final list = (items != null && items!.isNotEmpty)
-        ? items!
-        : CreatedEventActivityItem.defaultItems;
-    return isExpanded ? list : list.take(2).toList();
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
-    final data = _effectiveItems;
+    final asyncData = ref.watch(activityCreatedEventsProvider);
+    final baseList = (items != null && items!.isNotEmpty)
+        ? items!
+        : (asyncData.value ?? CreatedEventActivityItem.defaultItems);
+    final data = isExpanded ? baseList : baseList.take(2).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

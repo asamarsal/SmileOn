@@ -9,6 +9,8 @@ import 'package:smileon/features/activity/domain/models/user_voucher_model.dart'
 import 'package:smileon/features/activity/presentation/category/myvoucher_activity.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:smileon/core/constants/monad_contracts.dart';
+import 'package:smileon/core/network/api_client.dart';
+import 'package:smileon/core/network/api_endpoints.dart';
 import 'package:smileon/core/services/monad_payment_service.dart';
 
 /// Service penyimpanan file JSON voucher lokal
@@ -75,6 +77,62 @@ class UserVoucherNotifier extends Notifier<List<UserVoucherModel>> {
   Future<void> _initFromDisk() async {
     final loaded = await LocalVoucherStorageService.loadVouchers();
     state = loaded;
+    // Sinkronisasi otomatis ke backend VPS di background
+    syncWithBackend();
+  }
+
+  /// Sinkronisasi dua arah dengan database PostgreSQL VPS
+  Future<void> syncWithBackend() async {
+    try {
+      final client = ApiClient();
+      final res = await client.get(ApiEndpoints.myVouchers);
+      if (res.statusCode == 200 && res.data != null) {
+        final listData = res.data['data'] as List<dynamic>?;
+        if (listData != null && listData.isNotEmpty) {
+          final serverVouchers = listData
+              .map((e) => UserVoucherModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+
+          final Map<String, UserVoucherModel> merged = {};
+          for (final v in serverVouchers) {
+            merged[v.voucherCode.trim().toUpperCase()] = v;
+          }
+          for (final v in state) {
+            final key = v.voucherCode.trim().toUpperCase();
+            if (!merged.containsKey(key)) {
+              merged[key] = v;
+            }
+          }
+          final newList = merged.values.toList();
+          state = newList;
+          await LocalVoucherStorageService.saveVouchers(newList);
+        }
+      }
+    } catch (e) {
+      debugPrint('UserVoucherNotifier: Sinkronisasi voucher ke VPS error: $e');
+    }
+  }
+
+  /// Sinkronkan voucher baru ke backend VPS
+  Future<void> _syncPurchaseToBackend(UserVoucherModel v) async {
+    try {
+      final client = ApiClient();
+      await client.post(
+        ApiEndpoints.buyVoucher,
+        data: {
+          'title': v.title,
+          'category': v.category,
+          'photo_count': v.photoCount,
+          'credit_amount': v.creditAmount,
+          'price_formatted': v.priceFormatted,
+          'crypto_price': v.cryptoPrice,
+          'payment_method': v.paymentMethod,
+          'image_path': v.imagePath,
+        },
+      );
+    } catch (e) {
+      debugPrint('UserVoucherNotifier: Gagal kirim pembelian ke VPS: $e');
+    }
   }
 
   /// Membuat dan menambahkan voucher baru setelah transaksi pembelian berhasil
@@ -137,6 +195,10 @@ class UserVoucherNotifier extends Notifier<List<UserVoucherModel>> {
 
     state = [newVoucher, ...state];
     LocalVoucherStorageService.saveVouchers(state);
+
+    // Sync ke VPS PostgreSQL
+    _syncPurchaseToBackend(newVoucher);
+
     return newVoucher;
   }
 

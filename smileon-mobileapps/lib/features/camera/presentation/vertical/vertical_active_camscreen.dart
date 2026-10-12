@@ -28,9 +28,11 @@ class VerticalActiveCamScreen extends StatefulWidget {
   final int initialFrameIndex;
   final String? frameTitle;
   final List<String>? peopleInPhoto;
+  final String? sessionId;
 
   const VerticalActiveCamScreen({
     super.key,
+    this.sessionId,
     this.initialCapturedPhotos,
     this.initialCapturedPhotosMirrorState,
     this.sessionTitle,
@@ -1687,6 +1689,7 @@ class _VerticalActiveCamScreenState extends State<VerticalActiveCamScreen>
                       context,
                       MaterialPageRoute(
                         builder: (context) => Step1PreviewVertical(
+                          sessionId: widget.sessionId,
                           capturedPhotos: _capturedPhotos,
                           selectedFrameIndex: _selectedFrameIndex,
                           filterMatrix:

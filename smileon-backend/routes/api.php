@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\V1\Admin\AdminStorageSyncController;
 use App\Http\Controllers\Api\V1\Admin\AdminReferralController;
 use App\Http\Controllers\Api\V1\Admin\AdminPackageController;
 use App\Http\Controllers\Api\V1\Admin\AdminPricingSettingController;
+use App\Http\Controllers\Api\V1\Admin\AdminVoucherController;
+use App\Http\Controllers\Api\V1\Admin\AdminSessionController;
 use App\Http\Controllers\Api\V1\Frames\FrameController;
 use App\Http\Controllers\Api\V1\Frames\FrameCategoryController;
 use App\Http\Controllers\Api\V1\Events\EventController;
@@ -51,6 +53,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::prefix('auth')->name('auth.')->group(function () {
+        Route::post('login', [AuthController::class, 'login'])->name('login');
+        Route::post('register', [AuthController::class, 'register'])->name('register');
         Route::post('google', [AuthController::class, 'loginGoogle'])->name('google');
         Route::post('wallet', [AuthController::class, 'loginWallet'])->name('wallet');
 
@@ -58,6 +62,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('me', [AuthController::class, 'me'])->name('me');
             Route::patch('me', [AuthController::class, 'updateProfile'])->name('me.update');
+            Route::post('avatar', [AuthController::class, 'uploadAvatar'])->name('avatar');
             Route::get('sessions', [AuthController::class, 'sessions'])->name('sessions');
             Route::delete('sessions/other', [AuthController::class, 'revokeOtherSessions'])->name('sessions.other');
             Route::delete('sessions/{id}', [AuthController::class, 'revokeSession'])->name('sessions.revoke');
@@ -133,6 +138,25 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('pricing-settings', [AdminPricingSettingController::class, 'index'])->name('pricing-settings.index');
         Route::put('pricing-settings/{id}', [AdminPricingSettingController::class, 'update'])->name('pricing-settings.update');
         Route::post('pricing-settings/batch', [AdminPricingSettingController::class, 'batchUpdate'])->name('pricing-settings.batch');
+
+        // Vouchers Management (Admin CRUD)
+        Route::get('vouchers', [AdminVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('vouchers/stats', [AdminVoucherController::class, 'stats'])->name('vouchers.stats');
+        Route::post('vouchers', [AdminVoucherController::class, 'store'])->name('vouchers.store');
+        Route::get('vouchers/{id}', [AdminVoucherController::class, 'show'])->name('vouchers.show');
+        Route::put('vouchers/{id}', [AdminVoucherController::class, 'update'])->name('vouchers.update');
+        Route::patch('vouchers/{id}', [AdminVoucherController::class, 'update'])->name('vouchers.patch');
+        Route::patch('vouchers/{id}/toggle-active', [AdminVoucherController::class, 'toggleActive'])->name('vouchers.toggle-active');
+        Route::delete('vouchers/{id}', [AdminVoucherController::class, 'destroy'])->name('vouchers.destroy');
+        Route::get('user-vouchers', [AdminVoucherController::class, 'userVouchers'])->name('user-vouchers.index');
+        Route::delete('user-vouchers/{id}', [AdminVoucherController::class, 'deleteUserVoucher'])->name('user-vouchers.destroy');
+        Route::get('event-guest-vouchers', [AdminVoucherController::class, 'eventGuestVouchers'])->name('event-guest-vouchers.index');
+
+        // Photo Sessions (Admin Monitoring & Moderation)
+        Route::get('sessions', [AdminSessionController::class, 'index'])->name('sessions.index');
+        Route::get('sessions/stats', [AdminSessionController::class, 'stats'])->name('sessions.stats');
+        Route::get('sessions/{uuid}', [AdminSessionController::class, 'show'])->name('sessions.show');
+        Route::delete('sessions/{uuid}', [AdminSessionController::class, 'destroy'])->name('sessions.destroy');
     });
 
     /*
@@ -147,9 +171,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('frames/{uuid}/report', [FrameController::class, 'report'])->name('frames.report');
         Route::post('user/frames/save', [FrameController::class, 'save'])->name('frames.save');
+        Route::post('user/frames/{uuid}/save', [FrameController::class, 'save'])->name('frames.save.param');
         Route::delete('user/frames/{uuid}/unsave', [FrameController::class, 'unsave'])->name('frames.unsave');
         Route::post('user/frames/{uuid}/favorite', [FrameController::class, 'toggleFavorite'])->name('frames.favorite');
+        Route::post('user/frames/{uuid}/like', [FrameController::class, 'toggleLike'])->name('frames.like');
         Route::get('user/frames/saved', [FrameController::class, 'savedFrames'])->name('frames.saved');
+        Route::get('user/frames/liked', [FrameController::class, 'likedFrames'])->name('frames.liked');
+        Route::get('user/frames/favorites', [FrameController::class, 'savedFrames'])->name('frames.favorites');
     });
 
     /*
@@ -176,6 +204,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('events/{uuid}/frames', [EventController::class, 'attachFrame'])->name('events.frames.attach');
         Route::post('events/{uuid}/frames/custom', [EventController::class, 'uploadCustomFrame'])->name('events.frames.custom');
         Route::delete('events/{uuid}/frames/{frame_id}', [EventController::class, 'detachFrame'])->name('events.frames.detach');
+        Route::post('events/{uuid}/cover', [EventController::class, 'uploadCover'])->name('events.cover');
+        Route::post('events/{uuid}/export/drive', [EventController::class, 'exportDrive'])->name('events.export.drive');
         Route::get('events/{uuid}/qr/invite', [EventController::class, 'inviteQr'])->name('events.qr.invite');
         Route::get('events/{uuid}/qr/host', [EventController::class, 'hostQr'])->name('events.qr.host');
         Route::get('events/join/{access_code}', [EventController::class, 'joinEvent'])->name('events.join');
@@ -187,7 +217,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // Guest List & Split Voucher Management
         Route::get('events/{uuid}/guests', [EventController::class, 'guestList'])->name('events.guests.index');
+        Route::post('events/{uuid}/guests', [EventController::class, 'splitGuestVoucher'])->name('events.guests.store');
         Route::post('events/{uuid}/guests/split-voucher', [EventController::class, 'splitGuestVoucher'])->name('events.guests.split');
+        Route::delete('events/{uuid}/guests/{guest_id}', [EventController::class, 'destroyGuest'])->name('events.guests.destroy');
+        Route::get('events/{uuid}/guests/{guest_id}/share', [EventController::class, 'shareGuestLink'])->name('events.guests.share');
     });
 
     /*
@@ -218,19 +251,29 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
     /*
     |----------------------------------------------------------------------
-    | 4.7 Sessions (Sesi Foto - State Machine)
+    | 4.7 Sessions (Sesi Foto - State Machine & Offline-to-Cloud Sync)
     |----------------------------------------------------------------------
     */
+    // Batch Sync & Direct Upload (Bisa diakses oleh Kiosk & Auth User)
+    Route::post('sessions/sync', [SessionController::class, 'syncBatch'])->name('sessions.sync');
+    Route::post('sessions/upload', [SessionController::class, 'uploadMultipart'])->name('sessions.upload');
+    Route::post('sessions/{uuid}/upload-slot', [SessionController::class, 'uploadSlot'])->name('sessions.upload-slot');
+    Route::post('sessions/{uuid}/sync-complete', [SessionController::class, 'syncComplete'])->name('sessions.sync-complete');
+
     Route::middleware('auth:sanctum')->prefix('sessions')->name('sessions.')->group(function () {
         Route::post('/', [SessionController::class, 'store'])->middleware('idempotency')->name('store');
         Route::get('/', [SessionController::class, 'index'])->name('index');
+        Route::get('personal', [SessionController::class, 'personalSessions'])->name('personal');
+        Route::get('event', [SessionController::class, 'eventSessions'])->name('event');
         Route::get('lookup/{session_code}', [SessionController::class, 'lookup'])->name('lookup');
         Route::get('{uuid}', [SessionController::class, 'show'])->name('show');
         Route::patch('{uuid}', [SessionController::class, 'update'])->name('update');
+        Route::delete('{uuid}', [SessionController::class, 'destroy'])->name('destroy');
         Route::post('{uuid}/start-personal', [SessionController::class, 'startPersonal'])->middleware('idempotency')->name('start-personal');
         Route::post('{uuid}/start-event', [SessionController::class, 'startEvent'])->middleware('idempotency')->name('start-event');
         Route::post('{uuid}/complete', [SessionController::class, 'complete'])->middleware('idempotency')->name('complete');
         Route::post('{uuid}/cancel', [SessionController::class, 'cancel'])->middleware('idempotency')->name('cancel');
+        Route::post('{uuid}/export/drive', [SessionController::class, 'exportDrive'])->name('export.drive');
     });
 
     /*
@@ -238,6 +281,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     | 4.8 Direct Cloudflare R2 Upload & Photo Management
     |----------------------------------------------------------------------
     */
+    // Direct VPS / Public Upload & Download
+    Route::post('photos/upload', [PhotoController::class, 'upload'])->name('photos.upload');
+    Route::get('photos/{uuid}/download', [PhotoController::class, 'download'])->name('photos.download');
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('photos')->name('photos.')->group(function () {
             Route::post('presigned-url', [PhotoController::class, 'presignedUrl'])->name('presigned-url');
@@ -254,8 +301,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     | 4.9 Photo Strips, Dimensi & Cetak Fisik
     |----------------------------------------------------------------------
     */
-    // Public share link — no auth
+    // Public share link & Direct download — no auth
     Route::get('strips/share/{token}', [PhotoStripController::class, 'shareLink'])->name('strips.share');
+    Route::get('strips/{uuid}/download', [PhotoStripController::class, 'download'])->name('strips.download');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('sessions/{uuid}/strip', [PhotoStripController::class, 'generate'])->name('strips.generate');
@@ -273,6 +321,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::get('packages', [PackageController::class, 'index'])->name('packages.index');
+    Route::get('vouchers/packages', [PackageController::class, 'index'])->name('vouchers.packages');
     Route::get('packages/{id}', [PackageController::class, 'show'])->name('packages.show');
     Route::get('pricing-settings', [AdminPricingSettingController::class, 'publicPricing'])->name('pricing-settings.public');
     Route::get('payment-methods', [AdminPaymentMethodController::class, 'publicIndex'])->name('payment-methods.public');
@@ -310,6 +359,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // Purchased Vouchers (My Voucher inventory & generation)
         Route::get('vouchers/my', [UserVoucherController::class, 'myVouchers'])->name('vouchers.my');
+        Route::get('vouchers/my/{uuid}', [UserVoucherController::class, 'show'])->name('vouchers.my.show');
+        Route::delete('vouchers/my/{uuid}', [UserVoucherController::class, 'destroy'])->name('vouchers.my.destroy');
         Route::post('vouchers/purchase', [UserVoucherController::class, 'purchase'])->middleware('idempotency')->name('vouchers.purchase');
         Route::post('vouchers/verify-code', [UserVoucherController::class, 'verifyCode'])->name('vouchers.verify-code');
     });
@@ -339,6 +390,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::delete('notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
         Route::post('notifications/fcm-token', [NotificationController::class, 'storeFcmToken'])->name('notifications.fcm-token');
+        Route::post('notifications/send-test', [NotificationController::class, 'sendTest'])->name('notifications.send-test');
         Route::get('user/activity-logs', [NotificationController::class, 'activityLogs'])->name('user.activity-logs');
     });
 

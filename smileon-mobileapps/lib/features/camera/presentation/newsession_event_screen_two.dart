@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/features/camera/data/remote_photo_session_service.dart';
 import 'package:smileon/features/camera/presentation/newsession_event_finish.dart';
 import 'package:smileon/features/camera/presentation/vertical/choosetemplateconfirmation_view.dart';
 import 'package:smileon/features/camera/presentation/vertical/event_step/step1_waitingview_vertical.dart';
@@ -90,7 +91,7 @@ class _NewSessionEventScreenTwoState
     Navigator.pop(context);
   }
 
-  void _handleSaveAndStart() {
+  Future<void> _handleSaveAndStart() async {
     final title = _sessionNameController.text.trim();
     if (title.isEmpty) {
       SmileToast.showWarning(
@@ -150,10 +151,22 @@ class _NewSessionEventScreenTwoState
         duration: const Duration(seconds: 1),
       );
 
+      // Buat tiket sesi event di database VPS
+      final serverSessionUuid = await RemotePhotoSessionService.createSession(
+        mode: 'event',
+        orientation: 'portrait',
+        guestVoucherCode: widget.voucherCode,
+        creditsRequired: 1,
+        photosCount: 4,
+      );
+
+      if (!mounted) return;
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => Step1WaitingViewVertical(
+            sessionId: serverSessionUuid,
             eventName: widget.eventName,
             sessionName: title,
             eventDate: widget.eventDate,

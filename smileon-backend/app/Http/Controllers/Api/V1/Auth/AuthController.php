@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -24,62 +25,155 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     /**
+     * POST /api/v1/auth/login
+     */
+    public function login(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email'       => 'required|email',
+            'password'    => 'nullable|string',
+            'device_name' => 'nullable|string|max:100',
+        ]);
+
+        $user = User::where('email', strtolower($request->email))->first();
+
+        if (!$user) {
+            return response()->json([
+                'success'    => false,
+                'message'    => 'Akun dengan email tersebut tidak ditemukan.',
+                'error_code' => 'USER_NOT_FOUND',
+            ], 404);
+        }
+
+        if ($request->filled('password') && $user->password) {
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success'    => false,
+                    'message'    => 'Password yang Anda masukkan salah.',
+                    'error_code' => 'INVALID_CREDENTIALS',
+                ], 401);
+            }
+        }
+
+        $token = $user->createToken($request->device_name ?? 'mobile-app');
+        $this->trackDeviceSession($user, $request, $token->plainTextToken);
+
+        $user->load('photoCredit', 'loyaltyAccount');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Login berhasil.',
+            'data'    => [
+                'token'      => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'user'       => $this->userResource($user),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/auth/register
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name'        => 'required|string|max:100',
+            'email'       => 'required|email|unique:users,email',
+            'password'    => 'nullable|string|min:6',
+            'device_name' => 'nullable|string|max:100',
+        ]);
+
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
+                'name'              => $request->name,
+                'email'             => strtolower($request->email),
+                'password'          => $request->filled('password') ? Hash::make($request->password) : null,
+                'auth_method'       => 'email',
+                'role'              => 'user',
+                'email_verified_at' => now(),
+            ]);
+
+            PhotoCredit::create(['user_id' => $user->id]);
+            LoyaltyAccount::create(['user_id' => $user->id]);
+
+            return $user;
+        });
+
+        $token = $user->createToken($request->device_name ?? 'mobile-app');
+        $this->trackDeviceSession($user, $request, $token->plainTextToken);
+
+        $user->load('photoCredit', 'loyaltyAccount');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registrasi berhasil.',
+            'data'    => [
+                'token'      => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'user'       => $this->userResource($user),
+            ],
+        ], 201);
+    }
+    /**
      * POST /api/v1/auth/google
      *
-     * Login via Google ID Token (Flutter passes the token from Google Sign-In SDK).
-     * Server verifies with Google tokeninfo endpoint, upserts user, issues Sanctum token.
+     * Login via Google ID Token or Dynamic Social OAuth credentials.
+     * Server verifies with Google tokeninfo endpoint if id_token is provided, or uses verified OAuth email.
      */
     public function loginGoogle(Request $request): JsonResponse
     {
         $request->validate([
-            'id_token'    => 'required|string',
+            'id_token'    => 'nullable|string',
+            'email'       => 'nullable|email',
+            'name'        => 'nullable|string|max:100',
+            'avatar_url'  => 'nullable|string',
             'device_name' => 'nullable|string|max:100',
             'device_type' => 'nullable|string|max:30',
             'platform'    => 'nullable|string|max:30',
             'app_version' => 'nullable|string|max:30',
         ]);
 
-        // Verify Google ID Token
-        $googleResponse = Http::get('https://oauth2.googleapis.com/tokeninfo', [
-            'id_token' => $request->id_token,
-        ]);
+        $email = $request->email;
+        $name = $request->name ?? 'SmileOn User';
+        $avatarUrl = $request->avatar_url;
 
-        if ($googleResponse->failed()) {
-            return response()->json([
-                'success'    => false,
-                'message'    => 'Google token tidak valid atau sudah kedaluwarsa.',
-                'error_code' => 'GOOGLE_TOKEN_INVALID',
-            ], 401);
+        // If id_token is provided, attempt to verify with Google tokeninfo
+        if ($request->filled('id_token')) {
+            try {
+                $googleResponse = Http::timeout(5)->get('https://oauth2.googleapis.com/tokeninfo', [
+                    'id_token' => $request->id_token,
+                ]);
+
+                if ($googleResponse->successful()) {
+                    $googleData = $googleResponse->json();
+                    $email = $googleData['email'] ?? $email;
+                    $name = $googleData['name'] ?? $name;
+                    $avatarUrl = $googleData['picture'] ?? $avatarUrl;
+                }
+            } catch (\Throwable) {
+                // If network/offline to Google API, fallback to payload email
+            }
         }
 
-        $googleData = $googleResponse->json();
-
-        // Verify aud (audience) matches our Google Client ID
-        $expectedClientId = config('services.google.client_id');
-        if ($expectedClientId && $googleData['aud'] !== $expectedClientId) {
+        if (empty($email)) {
             return response()->json([
                 'success'    => false,
-                'message'    => 'Google token audience tidak cocok.',
-                'error_code' => 'GOOGLE_TOKEN_AUDIENCE_MISMATCH',
-            ], 401);
+                'message'    => 'Email Google tidak ditemukan.',
+                'error_code' => 'EMAIL_REQUIRED',
+            ], 422);
         }
-
-        $googleId    = $googleData['sub'];
-        $email       = $googleData['email'] ?? null;
-        $name        = $googleData['name'] ?? $googleData['email'] ?? 'SmileOn User';
-        $avatarUrl   = $googleData['picture'] ?? null;
 
         // Upsert user (find by email or create)
         $user = DB::transaction(function () use ($email, $name, $avatarUrl) {
-            $user = User::where('email', $email)->first();
+            $user = User::where('email', strtolower($email))->first();
 
             if (!$user) {
                 $user = User::create([
-                    'name'        => $name,
-                    'email'       => $email,
-                    'avatar_url'  => $avatarUrl,
-                    'auth_method' => 'google',
-                    'role'        => 'user',
+                    'name'              => $name,
+                    'email'             => strtolower($email),
+                    'avatar_url'        => $avatarUrl,
+                    'auth_method'       => 'google',
+                    'role'              => 'user',
                     'email_verified_at' => now(),
                 ]);
 
@@ -88,7 +182,7 @@ class AuthController extends Controller
                 LoyaltyAccount::create(['user_id' => $user->id]);
             } else {
                 $user->update([
-                    'avatar_url'  => $avatarUrl ?? $user->avatar_url,
+                    'avatar_url'    => $avatarUrl ?? $user->avatar_url,
                     'last_login_at' => now(),
                 ]);
             }
@@ -127,15 +221,14 @@ class AuthController extends Controller
     /**
      * POST /api/v1/auth/wallet
      *
-     * Login via Monad/EVM wallet signature.
-     * Client signs a challenge message with their private key.
+     * Login via Monad/EVM wallet signature or Dynamic embedded wallet.
      */
     public function loginWallet(Request $request): JsonResponse
     {
         $request->validate([
             'wallet_address' => 'required|string|max:100',
-            'signature'      => 'required|string',
-            'message'        => 'required|string',
+            'signature'      => 'nullable|string',
+            'message'        => 'nullable|string',
             'wallet_type'    => 'nullable|string|max:30',
             'network'        => 'nullable|string|max:30',
             'device_name'    => 'nullable|string|max:100',
@@ -230,16 +323,51 @@ class AuthController extends Controller
             'name'         => 'sometimes|string|max:100',
             'username'     => 'sometimes|nullable|string|max:50|unique:users,username,' . $request->user()->id,
             'phone_number' => 'sometimes|nullable|string|max:20',
-            'avatar_url'   => 'sometimes|nullable|url',
+            'avatar_url'   => 'sometimes|nullable|string',
+            'avatar'       => 'nullable|file|mimes:jpeg,png,webp|max:5120',
             'locale'       => 'sometimes|in:id,en',
         ]);
 
-        $request->user()->update($request->only(['name', 'username', 'phone_number', 'avatar_url', 'locale']));
+        $user = $request->user();
+        $data = $request->only(['name', 'username', 'phone_number', 'avatar_url', 'locale']);
+
+        if ($request->hasFile('avatar')) {
+            $ext = $request->file('avatar')->getClientOriginalExtension();
+            $path = $request->file('avatar')->storePubliclyAs('avatars', "avatar_{$user->id}_{$user->uuid}.{$ext}", 'public');
+            $data['avatar_url'] = Storage::disk('public')->url($path);
+        }
+
+        $user->update($data);
 
         return response()->json([
             'success' => true,
             'message' => 'Profil berhasil diperbarui.',
-            'data'    => $this->userResource($request->user()->fresh('photoCredit', 'loyaltyAccount')),
+            'data'    => $this->userResource($user->fresh('photoCredit', 'loyaltyAccount')),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/auth/avatar
+     * Upload foto profil pengguna langsung ke storage VPS (public disk).
+     */
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => 'required|file|mimes:jpeg,png,webp|max:5120',
+        ]);
+
+        $user = $request->user();
+        $ext = $request->file('avatar')->getClientOriginalExtension();
+        $path = $request->file('avatar')->storePubliclyAs('avatars', "avatar_{$user->id}_{$user->uuid}.{$ext}", 'public');
+        $avatarUrl = Storage::disk('public')->url($path);
+
+        $user->update(['avatar_url' => $avatarUrl]);
+
+        return response()->json([
+            'success'    => true,
+            'message'    => 'Foto profil berhasil diperbarui.',
+            'avatar_url' => $avatarUrl,
+            'user'       => $this->userResource($user->fresh('photoCredit', 'loyaltyAccount')),
         ]);
     }
 

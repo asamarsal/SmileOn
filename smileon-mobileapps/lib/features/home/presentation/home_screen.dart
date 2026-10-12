@@ -99,10 +99,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         ),
                         padding: const EdgeInsets.all(8),
-                        child: const Icon(
-                          Icons.notifications_none,
-                          color: AppTheme.primaryRose,
-                          size: 20,
+                        child: Badge(
+                          isLabelVisible: (ref.watch(unreadNotificationCountProvider).value ?? 0) > 0,
+                          label: Text(
+                            ((ref.watch(unreadNotificationCountProvider).value ?? 0) > 9)
+                                ? '9+'
+                                : '${ref.watch(unreadNotificationCountProvider).value ?? 0}',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          backgroundColor: const Color(0xFFFF2E7E),
+                          child: const Icon(
+                            Icons.notifications_none,
+                            color: AppTheme.primaryRose,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),

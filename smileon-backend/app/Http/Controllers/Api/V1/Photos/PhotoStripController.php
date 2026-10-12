@@ -7,6 +7,8 @@ use App\Models\Photo;
 use App\Models\PhotoSession;
 use App\Models\PhotoStrip;
 use App\Models\StorageSync;
+use App\Jobs\UploadPhotostripToDriveJob;
+use App\Jobs\SendPhotoStripEmailJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -210,12 +212,38 @@ class PhotoStripController extends Controller
             ]);
         }
 
-        // TODO: Dispatch SendPhotoStripEmailJob::dispatch($strip, $user)
+        $recipient = $request->email ?? $user->email;
+        SendPhotoStripEmailJob::dispatch($strip->id, $recipient);
 
         return response()->json([
             'success' => true,
-            'message' => "Tautan download dikirim ke email {$user->email}.",
+            'message' => "Tautan download dan photostrip berhasil dikirim ke email {$recipient}.",
         ]);
+    }
+
+    /**
+     * GET /api/v1/strips/{uuid}/download
+     * Unduh file photostrip dari storage VPS (opsi clean tanpa watermark atau watermarked).
+     */
+    public function download(Request $request, string $uuid)
+    {
+        $strip = PhotoStrip::where('uuid', $uuid)->firstOrFail();
+
+        $withWatermark = $request->boolean('watermark', $strip->show_watermark);
+        $fileName = $withWatermark
+            ? "SmileOn_Strip_Watermarked_{$strip->uuid}.png"
+            : "SmileOn_Strip_HD_{$strip->uuid}.png";
+
+        $localPath = storage_path("app/public/strips/{$strip->uuid}/photostrip_hd.png");
+
+        if (file_exists($localPath)) {
+            return response()->download($localPath, $fileName, [
+                'Content-Type' => 'image/png',
+            ]);
+        }
+
+        $targetUrl = (!$withWatermark && $strip->clean_url) ? $strip->clean_url : ($strip->watermarked_url ?? $strip->clean_url);
+        return redirect()->away($targetUrl);
     }
 
     /**
@@ -242,7 +270,7 @@ class PhotoStripController extends Controller
             ]
         );
 
-        // TODO: Dispatch UploadPhotostripToDriveJob::dispatch($sync)
+        UploadPhotostripToDriveJob::dispatch($strip->id, config('filesystems.google.folder_id'));
 
         return response()->json([
             'success' => true,

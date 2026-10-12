@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:smileon/core/auth/auth_state.dart';
 import 'package:smileon/core/auth/saved_account_model.dart';
+import 'package:smileon/core/network/api_client.dart';
+import 'package:smileon/core/network/api_endpoints.dart';
 import 'package:smileon/core/utils/jwt_utils.dart';
 
 class AuthService {
@@ -86,20 +88,28 @@ class AuthService {
     }
   }
 
-  /// Menyimpan sesi ke secure storage
+  /// Menyimpan sesi ke secure storage & sinkronkan token memori ApiClient
   Future<void> saveSession(AuthSessionModel session) async {
     final token = session.authToken ?? 'token_${DateTime.now().millisecondsSinceEpoch}';
+    ApiClient.setAuthToken(token);
     await _storage.write(key: _keyAuthToken, value: token);
     await _storage.write(key: _keyAuthSession, value: session.toJson());
   }
 
-  /// Menghapus seluruh sesi (Logout) dan sinkronisasi dengan Dynamic SDK
+  /// Menghapus seluruh sesi (Logout), sinkronisasi ke backend VPS & Dynamic SDK
   Future<void> clearSession() async {
+    try {
+      final client = ApiClient();
+      await client.post(ApiEndpoints.logout);
+    } catch (_) {
+      // Non-blocking jika offline atau token sudah dicabut
+    }
     try {
       await DynamicSDK.instance.auth.logout();
     } catch (_) {
       // Abaikan jika DynamicSDK belum menginisialisasi sesi
     }
+    ApiClient.setAuthToken(null);
     await _storage.delete(key: _keyAuthToken);
     await _storage.delete(key: _keyAuthSession);
   }
@@ -262,6 +272,20 @@ class AuthService {
       }
     }
 
+    final backendToken = method == AuthMethod.google && email != null
+        ? await _syncBackendGoogle(
+            email: email,
+            name: name ?? 'Dynamic User',
+            avatarUrl: avatarUrl,
+            idToken: token,
+          )
+        : (primaryWallet != null
+            ? await _syncBackendWallet(
+                walletAddress: primaryWallet,
+                walletType: 'dynamic_embedded',
+              )
+            : null);
+
     final session = AuthSessionModel(
       authMethod: method,
       userId: userProfile.userId ?? userProfile.sessionId,
@@ -271,7 +295,7 @@ class AuthService {
       walletAddress: primaryWallet,
       walletType: 'dynamic_embedded',
       network: 'Monad',
-      authToken: token,
+      authToken: backendToken ?? token,
       createdAt: DateTime.now(),
       expiresAt: expiresAt,
     );
@@ -350,12 +374,84 @@ class AuthService {
     }
   }
 
+  /// Sinkronisasi kredensial Google ke backend VPS untuk mendapatkan Sanctum Token & menyimpan profil
+  Future<String?> _syncBackendGoogle({
+    required String email,
+    required String name,
+    String? avatarUrl,
+    String? idToken,
+  }) async {
+    try {
+      final client = ApiClient();
+      final res = await client.post(
+        ApiEndpoints.googleLogin,
+        data: {
+          'email': email,
+          'name': name,
+          'avatar_url': avatarUrl,
+          'id_token': idToken,
+          'device_name': 'flutter-app',
+          'platform': defaultTargetPlatform.name,
+        },
+      );
+      if (res.data != null && res.data['data'] != null) {
+        final token = res.data['data']['token'] as String?;
+        if (token != null && token.isNotEmpty) {
+          debugPrint('AuthService: Berhasil mendapatkan Sanctum token dari VPS backend.');
+          return token;
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthService: Backend VPS sync Google gagal (menggunakan local token): $e');
+    }
+    return null;
+  }
+
+  /// Sinkronisasi dompet Web3 ke backend VPS untuk mendapatkan Sanctum Token & menyimpan profil
+  Future<String?> _syncBackendWallet({
+    required String walletAddress,
+    String? walletType,
+    String? signature,
+    String? message,
+  }) async {
+    try {
+      final client = ApiClient();
+      final res = await client.post(
+        ApiEndpoints.walletLogin,
+        data: {
+          'wallet_address': walletAddress,
+          'wallet_type': walletType ?? 'metamask',
+          'network': 'monad',
+          'signature': signature,
+          'message': message,
+          'device_name': 'flutter-app',
+        },
+      );
+      if (res.data != null && res.data['data'] != null) {
+        final token = res.data['data']['token'] as String?;
+        if (token != null && token.isNotEmpty) {
+          debugPrint('AuthService: Berhasil mendaftarkan dompet ke VPS backend.');
+          return token;
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthService: Backend VPS sync Wallet gagal (menggunakan local token): $e');
+    }
+    return null;
+  }
+
   /// Login via Google (Memicu UI Dynamic Resmi atau fallback langsung)
   Future<AuthSessionModel> loginWithGoogle({
     required String email,
     required String name,
     String? avatarUrl,
   }) async {
+    final backendToken = await _syncBackendGoogle(
+      email: email,
+      name: name,
+      avatarUrl: avatarUrl,
+    );
+
     final session = AuthSessionModel(
       authMethod: AuthMethod.google,
       userId: 'dynamic_google_${email.hashCode.abs()}',
@@ -365,7 +461,7 @@ class AuthService {
       walletAddress: _generateMonadAddress(email),
       walletType: 'dynamic_embedded',
       network: 'Monad',
-      authToken: 'jwt_dynamic_${DateTime.now().millisecondsSinceEpoch}',
+      authToken: backendToken ?? 'jwt_dynamic_${DateTime.now().millisecondsSinceEpoch}',
       createdAt: DateTime.now(),
     );
 
@@ -394,6 +490,11 @@ class AuthService {
     final walletAddress = address ?? _generateRandomEvmAddress();
     final displayName = customName ?? '$walletType User';
 
+    final backendToken = await _syncBackendWallet(
+      walletAddress: walletAddress,
+      walletType: walletType,
+    );
+
     final session = AuthSessionModel(
       authMethod: AuthMethod.wallet,
       userId: 'wallet_${walletAddress.substring(2, 10).toLowerCase()}',
@@ -403,7 +504,7 @@ class AuthService {
       walletAddress: walletAddress,
       walletType: walletType.toLowerCase().replaceAll(' ', '_'),
       network: 'Monad',
-      authToken: 'jwt_wallet_${DateTime.now().millisecondsSinceEpoch}',
+      authToken: backendToken ?? 'jwt_wallet_${DateTime.now().millisecondsSinceEpoch}',
       createdAt: DateTime.now(),
     );
 

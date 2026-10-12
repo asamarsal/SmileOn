@@ -8,6 +8,8 @@ use App\Models\FrameCategory;
 use App\Models\AdminAuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdminFrameController extends Controller
 {
@@ -72,7 +74,7 @@ class AdminFrameController extends Controller
             ->when($request->status, fn($q, $s) => $q->where('status', $s))
             ->when($request->category_id, fn($q, $c) => $q->where('category_id', $c))
             ->when($request->orientation, fn($q, $o) => $q->where('orientation', $o))
-            ->when($request->search, fn($q, $s) => $q->where('title', 'LIKE', "%$s%"))
+            ->when($request->search, fn($q, $s) => $q->whereRaw('LOWER(title) LIKE ?', ['%' . strtolower($s) . '%']))
             ->orderByDesc('created_at')
             ->paginate($request->per_page ?? 20);
 
@@ -90,7 +92,7 @@ class AdminFrameController extends Controller
 
     /**
      * POST /api/v1/admin/frames
-     * Create new frame asset
+     * Create new frame asset (supports URL or file upload)
      */
     public function store(Request $request): JsonResponse
     {
@@ -98,8 +100,10 @@ class AdminFrameController extends Controller
             'title'          => 'required|string|max:150',
             'category_id'    => 'nullable|exists:frame_categories,id',
             'description'    => 'nullable|string',
-            'thumbnail_url'  => 'required|string',
-            'frame_url'      => 'required|string',
+            'thumbnail_url'  => 'required_without:thumbnail_file|nullable|string',
+            'thumbnail_file' => 'nullable|file|mimes:jpeg,png,webp|max:10240',
+            'frame_url'      => 'required_without:frame_file|nullable|string',
+            'frame_file'     => 'nullable|file|mimes:png,webp|max:20480',
             'orientation'    => 'required|in:portrait,landscape,square',
             'width_px'       => 'nullable|integer',
             'height_px'      => 'nullable|integer',
@@ -109,10 +113,22 @@ class AdminFrameController extends Controller
             'priority_score' => 'nullable|integer|min:0',
         ]);
 
-        $data = $request->all();
+        $data = $request->except(['thumbnail_file', 'frame_file']);
         $data['creator_id'] = $request->user()->id;
         $data['status'] ??= 'active';
         $data['is_free'] ??= true;
+
+        // Handle uploaded thumbnail
+        if ($request->hasFile('thumbnail_file')) {
+            $path = $request->file('thumbnail_file')->storePublicly('frames/thumbnails', 'public');
+            $data['thumbnail_url'] = Storage::disk('public')->url($path);
+        }
+
+        // Handle uploaded frame PNG
+        if ($request->hasFile('frame_file')) {
+            $path = $request->file('frame_file')->storePublicly('frames/overlays', 'public');
+            $data['frame_url'] = Storage::disk('public')->url($path);
+        }
 
         $frame = Frame::create($data);
 
@@ -140,8 +156,10 @@ class AdminFrameController extends Controller
             'title'          => 'sometimes|string|max:150',
             'category_id'    => 'nullable|exists:frame_categories,id',
             'description'    => 'nullable|string',
-            'thumbnail_url'  => 'sometimes|string',
-            'frame_url'      => 'sometimes|string',
+            'thumbnail_url'  => 'sometimes|nullable|string',
+            'thumbnail_file' => 'nullable|file|mimes:jpeg,png,webp|max:10240',
+            'frame_url'      => 'sometimes|nullable|string',
+            'frame_file'     => 'nullable|file|mimes:png,webp|max:20480',
             'orientation'    => 'sometimes|in:portrait,landscape,square',
             'width_px'       => 'nullable|integer',
             'height_px'      => 'nullable|integer',
@@ -151,8 +169,22 @@ class AdminFrameController extends Controller
             'priority_score' => 'nullable|integer|min:0',
         ]);
 
+        $data = $request->except(['thumbnail_file', 'frame_file']);
+
+        // Handle updated thumbnail
+        if ($request->hasFile('thumbnail_file')) {
+            $path = $request->file('thumbnail_file')->storePublicly('frames/thumbnails', 'public');
+            $data['thumbnail_url'] = Storage::disk('public')->url($path);
+        }
+
+        // Handle updated frame PNG
+        if ($request->hasFile('frame_file')) {
+            $path = $request->file('frame_file')->storePublicly('frames/overlays', 'public');
+            $data['frame_url'] = Storage::disk('public')->url($path);
+        }
+
         $before = $frame->toArray();
-        $frame->update($request->all());
+        $frame->update($data);
 
         AdminAuditLog::create([
             'admin_id'    => $request->user()->id,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_dialog.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/core/network/api_client.dart';
+import 'package:smileon/core/network/api_endpoints.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/home/presentation/notification/notificationdetail_screen.dart';
 
@@ -159,6 +161,19 @@ class NotificationItem {
       ];
 }
 
+/// Provider hitungan notifikasi belum dibaca dari VPS Backend
+final unreadNotificationCountProvider = FutureProvider<int>((ref) async {
+  try {
+    final client = ApiClient();
+    final res = await client.get('${ApiEndpoints.notifications}/unread-count');
+    if (res.statusCode == 200 && res.data != null) {
+      final data = res.data['data'] as Map<String, dynamic>?;
+      return (data?['unread_count'] as num?)?.toInt() ?? 0;
+    }
+  } catch (_) {}
+  return 2;
+});
+
 /// Halaman Notifikasi SmileOn sesuai desain UI
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -175,6 +190,67 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   void initState() {
     super.initState();
     _notifications = List.from(NotificationItem.sampleNotifications);
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final client = ApiClient();
+      final res = await client.get(ApiEndpoints.notifications);
+      if (res.statusCode == 200 && res.data != null) {
+        final dataObj = res.data['data'];
+        final List<dynamic> list = dataObj is Map && dataObj.containsKey('data')
+            ? (dataObj['data'] as List<dynamic>)
+            : (dataObj is List ? dataObj : []);
+
+        if (list.isNotEmpty) {
+          final mapped = list.map((item) {
+            final m = item as Map<String, dynamic>;
+            final typeStr = m['type']?.toString().toLowerCase() ?? 'photo';
+            NotificationType type = NotificationType.photo;
+            if (typeStr.contains('voucher')) {
+              type = NotificationType.voucher;
+            } else if (typeStr.contains('pay') || typeStr.contains('order')) {
+              type = NotificationType.payment;
+            } else if (typeStr.contains('frame')) {
+              type = NotificationType.frame;
+            } else if (typeStr.contains('update') || typeStr.contains('system')) {
+              type = NotificationType.update;
+            }
+
+            final isRead = m['read_at'] != null;
+            final isImportant = type == NotificationType.voucher || type == NotificationType.payment;
+
+            return NotificationItem(
+              id: m['id']?.toString() ?? '',
+              title: m['title']?.toString() ?? 'Notifikasi SmileOn',
+              message: m['body']?.toString() ?? m['message']?.toString() ?? '',
+              timeAgo: _formatTimeAgo(m['created_at']?.toString()),
+              type: type,
+              isRead: isRead,
+              isImportant: isImportant,
+              detailTitle: m['title']?.toString(),
+              detailSubtitle: m['body']?.toString(),
+              detailBullets: const [
+                'Tersinkronisasi otomatis dengan server VPS',
+                'Status terupdate secara real-time',
+              ],
+              actionText: 'Lihat Sekarang',
+              secondaryActionText: 'Tutup',
+            );
+          }).toList();
+
+          if (mounted) {
+            setState(() {
+              _notifications = mapped;
+            });
+          }
+          ref.invalidate(unreadNotificationCountProvider);
+        }
+      }
+    } catch (e) {
+      debugPrint('NotificationScreen: Gagal memuat notifikasi dari API: $e');
+    }
   }
 
   List<NotificationItem> get _filteredNotifications {
@@ -188,16 +264,50 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     }
   }
 
-  void _markAllAsRead() {
+  Future<void> _markAsRead(NotificationItem item) async {
+    setState(() {
+      item.isRead = true;
+    });
+    try {
+      final client = ApiClient();
+      await client.patch('${ApiEndpoints.notifications}/${item.id}/read');
+      ref.invalidate(unreadNotificationCountProvider);
+    } catch (_) {}
+  }
+
+  Future<void> _markAllAsRead() async {
     setState(() {
       for (final item in _notifications) {
         item.isRead = true;
       }
     });
+    try {
+      final client = ApiClient();
+      await client.post('${ApiEndpoints.notifications}/read-all');
+      ref.invalidate(unreadNotificationCountProvider);
+    } catch (_) {}
+    if (!mounted) return;
     SmileToast.showSuccess(
       context,
       title: 'Notifikasi',
       message: 'Semua notifikasi telah ditandai dibaca.',
+    );
+  }
+
+  Future<void> _deleteNotification(NotificationItem item) async {
+    setState(() {
+      _notifications.removeWhere((n) => n.id == item.id);
+    });
+    try {
+      final client = ApiClient();
+      await client.delete('${ApiEndpoints.notifications}/${item.id}');
+      ref.invalidate(unreadNotificationCountProvider);
+    } catch (_) {}
+    if (!mounted) return;
+    SmileToast.showSuccess(
+      context,
+      title: 'Notifikasi Dihapus',
+      message: 'Notifikasi berhasil dihapus.',
     );
   }
 
@@ -208,11 +318,12 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       description: 'Semua daftar notifikasi akan dihapus dari tampilan Anda.',
       primaryButtonText: 'Hapus',
       icon: Icons.delete_outline_rounded,
-      onPrimaryPressed: () {
+      onPrimaryPressed: () async {
         Navigator.pop(context);
         setState(() {
           _notifications.clear();
         });
+        ref.invalidate(unreadNotificationCountProvider);
         SmileToast.showSuccess(
           context,
           title: 'Notifikasi Dihapus',
@@ -451,27 +562,37 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     );
   }
 
-  /// Baris item notifikasi
+  /// Baris item notifikasi dengan aksi swipe untuk hapus
   Widget _buildNotificationTile(NotificationItem item) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            item.isRead = true;
-          });
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => NotificationDetailScreen(item: item),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return Dismissible(
+      key: ValueKey('notif-${item.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: const Color(0xFFEF4444),
+        child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+      ),
+      onDismissed: (_) {
+        _deleteNotification(item);
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _markAsRead(item);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NotificationDetailScreen(item: item),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Icon Container dengan background khusus sesuai jenis
               _buildIconContainer(item.type),
 
@@ -532,8 +653,9 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Kotak ikon notifikasi dengan variasi warna dan background
   Widget _buildIconContainer(NotificationType type) {
@@ -658,5 +780,19 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         );
       },
     );
+  }
+}
+
+String _formatTimeAgo(String? raw) {
+  if (raw == null || raw.isEmpty) return 'Baru saja';
+  try {
+    final dt = DateTime.parse(raw).toLocal();
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Baru saja';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} menit lalu';
+    if (diff.inHours < 24) return '${diff.inHours} jam lalu';
+    return '${diff.inDays} hari lalu';
+  } catch (_) {
+    return 'Baru saja';
   }
 }

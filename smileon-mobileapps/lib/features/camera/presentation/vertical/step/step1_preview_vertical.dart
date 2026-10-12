@@ -30,9 +30,11 @@ class Step1PreviewVertical extends StatefulWidget {
   final String? location;
   final String sessionType;
   final List<String>? peopleInPhoto;
+  final String? sessionId;
 
   const Step1PreviewVertical({
     super.key,
+    this.sessionId,
     this.capturedPhotos = const [],
     this.selectedThemeColor,
     this.frameTitle,
@@ -167,6 +169,7 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Step2EditPhotoVertical(
+          sessionId: widget.sessionId,
           capturedPhotos: widget.capturedPhotos,
           selectedThemeColor: widget.selectedThemeColor,
           frameTitle: _frames[_selectedFrameIndex]['name'],
@@ -193,6 +196,7 @@ class _Step1PreviewVerticalState extends State<Step1PreviewVertical> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Step3DownloadVertical(
+          sessionId: widget.sessionId,
           capturedPhotos: widget.capturedPhotos,
           selectedThemeColor: widget.selectedThemeColor,
           frameTitle: _frames[_selectedFrameIndex]['name'],

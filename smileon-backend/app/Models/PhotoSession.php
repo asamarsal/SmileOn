@@ -16,17 +16,25 @@ class PhotoSession extends Model
     protected $table = 'photo_sessions';
 
     protected $fillable = [
-        'uuid', 'session_code', 'user_id', 'event_id', 'guest_voucher_id', 'booth_id', 'frame_id',
-        'status', 'mode', 'orientation', 'credits_required', 'photos_count',
-        'photos_taken', 'participants', 'location', 'expires_at',
-        'completed_at', 'cancelled_at',
+        'uuid', 'session_code', 'title', 'user_id', 'event_id', 'guest_voucher_id', 'booth_id', 'frame_id',
+        'frame_asset_path', 'bg_asset_path',
+        'status', 'sync_status', 'mode', 'orientation', 'credits_required', 'photos_count',
+        'photos_taken', 'participants', 'location',
+        'mirrored_states', 'filter_matrix', 'people_in_photo',
+        'is_paid', 'is_watermarked',
+        'expires_at', 'completed_at', 'cancelled_at',
     ];
 
     protected $casts = [
-        'participants'  => 'array',
-        'expires_at'    => 'datetime',
-        'completed_at'  => 'datetime',
-        'cancelled_at'  => 'datetime',
+        'participants'     => 'array',
+        'mirrored_states'  => 'array',
+        'filter_matrix'    => 'array',
+        'people_in_photo'  => 'array',
+        'is_paid'          => 'boolean',
+        'is_watermarked'   => 'boolean',
+        'expires_at'       => 'datetime',
+        'completed_at'     => 'datetime',
+        'cancelled_at'     => 'datetime',
     ];
 
     // Valid state transitions

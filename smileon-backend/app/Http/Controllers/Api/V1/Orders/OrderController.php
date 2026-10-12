@@ -170,6 +170,22 @@ class OrderController extends Controller
                     'created_at'     => now(),
                 ]);
             }
+
+            if ($order->type === 'voucher') {
+                \App\Models\UserVoucher::create([
+                    'user_id'         => $order->user_id,
+                    'order_id'        => $order->id,
+                    'title'           => $order->items->first()?->item_name ?? 'Tiket Voucher SmileOn',
+                    'category'        => 'Event',
+                    'photo_count'     => ($creditsToGrant > 0 ? $creditsToGrant : 10) . ' Foto',
+                    'credit_amount'   => $creditsToGrant > 0 ? $creditsToGrant : 10,
+                    'price_formatted' => 'Rp ' . number_format($order->total_amount, 0, ',', '.'),
+                    'crypto_price'    => $order->payment_details['crypto_amount'] ?? '0.05 MON',
+                    'payment_method'  => $order->paymentMethod?->name ?? 'QRIS',
+                    'status'          => 'Aktif',
+                    'expires_at'      => now()->addDays(60),
+                ]);
+            }
         });
 
         return response()->json(['success' => true, 'message' => 'Pembayaran berhasil diverifikasi.', 'data' => $order->fresh()]);
@@ -321,7 +337,23 @@ class OrderController extends Controller
                             'created_at'     => now(),
                         ]);
                     }
-                ]);
+
+                    if ($order->type === 'voucher') {
+                        \App\Models\UserVoucher::create([
+                            'user_id'         => $order->user_id,
+                            'order_id'        => $order->id,
+                            'title'           => $order->items->first()?->item_name ?? 'Tiket Voucher SmileOn',
+                            'category'        => 'Event',
+                            'photo_count'     => ($creditsToGrant > 0 ? $creditsToGrant : 10) . ' Foto',
+                            'credit_amount'   => $creditsToGrant > 0 ? $creditsToGrant : 10,
+                            'price_formatted' => 'Rp ' . number_format($order->total_amount, 0, ',', '.'),
+                            'crypto_price'    => $order->payment_details['crypto_amount'] ?? '0.05 MON',
+                            'payment_method'  => 'Monad Testnet',
+                            'status'          => 'Aktif',
+                            'expires_at'      => now()->addDays(60),
+                        ]);
+                    }
+                });
             }
 
             return response()->json([

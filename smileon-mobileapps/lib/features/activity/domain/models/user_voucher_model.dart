@@ -113,22 +113,39 @@ class UserVoucherModel {
 
   factory UserVoucherModel.fromJson(Map<String, dynamic> json) =>
       UserVoucherModel(
-        id: json['id'] as String? ?? 'vch-${DateTime.now().millisecondsSinceEpoch}',
-        voucherCode: json['voucherCode'] as String? ?? generateUniqueCode(),
+        id: json['uuid']?.toString() ??
+            json['id']?.toString() ??
+            'vch-${DateTime.now().millisecondsSinceEpoch}',
+        voucherCode: json['voucher_code']?.toString() ??
+            json['voucherCode']?.toString() ??
+            generateUniqueCode(),
         title: json['title'] as String? ?? 'Paket Voucher SmileOn',
         category: json['category'] as String? ?? 'Event',
-        photoCount: json['photoCount'] as String? ?? '100 Foto',
-        creditAmount: (json['creditAmount'] as num?)?.toInt() ?? 100,
-        priceFormatted: json['priceFormatted'] as String? ?? 'Rp 100.000',
-        cryptoPrice: json['cryptoPrice'] as String? ?? '1.00 MON',
-        paymentMethod: json['paymentMethod'] as String? ?? 'QRIS',
-        purchaseDate: json['purchaseDate'] as String? ?? '11 Okt 2026',
-        expiryDate: json['expiryDate'] as String? ?? '11 Des 2026',
+        photoCount: json['photo_count']?.toString() ??
+            json['photoCount'] as String? ??
+            '100 Foto',
+        creditAmount: ((json['credit_amount'] ?? json['creditAmount']) as num?)?.toInt() ?? 100,
+        priceFormatted: json['price_formatted']?.toString() ??
+            json['priceFormatted'] as String? ??
+            'Rp 100.000',
+        cryptoPrice: json['crypto_price']?.toString() ??
+            json['cryptoPrice'] as String? ??
+            '1.00 MON',
+        paymentMethod: json['payment_method']?.toString() ??
+            json['paymentMethod'] as String? ??
+            'QRIS',
+        purchaseDate: json['purchase_date']?.toString() ??
+            json['purchaseDate'] as String? ??
+            '11 Okt 2026',
+        expiryDate: json['expiry_date']?.toString() ??
+            json['expiryDate'] as String? ??
+            '11 Des 2026',
         status: json['status'] as String? ?? 'Aktif',
-        imagePath: json['imagePath'] as String? ??
+        imagePath: json['image_path']?.toString() ??
+            json['imagePath'] as String? ??
             'assets/images/voucher/wedding_package.jpg',
-        usedForEvent: json['usedForEvent'] as String?,
-        txHash: json['txHash'] as String?,
+        usedForEvent: json['used_for_event']?.toString() ?? json['usedForEvent'] as String?,
+        txHash: json['tx_hash']?.toString() ?? json['txHash'] as String?,
       );
 
   /// Default voucher contoh yang sudah dibeli oleh pengguna

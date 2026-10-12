@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smileon/core/config/app_config.dart';
 import 'package:smileon/core/network/api_client.dart';
 import 'package:smileon/core/network/api_endpoints.dart';
 import 'package:smileon/core/network/api_response.dart';
@@ -153,11 +154,10 @@ class RemoteVoucherRepository implements VoucherRepository {
 }
 
 /// Provider Repository Voucher
-/// CUKUP GANTI RETURN VALUE KE RemoteVoucherRepository() SAAT BACKEND SIAP!
+/// Otomatis switch antara Local Storage (Mock) dan Real REST API via USE_MOCK_API di .env!
 final voucherRepositoryProvider = Provider<VoucherRepository>((ref) {
-  // Mode Saat ini: 100% Local Storage Offline
-  return LocalVoucherRepository();
-
-  // Mode Masa Depan: Cukup uncomment baris di bawah:
-  // return RemoteVoucherRepository(ApiClient());
+  if (AppConfig.useMockApi) {
+    return LocalVoucherRepository();
+  }
+  return RemoteVoucherRepository(ApiClient());
 });

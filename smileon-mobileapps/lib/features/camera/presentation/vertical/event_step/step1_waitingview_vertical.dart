@@ -19,9 +19,11 @@ class Step1WaitingViewVertical extends StatefulWidget {
   final int? userCredits;
   final String? selectedFrameName;
   final String? selectedFrameAsset;
+  final String? sessionId;
 
   const Step1WaitingViewVertical({
     super.key,
+    this.sessionId,
     this.eventName = 'Engagement Asa & Aulia',
     this.sessionName,
     this.eventDate = '20 September 2026',

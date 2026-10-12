@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smileon/core/components/smile_toast.dart';
+import 'package:smileon/core/network/api_client.dart';
+import 'package:smileon/core/network/api_endpoints.dart';
 
 /// Tab Undangan (Manajemen Tamu) pada Event Siap / Finish
 /// Menampilkan:
@@ -43,38 +45,303 @@ class _InviteEventFinishState extends State<InviteEventFinish> {
     'assets/images/eventmode/wedding_event_banner_2.jpg',
   ];
 
-  final List<Map<String, dynamic>> _guestList = [
+  List<Map<String, dynamic>> _guestList = [
     {
+      'id': 1,
       'name': 'Dimas & Sarah',
       'category': 'VIP',
       'hasPhoto': true,
       'photoCount': 2,
     },
     {
+      'id': 2,
       'name': 'Keluarga Bpk. Hendra',
       'category': 'Keluarga',
       'hasPhoto': true,
       'photoCount': 3,
     },
     {
+      'id': 3,
       'name': 'Rian Pratama',
       'category': 'Teman Kantor',
       'hasPhoto': false,
       'photoCount': 0,
     },
     {
+      'id': 4,
       'name': 'Nadia & Sahabat SMA',
       'category': 'Teman',
       'hasPhoto': false,
       'photoCount': 0,
     },
     {
+      'id': 5,
       'name': 'dr. Aditya Wijaya',
       'category': 'Tamu Khusus',
       'hasPhoto': true,
       'photoCount': 1,
     },
   ];
+
+  int _totalGuests = 75;
+  int _alreadyPhoto = 48;
+  int _notYetPhoto = 27;
+
+  String get _effectiveEventKey =>
+      widget.voucherCode ?? widget.eventName ?? 'default-event';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGuestsFromBackend();
+    _guestSearchController.addListener(() {
+      _loadGuestsFromBackend(search: _guestSearchController.text.trim());
+    });
+  }
+
+  Future<void> _loadGuestsFromBackend({String? search}) async {
+    try {
+      final client = ApiClient();
+      final res = await client.get(
+        ApiEndpoints.eventGuests(_effectiveEventKey, search: search),
+      );
+      if (res.statusCode == 200 && res.data != null) {
+        final summary = res.data['summary'] as Map<String, dynamic>?;
+        if (summary != null) {
+          _totalGuests = (summary['total_guests'] as num?)?.toInt() ?? _totalGuests;
+          _alreadyPhoto = (summary['already_photo'] as num?)?.toInt() ?? _alreadyPhoto;
+          _notYetPhoto = (summary['not_yet_photo'] as num?)?.toInt() ?? _notYetPhoto;
+        }
+        final list = res.data['data'] as List<dynamic>?;
+        if (list != null && list.isNotEmpty) {
+          final mapped = list.map((item) {
+            final m = item as Map<String, dynamic>;
+            final hasPhoto = m['has_photo'] == true;
+            return {
+              'id': m['id'],
+              'name': m['guest_name']?.toString() ?? 'Tamu Undangan',
+              'category': m['category']?.toString() ?? 'Tamu',
+              'hasPhoto': hasPhoto,
+              'photoCount': (m['quota_used'] as num?)?.toInt() ?? (hasPhoto ? 1 : 0),
+              'voucherCode': m['voucher_code']?.toString() ?? '',
+              'inviteUrl': m['invite_url']?.toString() ??
+                  'https://smileon-dapps.my.id/invite/${m['voucher_code']}',
+              'shareText': m['share_text']?.toString() ?? '',
+            };
+          }).toList();
+          if (mounted) {
+            setState(() {
+              _guestList = mapped;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('InviteEventFinish: _loadGuestsFromBackend error: $e');
+    }
+  }
+
+  Future<void> _deleteGuest(Map<String, dynamic> guest) async {
+    final guestId = guest['id'];
+    if (guestId == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Tamu?'),
+        content: Text('Apakah Anda yakin ingin menghapus ${guest['name']} dari daftar tamu?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      final client = ApiClient();
+      await client.delete(ApiEndpoints.deleteGuest(_effectiveEventKey, guestId as int));
+      if (!mounted) return;
+      SmileToast.showSuccess(
+        context,
+        title: 'Tamu Dihapus',
+        message: '${guest['name']} berhasil dihapus dari acara',
+      );
+      _loadGuestsFromBackend();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _guestList.removeWhere((g) => g['id'] == guestId);
+        _totalGuests = (_totalGuests - 1).clamp(0, 9999);
+      });
+      SmileToast.showSuccess(
+        context,
+        title: 'Tamu Dihapus',
+        message: '${guest['name']} berhasil dihapus',
+      );
+    }
+  }
+
+  void _showAddGuestDialog() {
+    final nameCtrl = TextEditingController();
+    String selectedCategory = 'VIP';
+    final categories = ['VIP', 'Keluarga', 'Teman', 'Kolega'];
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 24,
+            bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tambah Tamu Undangan',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E2448),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(modalCtx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Nama Tamu / Rombongan',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF5A6B87)),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Contoh: Dimas & Sarah',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Kategori Tamu',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF5A6B87)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: categories.map((cat) {
+                  final isSelected = selectedCategory == cat;
+                  return ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFFFF2E7E),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : const Color(0xFF1E2448),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (selected) {
+                      if (selected) {
+                        setModalState(() => selectedCategory = cat);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) return;
+                    Navigator.pop(modalCtx);
+
+                    try {
+                      final client = ApiClient();
+                      await client.post(
+                        ApiEndpoints.addGuest(_effectiveEventKey),
+                        data: {
+                          'guest_name': name,
+                          'category': selectedCategory,
+                          'quota_limit': 1,
+                        },
+                      );
+                      if (!mounted) return;
+                      SmileToast.showSuccess(
+                        context,
+                        title: 'Tamu Ditambahkan',
+                        message: 'Tiket berhasil dibuat untuk $name',
+                      );
+                      _loadGuestsFromBackend();
+                    } catch (e) {
+                      if (!mounted) return;
+                      setState(() {
+                        _guestList.insert(0, {
+                          'id': DateTime.now().millisecondsSinceEpoch,
+                          'name': name,
+                          'category': selectedCategory,
+                          'hasPhoto': false,
+                          'photoCount': 0,
+                          'voucherCode': 'GUEST-${DateTime.now().millisecondsSinceEpoch}',
+                        });
+                        _totalGuests++;
+                        _notYetPhoto++;
+                      });
+                      SmileToast.showSuccess(
+                        context,
+                        title: 'Tamu Ditambahkan',
+                        message: 'Tiket berhasil dibuat untuk $name',
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF2E7E),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Simpan & Buat Tiket',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -608,11 +875,11 @@ class _InviteEventFinishState extends State<InviteEventFinish> {
           ),
           child: Row(
             children: [
-              _buildStatItem('Total Tamu', '${_guestList.length * 15}'),
+              _buildStatItem('Total Tamu', '$_totalGuests'),
               Container(width: 1, height: 36, color: const Color(0xFFFFDDE9)),
-              _buildStatItem('Sudah Foto', '48 Sesi'),
+              _buildStatItem('Sudah Foto', '$_alreadyPhoto Sesi'),
               Container(width: 1, height: 36, color: const Color(0xFFFFDDE9)),
-              _buildStatItem('Belum Foto', '27 Sesi'),
+              _buildStatItem('Belum Foto', '$_notYetPhoto Sesi'),
             ],
           ),
         ),
@@ -655,14 +922,7 @@ class _InviteEventFinishState extends State<InviteEventFinish> {
             ),
             const SizedBox(width: 10),
             ElevatedButton(
-              onPressed: () {
-                SmileToast.showSuccess(
-                  context,
-                  title: 'Tambah Tamu',
-                  message:
-                      'Fitur import tamu via kontak / Excel siap digunakan',
-                );
-              },
+              onPressed: _showAddGuestDialog,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF2E7E),
                 padding: const EdgeInsets.symmetric(
@@ -758,19 +1018,35 @@ class _InviteEventFinishState extends State<InviteEventFinish> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.share_outlined,
-                        color: Color(0xFF233876),
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        SmileToast.showSuccess(
-                          context,
-                          title: 'Undangan Dibagikan',
-                          message: 'Tautan undangan dikirim ke ${guest['name']}',
-                        );
-                      },
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.share_outlined,
+                            color: Color(0xFF233876),
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            final shareText = guest['shareText'] ??
+                                'Halo ${guest['name']}! Kamu diundang ke acara ${widget.eventName ?? 'SmileOn'}. Cek tiketmu di: ${guest['inviteUrl']}';
+                            Clipboard.setData(ClipboardData(text: shareText.toString()));
+                            SmileToast.showSuccess(
+                              context,
+                              title: 'Undangan Disalin',
+                              message: 'Tautan undangan dan teks pesan siap dikirim ke WhatsApp',
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Color(0xFFEF4444),
+                            size: 20,
+                          ),
+                          onPressed: () => _deleteGuest(guest),
+                        ),
+                      ],
                     ),
                   ],
                 ),

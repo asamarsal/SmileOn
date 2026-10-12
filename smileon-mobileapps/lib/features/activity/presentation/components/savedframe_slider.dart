@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smileon/core/components/smile_dialog_previewphotostrip.dart';
 import 'package:smileon/core/localization/app_translations.dart';
 import 'package:smileon/features/activity/presentation/category/savedframe_activity.dart';
+import 'package:smileon/features/activity/presentation/providers/activity_providers.dart';
 
 /// Model item Frame Disimpan
 class SavedFrameActivityItem {
@@ -96,15 +97,13 @@ class SavedFrameSlider extends ConsumerWidget {
     this.onItemTap,
   });
 
-  List<SavedFrameActivityItem> get _effectiveItems =>
-      (items != null && items!.isNotEmpty)
-          ? items!
-          : SavedFrameActivityItem.defaultItems;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(tProvider);
-    final data = _effectiveItems;
+    final asyncData = ref.watch(activitySavedFramesProvider);
+    final data = (items != null && items!.isNotEmpty)
+        ? items!
+        : (asyncData.value ?? SavedFrameActivityItem.defaultItems);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

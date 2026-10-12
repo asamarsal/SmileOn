@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smileon/core/config/app_config.dart';
 import 'package:smileon/core/theme/app_theme.dart';
 import 'package:smileon/features/splash/presentation/splash_page.dart';
 
@@ -42,6 +43,9 @@ Future<void> _initFirebaseAndGetFCMToken() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load .env configuration (Mock API switcher & Base URL)
+  await AppConfig.init();
 
   // Jalankan inisialisasi FCM di latar belakang agar tidak memblokir render UI
   _initFirebaseAndGetFCMToken();
