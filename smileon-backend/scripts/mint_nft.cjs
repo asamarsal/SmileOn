@@ -6,14 +6,26 @@
  */
 
 let ethers;
-try {
-  ethers = require('ethers');
-} catch (e) {
+const searchPaths = [
+  'ethers',
+  '../node_modules/ethers',
+  '../../smileon-smartcontract/node_modules/ethers',
+  '../smileon-smartcontract/node_modules/ethers'
+];
+
+for (const p of searchPaths) {
   try {
-    ethers = require('../../smileon-smartcontract/node_modules/ethers');
-  } catch (e2) {
-    ethers = require('../smileon-smartcontract/node_modules/ethers');
-  }
+    ethers = require(p);
+    if (ethers) break;
+  } catch (_) {}
+}
+
+if (!ethers) {
+  console.error(JSON.stringify({
+    success: false,
+    error: "Package 'ethers' tidak ditemukan di server. Silakan jalankan 'npm install ethers' di folder smileon-backend."
+  }));
+  process.exit(1);
 }
 
 // Parse CLI args
