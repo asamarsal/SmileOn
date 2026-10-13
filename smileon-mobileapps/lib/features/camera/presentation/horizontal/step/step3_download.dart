@@ -127,6 +127,8 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
   String? _nftTxHash;
   bool _isSyncingToVps = false;
   String? _cachedRenderedStripPath;
+  String? _uploadedPhotostripUrl;
+  String? _uploadedStripUuid;
   final TextEditingController _voucherController = TextEditingController(
     text: 'ROSEROMANCE5K',
   );
@@ -915,8 +917,15 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
     );
 
     try {
+      // Pastikan foto sesi & photostrip sudah di-upload ke server VPS terlebih dahulu
+      if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
+        await _syncPhotosToVps();
+      }
+
       final res = await RemotePhotoSessionService.mintPhotostripNft(
         sessionUuid: widget.sessionId,
+        stripUuid: _uploadedStripUuid,
+        imageUrl: _uploadedPhotostripUrl,
         recipientAddress: _monadWalletAddress,
         name: widget.sessionTitle ?? widget.frameTitle ?? 'SmileOn Photo Memory',
         description: 'Kenangan photobooth resmi SmileOn pada Monad Testnet',
@@ -1176,8 +1185,11 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
       );
 
       if (uploadResult != null) {
+        final data = uploadResult['data'] as Map<String, dynamic>?;
+        _uploadedPhotostripUrl = data?['photostrip_url']?.toString();
+        _uploadedStripUuid = data?['strip_uuid']?.toString();
         await RemotePhotoSessionService.completeSession(sessionId);
-        debugPrint('[Step3Download] Foto sesi berhasil di-upload & diselesaikan di VPS: $sessionId');
+        debugPrint('[Step3Download] Foto sesi berhasil di-upload & diselesaikan di VPS: $sessionId, url: $_uploadedPhotostripUrl');
         if (showToast && mounted) {
           SmileToast.showSuccess(
             context,

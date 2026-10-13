@@ -131,6 +131,10 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
   bool _isNftMinted = false;
   String? _nftTokenId;
   String? _nftTxHash;
+  bool _isSyncingToVps = false;
+  String? _cachedRenderedStripPath;
+  String? _uploadedPhotostripUrl;
+  String? _uploadedStripUuid;
   final TextEditingController _voucherController = TextEditingController(
     text: 'ROSEROMANCE5K',
   );
@@ -1073,8 +1077,15 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
     );
 
     try {
+      // Pastikan foto sesi & photostrip sudah di-upload ke server VPS terlebih dahulu
+      if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
+        await _syncPhotosToVps();
+      }
+
       final res = await RemotePhotoSessionService.mintPhotostripNft(
         sessionUuid: widget.sessionId,
+        stripUuid: _uploadedStripUuid,
+        imageUrl: _uploadedPhotostripUrl,
         recipientAddress: _monadWalletAddress,
         name: widget.sessionTitle ?? widget.frameTitle ?? 'SmileOn Photo Memory',
         description: 'Kenangan photobooth resmi SmileOn pada Monad Testnet',
@@ -1316,74 +1327,94 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
     );
   }
 
+  /// Hit API untuk render photostrip & upload foto sesi ke server VPS SmileOn
+  Future<void> _syncPhotosToVps({bool showToast = false}) async {
+    if (_isSyncingToVps) return;
+    _isSyncingToVps = true;
+
+    try {
+      if (_cachedRenderedStripPath == null || !File(_cachedRenderedStripPath!).existsSync()) {
+        try {
+          final bytes = await PhotostripRenderer.render(
+            context: context,
+            bgAssetPath: _bgAsset(),
+            frameAssetPath: _frameAsset(),
+            photoPaths: widget.capturedPhotos,
+            mirroredStates: widget.mirroredStates,
+            filterMatrix: widget.filterMatrix,
+            withWatermark: false,
+          );
+          final tempDir = await getTemporaryDirectory();
+          final tempFile = File(
+            '${tempDir.path}/temp_strip_${DateTime.now().millisecondsSinceEpoch}.png',
+          );
+          await tempFile.writeAsBytes(bytes);
+          _cachedRenderedStripPath = tempFile.path;
+        } catch (renderErr) {
+          debugPrint('[Step3DownloadVertical] Error rendering fotostrip: $renderErr');
+        }
+      }
+
+      final sessionId = widget.sessionId ?? 'SES-${DateTime.now().millisecondsSinceEpoch}';
+
+      // 1. Simpan sesi lokal di SQLite perangkat
+      await LocalPhotoSessionService.saveSession(
+        sessionId: sessionId,
+        title: widget.sessionTitle ??
+            widget.frameTitle ??
+            'Sesi Foto SmileOn',
+        sessionType: widget.sessionType,
+        location: widget.location,
+        frameIndex: widget.selectedFrameIndex,
+        frameAssetPath: _frameAsset(),
+        bgAssetPath: _bgAsset(),
+        rawPhotoPaths: widget.capturedPhotos,
+        mirroredStates:
+            widget.mirroredStates ?? const [false, false, false, false],
+        filterMatrix: widget.filterMatrix,
+        renderedStripPath: _cachedRenderedStripPath,
+        peopleInPhoto: widget.peopleInPhoto,
+        isPaid: _isPaid,
+      );
+
+      if (mounted) {
+        ref.read(photoSessionsProvider.notifier).refresh();
+      }
+
+      // 2. Upload file photostrip & foto ke VPS
+      final uploadResult = await RemotePhotoSessionService.uploadSessionPhotos(
+        sessionUuid: sessionId,
+        photostripPath: _cachedRenderedStripPath ?? '',
+        rawPhotoPaths: widget.capturedPhotos,
+        title: widget.sessionTitle ?? widget.frameTitle ?? 'Sesi Foto SmileOn',
+        mode: widget.sessionType,
+      );
+
+      if (uploadResult != null) {
+        final data = uploadResult['data'] as Map<String, dynamic>?;
+        _uploadedPhotostripUrl = data?['photostrip_url']?.toString();
+        _uploadedStripUuid = data?['strip_uuid']?.toString();
+        await RemotePhotoSessionService.completeSession(sessionId);
+        debugPrint('[Step3DownloadVertical] Foto sesi berhasil di-upload ke VPS: $sessionId, url: $_uploadedPhotostripUrl');
+        if (showToast && mounted) {
+          SmileToast.showSuccess(
+            context,
+            title: 'Foto Tersimpan ke Server',
+            message: 'Foto & photostrip berhasil disimpan ke VPS! ✨',
+            alignment: Alignment.topCenter,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[Step3DownloadVertical] Gagal menyinkronkan foto ke VPS: $e');
+    } finally {
+      _isSyncingToVps = false;
+    }
+  }
+
   Future<void> _saveAndExitSession() async {
     if (widget.capturedPhotos.isNotEmpty) {
-      String? tempStripPath;
-      try {
-        final bytes = await PhotostripRenderer.render(
-          context: context,
-          bgAssetPath: _bgAsset(),
-          frameAssetPath: _frameAsset(),
-          photoPaths: widget.capturedPhotos,
-          mirroredStates: widget.mirroredStates,
-          filterMatrix: widget.filterMatrix,
-          withWatermark: false,
-        );
-        final tempDir = await getTemporaryDirectory();
-        final tempFile = File(
-          '${tempDir.path}/temp_strip_${DateTime.now().millisecondsSinceEpoch}.png',
-        );
-        await tempFile.writeAsBytes(bytes);
-        tempStripPath = tempFile.path;
-      } catch (e) {
-        debugPrint('Error rendering fotostrip saat exit: $e');
-      }
-
-      try {
-        final sessionId = widget.sessionId ?? 'SES-${DateTime.now().millisecondsSinceEpoch}';
-        await LocalPhotoSessionService.saveSession(
-          sessionId: sessionId,
-          title: widget.sessionTitle ??
-              widget.frameTitle ??
-              'Sesi Foto SmileOn',
-          sessionType: widget.sessionType,
-          location: widget.location,
-          frameIndex: widget.selectedFrameIndex,
-          frameAssetPath: _frameAsset(),
-          bgAssetPath: _bgAsset(),
-          rawPhotoPaths: widget.capturedPhotos,
-          mirroredStates:
-              widget.mirroredStates ?? const [false, false, false, false],
-          filterMatrix: widget.filterMatrix,
-          renderedStripPath: tempStripPath,
-          peopleInPhoto: widget.peopleInPhoto,
-          isPaid: _isPaid,
-        );
-        if (mounted) {
-          ref.read(photoSessionsProvider.notifier).refresh();
-        }
-
-        // Trigger background auto-upload ke VPS SmileOn & complete session
-        unawaited(() async {
-          try {
-            final uploadResult = await RemotePhotoSessionService.uploadSessionPhotos(
-              sessionUuid: sessionId,
-              photostripPath: tempStripPath ?? '',
-              rawPhotoPaths: widget.capturedPhotos,
-              title: widget.sessionTitle ?? widget.frameTitle ?? 'Sesi Foto SmileOn',
-              mode: widget.sessionType,
-            );
-            if (uploadResult != null) {
-              await RemotePhotoSessionService.completeSession(sessionId);
-              debugPrint('[Step3DownloadVertical] Cloud upload & complete finished for $sessionId');
-            }
-          } catch (uploadErr) {
-            debugPrint('[Step3DownloadVertical] Background cloud upload error: $uploadErr');
-          }
-        }());
-      } catch (e) {
-        debugPrint('Error saving session locally: $e');
-      }
+      await _syncPhotosToVps();
     }
 
     if (widget.onFinishSession != null) {
