@@ -24,8 +24,8 @@ class PhotostripRenderer {
   static const double _photoH = 288.0;
   static const double _gap = 88.0;
 
-  /// Resolusi multiplier — 1.5× = 900×2700 px output (ultra HD, hemat memori & upload cepat)
-  static const double _pixelRatio = 1.5;
+  /// Resolusi multiplier — 1.0× = 600×1800 px output (resolusi aset asli 1:1, full 300 DPI, hemat ukuran ~650 KB agar upload instan)
+  static const double _pixelRatio = 1.0;
 
   /// Render fotostrip ke [Uint8List] PNG.
   ///

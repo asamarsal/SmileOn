@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:smileon/core/network/api_client.dart';
 import 'package:smileon/core/network/api_exception.dart';
 
@@ -9,6 +11,30 @@ import 'package:smileon/core/network/api_exception.dart';
 /// serta penyelesaian sesi (state machine completion) dengan toleransi offline.
 class RemotePhotoSessionService {
   static final ApiClient _apiClient = ApiClient.instance;
+
+  /// Optimasi ukuran foto mentah kamera agar payload upload ringan (<400 KB) dan instan
+  static Future<File> _prepareUploadPhoto(File originalFile, int index) async {
+    try {
+      final bytes = await originalFile.readAsBytes();
+      if (bytes.lengthInBytes < 400 * 1024) {
+        return originalFile;
+      }
+      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 800);
+      final frame = await codec.getNextFrame();
+      final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        final tempDir = await getTemporaryDirectory();
+        final compressedFile = File('${tempDir.path}/opt_shot_${index + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await compressedFile.writeAsBytes(
+          byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes),
+        );
+        return compressedFile;
+      }
+    } catch (e) {
+      debugPrint('[RemotePhotoSessionService] Fallback to raw photo: $e');
+    }
+    return originalFile;
+  }
 
   /// 1. Buat tiket sesi baru di database VPS
   /// Mengembalikan session UUID resmi dari backend (atau fallback ID jika offline).
@@ -99,8 +125,9 @@ class RemotePhotoSessionService {
           final p = rawPhotoPaths[i];
           final f = File(p);
           if (await f.exists()) {
+            final fileToUpload = await _prepareUploadPhoto(f, i);
             final fileName = 'shot_${i + 1}.jpg';
-            photoUploads.add(await MultipartFile.fromFile(f.path, filename: fileName));
+            photoUploads.add(await MultipartFile.fromFile(fileToUpload.path, filename: fileName));
           } else {
             debugPrint('[RemotePhotoSessionService] Raw photo does NOT exist at: $p');
           }
