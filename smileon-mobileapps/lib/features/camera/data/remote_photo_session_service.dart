@@ -115,15 +115,16 @@ class RemotePhotoSessionService {
       final response = await _apiClient.post(
         '/sessions/upload',
         data: formData,
-        options: Options(contentType: 'multipart/form-data'),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint('[RemotePhotoSessionService] Upload success for session $sessionUuid: ${response.data}');
         return response.data as Map<String, dynamic>?;
+      } else {
+        debugPrint('[RemotePhotoSessionService] Upload returned status ${response.statusCode}: ${response.data}');
       }
-    } catch (e) {
-      debugPrint('[RemotePhotoSessionService] Failed to upload photos: $e');
+    } catch (e, stackTrace) {
+      debugPrint('[RemotePhotoSessionService] Failed to upload photos: $e\n$stackTrace');
     }
     return null;
   }
@@ -165,7 +166,7 @@ class RemotePhotoSessionService {
         if (name != null && name.isNotEmpty) 'name': name,
         if (description != null && description.isNotEmpty) 'description': description,
         if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
-        if (frameId != null) 'frame_id': frameId,
+        'frame_id': ?frameId,
         if (force) 'force': true,
       };
 

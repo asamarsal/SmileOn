@@ -125,7 +125,7 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
   bool _isNftMinted = false;
   String? _nftTokenId;
   String? _nftTxHash;
-  bool _isSyncingToVps = false;
+  Completer<void>? _syncCompleter;
   String? _cachedRenderedStripPath;
   String? _uploadedPhotostripUrl;
   String? _uploadedStripUuid;
@@ -926,8 +926,14 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
         await _syncPhotosToVps();
       }
 
+      // Jika masih kosong (misal render pertama terhambat), paksa render ulang dan upload sekali lagi
       if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
-        throw Exception('Photostrip HD belum siap diunggah ke server. Pastikan foto selesai dirender lalu coba lagi.');
+        _cachedRenderedStripPath = null;
+        await _syncPhotosToVps();
+      }
+
+      if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
+        throw Exception('Photostrip HD belum siap diunggah ke server. Pastikan foto selesai dirender lalu coba beberapa saat lagi.');
       }
 
       final res = await RemotePhotoSessionService.mintPhotostripNft(
@@ -1134,8 +1140,12 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
 
   /// Hit API untuk render photostrip & upload foto sesi ke server VPS SmileOn
   Future<void> _syncPhotosToVps({bool showToast = false}) async {
-    if (_isSyncingToVps) return;
-    _isSyncingToVps = true;
+    // Jika proses sync/upload sedang berlangsung, tunggu hingga selesai alih-alih keluar langsung
+    if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+      await _syncCompleter!.future;
+      return;
+    }
+    _syncCompleter = Completer<void>();
 
     try {
       if (_cachedRenderedStripPath == null || !File(_cachedRenderedStripPath!).existsSync()) {
@@ -1211,7 +1221,9 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
     } catch (e) {
       debugPrint('[Step3Download] Gagal menyinkronkan foto ke VPS: $e');
     } finally {
-      _isSyncingToVps = false;
+      if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+        _syncCompleter!.complete();
+      }
     }
   }
 

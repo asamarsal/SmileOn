@@ -65,6 +65,13 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // Khusus FormData, hapus Content-Type statis agar Dio menyertakan multipart boundary
+          if (options.data is FormData) {
+            options.headers.remove('Content-Type');
+            options.headers.remove('content-type');
+            options.contentType = null;
+          }
+
           // Suntikkan Bearer Auth Token otomatis jika tersedia
           final token = await getAuthToken();
           if (token != null && token.isNotEmpty) {

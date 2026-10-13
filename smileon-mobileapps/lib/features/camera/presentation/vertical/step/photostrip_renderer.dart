@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -44,7 +43,7 @@ class PhotostripRenderer {
     List<double>? filterMatrix,
     bool withWatermark = false,
   }) async {
-    final bundle = context != null ? DefaultAssetBundle.of(context) : rootBundle;
+    final bundle = rootBundle;
     final double w = _canvasW * _pixelRatio;
     final double h = _canvasH * _pixelRatio;
     final double scale = _pixelRatio;
@@ -54,8 +53,13 @@ class PhotostripRenderer {
     canvas.scale(scale);
 
     // ── Layer 1: Background ──────────────────────────────────────────────────
-    final ui.Image bgImage = await _loadAssetImage(bundle, bgAssetPath);
-    _drawImage(canvas, bgImage, Rect.fromLTWH(0, 0, _canvasW, _canvasH));
+    try {
+      final ui.Image bgImage = await _loadAssetImage(bundle, bgAssetPath);
+      _drawImage(canvas, bgImage, Rect.fromLTWH(0, 0, _canvasW, _canvasH));
+    } catch (e) {
+      debugPrint('[PhotostripRenderer] Gagal load background $bgAssetPath: $e');
+      canvas.drawRect(Rect.fromLTWH(0, 0, _canvasW, _canvasH), Paint()..color = Colors.white);
+    }
 
     // ── Layer 2: Foto slot ───────────────────────────────────────────────────
     for (int i = 0; i < 4; i++) {
@@ -67,30 +71,35 @@ class PhotostripRenderer {
       );
 
       if (i < photoPaths.length && File(photoPaths[i]).existsSync()) {
-        final ui.Image photoImage = await _loadFileImage(photoPaths[i]);
-        final bool isMirrored =
-            mirroredStates != null &&
-            mirroredStates.length > i &&
-            mirroredStates[i];
+        try {
+          final ui.Image photoImage = await _loadFileImage(photoPaths[i]);
+          final bool isMirrored =
+              mirroredStates != null &&
+              mirroredStates.length > i &&
+              mirroredStates[i];
 
-        canvas.save();
-        canvas.clipRect(slotRect);
+          canvas.save();
+          canvas.clipRect(slotRect);
 
-        if (isMirrored) {
-          // Flip horizontal di sekitar center slot
-          canvas.translate(slotRect.left + slotRect.width / 2, 0);
-          canvas.scale(-1, 1);
-          canvas.translate(-(slotRect.left + slotRect.width / 2), 0);
+          if (isMirrored) {
+            // Flip horizontal di sekitar center slot
+            canvas.translate(slotRect.left + slotRect.width / 2, 0);
+            canvas.scale(-1, 1);
+            canvas.translate(-(slotRect.left + slotRect.width / 2), 0);
+          }
+
+          if (filterMatrix != null) {
+            final paint = Paint()..colorFilter = ColorFilter.matrix(filterMatrix);
+            _drawImageFit(canvas, photoImage, slotRect, paint: paint);
+          } else {
+            _drawImageFit(canvas, photoImage, slotRect);
+          }
+
+          canvas.restore();
+        } catch (photoErr) {
+          debugPrint('[PhotostripRenderer] Gagal memuat foto ke-$i (${photoPaths[i]}): $photoErr');
+          canvas.drawRect(slotRect, Paint()..color = const Color(0xFF333333));
         }
-
-        if (filterMatrix != null) {
-          final paint = Paint()..colorFilter = ColorFilter.matrix(filterMatrix);
-          _drawImageFit(canvas, photoImage, slotRect, paint: paint);
-        } else {
-          _drawImageFit(canvas, photoImage, slotRect);
-        }
-
-        canvas.restore();
       } else {
         // Slot kosong — isi dengan warna abu gelap
         canvas.drawRect(slotRect, Paint()..color = const Color(0xFF333333));
@@ -98,8 +107,12 @@ class PhotostripRenderer {
     }
 
     // ── Layer 3: Frame overlay ───────────────────────────────────────────────
-    final ui.Image frameImage = await _loadAssetImage(bundle, frameAssetPath);
-    _drawImage(canvas, frameImage, Rect.fromLTWH(0, 0, _canvasW, _canvasH));
+    try {
+      final ui.Image frameImage = await _loadAssetImage(bundle, frameAssetPath);
+      _drawImage(canvas, frameImage, Rect.fromLTWH(0, 0, _canvasW, _canvasH));
+    } catch (e) {
+      debugPrint('[PhotostripRenderer] Gagal load frame overlay $frameAssetPath: $e');
+    }
 
     // ── Layer 4 (opsional): Watermark ────────────────────────────────────────
     if (withWatermark) {
