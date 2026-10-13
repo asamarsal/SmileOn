@@ -589,17 +589,27 @@ class SessionController extends Controller
 
         try {
             $user = $request->user();
-            $uuid = $request->session_uuid ?? (string) Str::uuid();
+            $rawUuid = $request->session_uuid;
 
-            $session = PhotoSession::firstOrCreate(
-                ['uuid' => $uuid],
-                [
-                    'user_id'      => $user?->id ?? 1,
-                    'mode'         => $request->mode ?? 'personal',
-                    'status'       => 'completed',
-                    'completed_at' => now(),
-                ]
-            );
+            $session = null;
+            if ($rawUuid && Str::isUuid($rawUuid)) {
+                $session = PhotoSession::where('uuid', $rawUuid)->first();
+            }
+            if (!$session && $rawUuid) {
+                $session = PhotoSession::where('session_code', $rawUuid)->first();
+            }
+            if (!$session) {
+                $session = PhotoSession::create([
+                    'uuid'             => ($rawUuid && Str::isUuid($rawUuid)) ? $rawUuid : (string) Str::uuid(),
+                    'session_code'     => 'SO-' . date('Y') . '-' . strtoupper(Str::random(4)),
+                    'user_id'          => $user?->id ?? 1,
+                    'mode'             => $request->mode ?? 'personal',
+                    'status'           => 'completed',
+                    'credits_required' => 0,
+                    'photos_count'     => 4,
+                    'completed_at'     => now(),
+                ]);
+            }
 
             $photostripUrl = null;
             if ($request->hasFile('photostrip')) {
@@ -610,9 +620,11 @@ class SessionController extends Controller
                 );
                 $photostripUrl = Storage::disk('public')->url($path);
 
-                $strip = PhotoStrip::updateOrCreate(
-                    ['session_id' => $session->id],
-                    [
+                $strip = PhotoStrip::where('session_id', $session->id)->first();
+                if (!$strip) {
+                    $strip = PhotoStrip::create([
+                        'uuid'             => (string) Str::uuid(),
+                        'session_id'       => $session->id,
                         'user_id'          => $session->user_id,
                         'storage_key'      => $path,
                         'clean_url'        => $photostripUrl,
@@ -620,8 +632,15 @@ class SessionController extends Controller
                         'status'           => 'ready',
                         'share_token'      => Str::random(64),
                         'share_expires_at' => now()->addDays(7),
-                    ]
-                );
+                    ]);
+                } else {
+                    $strip->update([
+                        'storage_key'      => $path,
+                        'clean_url'        => $photostripUrl,
+                        'watermarked_url'  => $photostripUrl,
+                        'status'           => 'ready',
+                    ]);
+                }
             }
 
             // Upload multiple shots jika dilampirkan

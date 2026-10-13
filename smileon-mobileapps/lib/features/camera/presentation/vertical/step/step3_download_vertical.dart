@@ -135,6 +135,7 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
   String? _cachedRenderedStripPath;
   String? _uploadedPhotostripUrl;
   String? _uploadedStripUuid;
+  String? _uploadedSessionUuid;
   final TextEditingController _voucherController = TextEditingController(
     text: 'ROSEROMANCE5K',
   );
@@ -1083,7 +1084,7 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
       }
 
       final res = await RemotePhotoSessionService.mintPhotostripNft(
-        sessionUuid: widget.sessionId,
+        sessionUuid: _uploadedSessionUuid ?? widget.sessionId,
         stripUuid: _uploadedStripUuid,
         imageUrl: _uploadedPhotostripUrl,
         recipientAddress: _monadWalletAddress,
@@ -1394,6 +1395,7 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
         final data = uploadResult['data'] as Map<String, dynamic>?;
         _uploadedPhotostripUrl = data?['photostrip_url']?.toString();
         _uploadedStripUuid = data?['strip_uuid']?.toString();
+        _uploadedSessionUuid = data?['session_uuid']?.toString() ?? sessionId;
         await RemotePhotoSessionService.completeSession(sessionId);
         debugPrint('[Step3DownloadVertical] Foto sesi berhasil di-upload ke VPS: $sessionId, url: $_uploadedPhotostripUrl');
         if (showToast && mounted) {

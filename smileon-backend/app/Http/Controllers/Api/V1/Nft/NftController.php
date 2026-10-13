@@ -60,8 +60,10 @@ class NftController extends Controller
             if ($stripUuid && Str::isUuid($stripUuid)) {
                 $strip = PhotoStrip::where('uuid', $stripUuid)->first();
             }
-            if (!$strip && $sessionUuid && Str::isUuid($sessionUuid)) {
-                $session = \App\Models\PhotoSession::where('uuid', $sessionUuid)->first();
+            if (!$strip && $sessionUuid) {
+                $session = Str::isUuid($sessionUuid)
+                    ? \App\Models\PhotoSession::where('uuid', $sessionUuid)->first()
+                    : \App\Models\PhotoSession::where('session_code', $sessionUuid)->first();
                 if ($session) {
                     $strip = PhotoStrip::where('session_id', $session->id)->first();
                 }
