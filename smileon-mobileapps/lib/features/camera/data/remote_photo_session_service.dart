@@ -122,11 +122,25 @@ class RemotePhotoSessionService {
         return response.data as Map<String, dynamic>?;
       } else {
         debugPrint('[RemotePhotoSessionService] Upload returned status ${response.statusCode}: ${response.data}');
+        final msg = response.data?['message']?.toString() ?? 'Server status ${response.statusCode}';
+        throw Exception(msg);
       }
     } catch (e, stackTrace) {
       debugPrint('[RemotePhotoSessionService] Failed to upload photos: $e\n$stackTrace');
+      if (e is DioException) {
+        final serverErrors = e.response?.data?['errors'];
+        final serverMsg = e.response?.data?['message']?.toString();
+        if (serverErrors is Map && serverErrors.isNotEmpty) {
+          final firstVal = serverErrors.values.first;
+          final errorText = firstVal is List ? firstVal.first.toString() : firstVal.toString();
+          throw Exception('${serverMsg ?? "Gagal upload"}: $errorText');
+        }
+        if (serverMsg != null && serverMsg.isNotEmpty) {
+          throw Exception(serverMsg);
+        }
+      }
+      rethrow;
     }
-    return null;
   }
 
   /// 4. Selesaikan sesi foto di backend (memotong kuota, trigger FCM & cloud sync)

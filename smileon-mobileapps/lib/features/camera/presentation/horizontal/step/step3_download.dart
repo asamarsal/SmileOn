@@ -126,6 +126,7 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
   String? _nftTokenId;
   String? _nftTxHash;
   Completer<void>? _syncCompleter;
+  String? _lastSyncError;
   String? _cachedRenderedStripPath;
   String? _uploadedPhotostripUrl;
   String? _uploadedStripUuid;
@@ -933,7 +934,8 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
       }
 
       if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
-        throw Exception('Photostrip HD belum siap diunggah ke server. Pastikan foto selesai dirender lalu coba beberapa saat lagi.');
+        final reason = _lastSyncError != null ? ' ($_lastSyncError)' : '';
+        throw Exception('Photostrip HD belum siap diunggah ke server$reason. Pastikan koneksi internet aktif lalu coba beberapa saat lagi.');
       }
 
       final res = await RemotePhotoSessionService.mintPhotostripNft(
@@ -1148,6 +1150,7 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
     _syncCompleter = Completer<void>();
 
     try {
+      _lastSyncError = null;
       if (_cachedRenderedStripPath == null || !File(_cachedRenderedStripPath!).existsSync()) {
         try {
           final bytes = await PhotostripRenderer.render(
@@ -1219,6 +1222,7 @@ class _Step3DownloadState extends ConsumerState<Step3Download> {
         }
       }
     } catch (e) {
+      _lastSyncError = e.toString().replaceFirst('Exception: ', '');
       debugPrint('[Step3Download] Gagal menyinkronkan foto ke VPS: $e');
     } finally {
       if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
