@@ -6,6 +6,7 @@
  */
 
 let ethers;
+let lastError;
 const searchPaths = [
   'ethers',
   '../node_modules/ethers',
@@ -17,13 +18,22 @@ for (const p of searchPaths) {
   try {
     ethers = require(p);
     if (ethers) break;
-  } catch (_) {}
+  } catch (err) {
+    lastError = err;
+  }
 }
 
 if (!ethers) {
+  const nodeMajor = parseInt(process.versions.node.split('.')[0], 10);
+  let errorMsg = "Package 'ethers' gagal dimuat: " + (lastError ? lastError.message : "module not found");
+  if (nodeMajor < 18) {
+    errorMsg = `Node.js di VPS (${process.version}) terlalu usang untuk menjalankan ethers v6. Harap upgrade ke Node.js v20 LTS.`;
+  }
   console.error(JSON.stringify({
     success: false,
-    error: "Package 'ethers' tidak ditemukan di server. Silakan jalankan 'npm install ethers' di folder smileon-backend."
+    error: errorMsg,
+    node_version: process.version,
+    detail: lastError ? lastError.toString() : null
   }));
   process.exit(1);
 }

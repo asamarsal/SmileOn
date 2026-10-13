@@ -587,78 +587,90 @@ class SessionController extends Controller
             'mode'         => 'nullable|in:personal,event',
         ]);
 
-        $user = $request->user();
-        $uuid = $request->session_uuid ?? (string) Str::uuid();
+        try {
+            $user = $request->user();
+            $uuid = $request->session_uuid ?? (string) Str::uuid();
 
-        $session = PhotoSession::firstOrCreate(
-            ['uuid' => $uuid],
-            [
-                'user_id'      => $user?->id ?? 1,
-                'title'        => $request->title ?? 'Sesi Foto',
-                'mode'         => $request->mode ?? 'personal',
-                'status'       => 'completed',
-                'sync_status'  => 'synced',
-                'completed_at' => now(),
-            ]
-        );
-
-        $photostripUrl = null;
-        if ($request->hasFile('photostrip')) {
-            $path = $request->file('photostrip')->storePubliclyAs(
-                "strips/{$session->uuid}",
-                'photostrip_hd.' . $request->file('photostrip')->getClientOriginalExtension(),
-                'public'
-            );
-            $photostripUrl = Storage::disk('public')->url($path);
-
-            $strip = PhotoStrip::updateOrCreate(
-                ['session_id' => $session->id],
+            $session = PhotoSession::firstOrCreate(
+                ['uuid' => $uuid],
                 [
-                    'user_id'          => $session->user_id,
-                    'clean_url'        => $photostripUrl,
-                    'watermarked_url'  => $photostripUrl,
-                    'status'           => 'ready',
-                    'share_token'      => Str::random(64),
-                    'share_expires_at' => now()->addDays(7),
+                    'user_id'      => $user?->id ?? 1,
+                    'mode'         => $request->mode ?? 'personal',
+                    'status'       => 'completed',
+                    'completed_at' => now(),
                 ]
             );
-        }
 
-        // Upload multiple shots jika dilampirkan
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $idx => $photoFile) {
-                $shotNum = $idx + 1;
-                $ext = $photoFile->getClientOriginalExtension();
-                $path = $photoFile->storePubliclyAs(
-                    "photos/{$session->uuid}",
-                    "shot_{$shotNum}.{$ext}",
+            $photostripUrl = null;
+            if ($request->hasFile('photostrip')) {
+                $path = $request->file('photostrip')->storePubliclyAs(
+                    "strips/{$session->uuid}",
+                    'photostrip_hd.' . $request->file('photostrip')->getClientOriginalExtension(),
                     'public'
                 );
-                $url = Storage::disk('public')->url($path);
-                Photo::updateOrCreate(
-                    ['session_id' => $session->id, 'shot_number' => $shotNum],
+                $photostripUrl = Storage::disk('public')->url($path);
+
+                $strip = PhotoStrip::updateOrCreate(
+                    ['session_id' => $session->id],
                     [
-                        'user_id'         => $session->user_id,
-                        'storage_key'     => $path,
-                        'original_url'    => $url,
-                        'watermarked_url' => $url,
-                        'status'          => 'ready',
+                        'user_id'          => $session->user_id,
+                        'storage_key'      => $path,
+                        'clean_url'        => $photostripUrl,
+                        'watermarked_url'  => $photostripUrl,
+                        'status'           => 'ready',
+                        'share_token'      => Str::random(64),
+                        'share_expires_at' => now()->addDays(7),
                     ]
                 );
             }
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Upload sesi foto & photostrip berhasil.',
-            'data'    => [
-                'session_uuid'     => $session->uuid,
-                'strip_uuid'       => isset($strip) ? $strip->uuid : null,
-                'photostrip_url'   => $photostripUrl,
-                'photos_count'     => $session->photos()->count(),
-                'share_url'        => isset($strip) ? url('/api/v1/strips/share/' . $strip->share_token) : null,
-            ],
-        ], 201);
+            // Upload multiple shots jika dilampirkan
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $idx => $photoFile) {
+                    $shotNum = $idx + 1;
+                    $ext = $photoFile->getClientOriginalExtension();
+                    $path = $photoFile->storePubliclyAs(
+                        "photos/{$session->uuid}",
+                        "shot_{$shotNum}.{$ext}",
+                        'public'
+                    );
+                    $url = Storage::disk('public')->url($path);
+                    Photo::updateOrCreate(
+                        ['session_id' => $session->id, 'shot_number' => $shotNum],
+                        [
+                            'user_id'         => $session->user_id,
+                            'storage_key'     => $path,
+                            'original_url'    => $url,
+                            'watermarked_url' => $url,
+                            'status'          => 'ready',
+                        ]
+                    );
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Upload sesi foto & photostrip berhasil.',
+                'data'    => [
+                    'session_uuid'     => $session->uuid,
+                    'strip_uuid'       => isset($strip) ? $strip->uuid : null,
+                    'photostrip_url'   => $photostripUrl,
+                    'photos_count'     => $session->photos()->count(),
+                    'share_url'        => isset($strip) ? url('/api/v1/strips/share/' . $strip->share_token) : null,
+                ],
+            ], 201);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("[SessionController] Error uploadMultipart: " . $e->getMessage(), [
+                'exception' => get_class($e),
+                'trace'     => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupload foto sesi: ' . $e->getMessage(),
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
