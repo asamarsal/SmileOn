@@ -19,6 +19,7 @@ import 'package:dynamic_sdk/dynamic_sdk.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:smileon/core/constants/monad_contracts.dart';
 import 'package:smileon/core/services/monad_payment_service.dart';
+import 'package:smileon/core/auth/auth_provider.dart';
 
 /// STEP 3: DOWNLOAD & PAYMENT (VERTICAL)
 /// Menyediakan alur akhir untuk vertical photobooth:
@@ -134,12 +135,44 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
     text: 'ROSEROMANCE5K',
   );
   final TextEditingController _emailController = TextEditingController();
+  StreamSubscription? _walletSub;
 
   @override
   void initState() {
     super.initState();
     _startTimer();
     _checkInitialMonadWallet();
+    _listenWalletChanges();
+  }
+
+  void _listenWalletChanges() {
+    try {
+      _walletSub = DynamicSDK.instance.wallets.userWalletsChanges.listen((wallets) {
+        if (!mounted) return;
+        if (wallets.isNotEmpty) {
+          final address = wallets.first.address;
+          setState(() {
+            _monadConnected = true;
+            _monadWalletAddress = address;
+          });
+          _fetchMonadBalance(address);
+          try {
+            DynamicSDK.instance.wallets.switchNetwork(
+              wallet: wallets.first,
+              network: Network.evm(10143),
+            );
+          } catch (_) {}
+        } else {
+          setState(() {
+            _monadConnected = false;
+            _monadWalletAddress = null;
+            _monadBalance = 0.0;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('[Step3DownloadVertical] Error listen wallet changes: $e');
+    }
   }
 
   void _checkInitialMonadWallet() {
@@ -152,6 +185,23 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
           _monadWalletAddress = address;
         });
         _fetchMonadBalance(address);
+        try {
+          DynamicSDK.instance.wallets.switchNetwork(
+            wallet: wallets.first,
+            network: Network.evm(10143),
+          );
+        } catch (_) {}
+        return;
+      }
+
+      // Periksa dari sesi akun pengguna yang sedang login di SmileOn
+      final sessionWallet = ref.read(authProvider).value?.walletAddress;
+      if (sessionWallet != null && sessionWallet.isNotEmpty) {
+        setState(() {
+          _monadConnected = true;
+          _monadWalletAddress = sessionWallet;
+        });
+        _fetchMonadBalance(sessionWallet);
       }
     } catch (e) {
       debugPrint('[Step3DownloadVertical] Error check initial wallet: $e');
@@ -175,6 +225,7 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
 
   @override
   void dispose() {
+    _walletSub?.cancel();
     _countdownTimer?.cancel();
     _voucherController.dispose();
     _emailController.dispose();
@@ -195,14 +246,217 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
         });
         await _fetchMonadBalance(address);
         HapticFeedback.mediumImpact();
-      } else {
-        DynamicSDK.instance.ui.showAuth();
-        setState(() => _isConnectingMonad = false);
+        return;
       }
+
+      final sessionWallet = ref.read(authProvider).value?.walletAddress;
+      if (sessionWallet != null && sessionWallet.isNotEmpty) {
+        setState(() {
+          _isConnectingMonad = false;
+          _monadConnected = true;
+          _monadWalletAddress = sessionWallet;
+        });
+        await _fetchMonadBalance(sessionWallet);
+        HapticFeedback.mediumImpact();
+        return;
+      }
+
+      setState(() => _isConnectingMonad = false);
+      _showDynamicConnectBottomSheet();
     } catch (e) {
       debugPrint('Error connect monad: $e');
       setState(() => _isConnectingMonad = false);
     }
+  }
+
+  void _showDynamicConnectBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF836EF9), Color(0xFF200052)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: Text('◈', style: TextStyle(fontSize: 22, color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dynamic Web3 Wallet',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
+                      ),
+                      Text(
+                        'Pilih metode koneksi Monad Testnet',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF836EF9)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildDynamicModalOption(
+              icon: Icons.g_mobiledata_rounded,
+              iconColor: const Color(0xFFEA4335),
+              title: 'Dynamic Embedded Wallet (Google)',
+              subtitle: 'Dompet aman di dalam aplikasi tanpa aplikasi luar',
+              badge: 'Disarankan',
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                try {
+                  await ref.read(authProvider.notifier).connectGoogleSocial();
+                  _checkInitialMonadWallet();
+                } catch (e) {
+                  debugPrint('Google connect error: $e');
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+            _buildDynamicModalOption(
+              icon: Icons.bolt_rounded,
+              iconColor: const Color(0xFFF59E0B),
+              title: 'Instant Monad Testnet Wallet',
+              subtitle: 'Aktivasi wallet instan on-chain untuk sesi ini',
+              badge: 'Instan',
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final guestSession = await ref.read(authProvider.notifier).loginAsGuest();
+                if (guestSession.walletAddress != null) {
+                  if (!mounted) return;
+                  setState(() {
+                    _monadConnected = true;
+                    _monadWalletAddress = guestSession.walletAddress;
+                  });
+                  _fetchMonadBalance(guestSession.walletAddress!);
+                  SmileToast.showSuccess(
+                    context,
+                    title: 'Wallet Aktif',
+                    message: 'Monad Wallet instan terhubung! ◈',
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+            _buildDynamicModalOption(
+              icon: Icons.open_in_browser_rounded,
+              iconColor: const Color(0xFF836EF9),
+              title: 'Dynamic SDK Modal',
+              subtitle: 'Buka antarmuka resmi Dynamic SDK',
+              badge: null,
+              onTap: () {
+                Navigator.of(ctx).pop();
+                DynamicSDK.instance.ui.showAuth();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicModalOption({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String? badge,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE8E8EE)),
+          color: const Color(0xFFFAFAFC),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E1E24)),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF836EF9).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            badge,
+                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF836EF9)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   void _disconnectMonadWallet() {
@@ -229,48 +483,208 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
       return;
     }
 
-    setState(() => _isPayingMonad = true);
-    HapticFeedback.lightImpact();
+    _showDynamicPaymentConfirmationModal();
+  }
 
+  void _showDynamicPaymentConfirmationModal() {
     final orderRef = 'ORD-SSN-${DateTime.now().millisecondsSinceEpoch}';
 
-    // Tampilkan Dialog Loading Progress
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => PopScope(
-        canPop: false,
-        child: Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
               children: [
-                const SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF836EF9)),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF836EF9), Color(0xFF200052)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: Text('◈', style: TextStyle(fontSize: 24, color: Colors.white)),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Memproses Transaksi Monad',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Order Ref: $orderRef\nMengirim 0.80 MON ke SmileOn Payment Hub...',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Dynamic Web3 Pay',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
+                      ),
+                      Text(
+                        'Konfirmasi Transaksi Monad Testnet',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF836EF9)),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9F7FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5DEFF)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Item', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                      Text('Fotostrip HD + Watermark Removal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Total Bayar', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                      Text('0.80 MON', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF836EF9))),
+                    ],
+                  ),
+                  const Divider(color: Color(0xFFE5DEFF), height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Estimasi Gas Fee', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                      Text('~0.0001 MON', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Dompet Anda', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                      Text(
+                        _monadWalletAddress != null && _monadWalletAddress!.length > 10
+                            ? '${_monadWalletAddress!.substring(0, 6)}...${_monadWalletAddress!.substring(_monadWalletAddress!.length - 4)}'
+                            : '-',
+                        style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF6B7280)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Jaringan', style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                      Text('Monad Testnet (10143)', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  await Future.delayed(const Duration(milliseconds: 250));
+                  if (mounted) {
+                    _executeMonadPaymentProcess(orderRef);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF836EF9),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('◈', style: TextStyle(fontSize: 18)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Approve & Bayar di Dynamic ◈',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Future<void> _executeMonadPaymentProcess(String orderRef) async {
+    setState(() => _isPayingMonad = true);
+    HapticFeedback.lightImpact();
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return PopScope(
+          canPop: false,
+          child: Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF836EF9)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Memproses Transaksi Monad ◈',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF200052)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Order Ref: $orderRef\nMenyelesaikan pembayaran via Dynamic Hub...',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
 
     try {
@@ -280,8 +694,14 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
         monAmount: 0.80,
       );
 
+      // Pastikan dialog ditutup
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      } else if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Tutup loading dialog
       setState(() => _isPayingMonad = false);
 
       if (result.isSuccess) {
@@ -291,7 +711,6 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
         });
         HapticFeedback.heavyImpact();
 
-        // Refresh balance setelah pembayaran
         if (_monadWalletAddress != null) {
           _fetchMonadBalance(_monadWalletAddress!);
         }
@@ -315,8 +734,12 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
         );
       }
     } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      } else if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
       setState(() => _isPayingMonad = false);
       SmileToast.showError(
         context,
@@ -587,6 +1010,27 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
 
   // ── NFT Minting Monad (ERC-721) ──────────────────────────────────────────
   Future<void> _mintNftOnMonad() async {
+    // Pastikan wallet Monad terhubung untuk menerima NFT
+    if (_monadWalletAddress == null || _monadWalletAddress!.isEmpty) {
+      final activeWallet = DynamicSDK.instance.wallets.userWallets.firstOrNull;
+      if (activeWallet != null && activeWallet.address.isNotEmpty) {
+        _monadWalletAddress = activeWallet.address;
+      } else {
+        await _connectMonadWallet();
+      }
+    }
+
+    if (!mounted) return;
+    if (_monadWalletAddress == null || _monadWalletAddress!.isEmpty) {
+      SmileToast.showWarning(
+        context,
+        title: 'Wallet Belum Terhubung',
+        message: 'Silakan sambungkan wallet Monad Anda untuk menerima NFT kenangan.',
+        alignment: Alignment.topCenter,
+      );
+      return;
+    }
+
     setState(() => _isMintingNft = true);
     HapticFeedback.mediumImpact();
 
@@ -631,8 +1075,10 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
     try {
       final res = await RemotePhotoSessionService.mintPhotostripNft(
         sessionUuid: widget.sessionId,
-        name: widget.sessionTitle ?? 'SmileOn Photo Memory',
-        description: 'Kenangan photobooth SmileOn pada jaringan Monad Testnet',
+        recipientAddress: _monadWalletAddress,
+        name: widget.sessionTitle ?? widget.frameTitle ?? 'SmileOn Photo Memory',
+        description: 'Kenangan photobooth resmi SmileOn pada Monad Testnet',
+        frameId: widget.selectedFrameIndex + 1,
       );
 
       if (!mounted) return;
@@ -640,12 +1086,12 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
       setState(() => _isMintingNft = false);
 
       final data = res?['data'] as Map<String, dynamic>?;
-      final tokenId = data?['token_id']?.toString() ??
-          '#${DateTime.now().millisecondsSinceEpoch % 10000}';
-      final txHash = data?['mint_tx_hash']?.toString() ??
-          data?['tx_hash']?.toString() ??
-          _monadTxHash ??
-          '0x${DateTime.now().millisecondsSinceEpoch.toRadixString(16).padLeft(64, '0')}';
+      final txHash = data?['mint_tx_hash']?.toString() ?? data?['tx_hash']?.toString();
+      final tokenId = data?['token_id']?.toString();
+
+      if (txHash == null || txHash.isEmpty || tokenId == null) {
+        throw Exception(res?['message'] ?? 'Gagal memverifikasi pencetakan NFT di Monad Testnet.');
+      }
 
       setState(() {
         _isNftMinted = true;
@@ -758,6 +1204,19 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
                       ),
                     ],
                   ),
+                  if (_monadWalletAddress != null && _monadWalletAddress!.isNotEmpty) ...[
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Wallet Penerima', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(
+                          '${_monadWalletAddress!.substring(0, 6)}...${_monadWalletAddress!.substring(_monadWalletAddress!.length - 4)}',
+                          style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Color(0xFF200052), fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
                   const Divider(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -778,13 +1237,13 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final url = Uri.parse(MonadContracts.txUrl(txHash));
+                      final url = Uri.parse(MonadContracts.visionTxUrl(txHash));
                       if (await canLaunchUrl(url)) {
                         await launchUrl(url, mode: LaunchMode.externalApplication);
                       }
                     },
                     icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                    label: const Text('Monad Explorer'),
+                    label: const Text('Buka MonadVision ◈'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF836EF9),
                       side: const BorderSide(color: Color(0xFF836EF9)),
@@ -1486,7 +1945,12 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
           // ── Pilihan 2: Pay with Monad ────────────────────────────────────
           _PaymentOptionTile(
             isSelected: _selectedPaymentMethod == 'monad',
-            onTap: () => setState(() => _selectedPaymentMethod = 'monad'),
+            onTap: () {
+              setState(() => _selectedPaymentMethod = 'monad');
+              if (!_monadConnected) {
+                _connectMonadWallet();
+              }
+            },
             leading: Container(
               width: 38,
               height: 38,

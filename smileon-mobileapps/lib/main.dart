@@ -57,6 +57,21 @@ void main() async {
       appLogoUrl: 'https://demo.dynamic.xyz/favicon-32x32.png',
       appOrigin: 'https://smileon.app',
       redirectUrl: 'smileon://',
+      evmNetworks: [
+        const GenericNetwork(
+          chainId: 10143,
+          networkId: 10143,
+          name: 'Monad Testnet',
+          nativeCurrency: NativeCurrency(
+            name: 'Monad',
+            symbol: 'MON',
+            decimals: 18.0,
+          ),
+          rpcUrls: ['https://testnet-rpc.monad.xyz'],
+          blockExplorerUrls: ['https://testnet.monadexplorer.com'],
+          iconUrls: ['https://monad.xyz/favicon.ico'],
+        ),
+      ],
     ),
   );
   runApp(const ProviderScope(child: MyApp()));

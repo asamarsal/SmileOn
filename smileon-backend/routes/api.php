@@ -428,9 +428,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::get('collectibles/{uuid}', [NftController::class, 'show'])->name('collectibles.show');
+    Route::get('nft/metadata/{token_or_uuid}', [NftController::class, 'metadata'])->name('nft.metadata');
+    Route::post('nft/mint', [NftController::class, 'mint'])->name('nft.mint');
 
     Route::middleware('auth:sanctum')->group(function () {
-        Route::post('nft/mint', [NftController::class, 'mint'])->middleware('idempotency')->name('nft.mint');
         Route::get('user/collectibles', [NftController::class, 'myCollectibles'])->name('user.collectibles');
         Route::post('events/{uuid}/verify-nft-access', [NftController::class, 'verifyAccess'])->name('events.verify-nft-access');
         Route::post('events/{uuid}/claim-nft-perk', [NftController::class, 'claimPerk'])->middleware('idempotency')->name('events.claim-nft-perk');

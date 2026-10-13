@@ -143,15 +143,23 @@ class RemotePhotoSessionService {
   static Future<Map<String, dynamic>?> mintPhotostripNft({
     String? sessionUuid,
     String? stripUuid,
+    String? recipientAddress,
     String? name,
     String? description,
+    String? imageUrl,
+    int? frameId,
+    bool force = false,
   }) async {
     try {
       final payload = <String, dynamic>{
         if (sessionUuid != null && sessionUuid.isNotEmpty) 'session_uuid': sessionUuid,
         if (stripUuid != null && stripUuid.isNotEmpty) 'strip_uuid': stripUuid,
+        if (recipientAddress != null && recipientAddress.isNotEmpty) 'recipient_address': recipientAddress,
         if (name != null && name.isNotEmpty) 'name': name,
         if (description != null && description.isNotEmpty) 'description': description,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+        if (frameId != null) 'frame_id': frameId,
+        if (force) 'force': true,
       };
 
       final response = await _apiClient.post('/nft/mint', data: payload);
@@ -163,6 +171,13 @@ class RemotePhotoSessionService {
       }
     } catch (e) {
       debugPrint('[RemotePhotoSessionService] Gagal mint NFT ke Monad: $e');
+      if (e is DioException) {
+        final serverMsg = e.response?.data?['message']?.toString();
+        if (serverMsg != null && serverMsg.isNotEmpty) {
+          throw Exception(serverMsg);
+        }
+      }
+      rethrow;
     }
     return null;
   }

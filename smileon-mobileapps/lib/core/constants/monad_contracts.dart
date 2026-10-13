@@ -15,19 +15,23 @@ class MonadContracts {
 
   /// Item ID Hashes untuk SmileOnPaymentHub
   /// keccak256("PHOTO_SESSION_STANDARD")
-  static const String itemPhotoSessionStandard = '0xd9ea1ba08dc13702a0a2df36768fcfa7b322fce12d264585ec843f5454b5f8e5';
+  static const String itemPhotoSessionStandard = '0x5a2ed350eb867dbe30b21f38a0bd30e042fa5dcd30b55fc3e82cf88341a4cb18';
   /// keccak256("CREDIT_50")
-  static const String itemCredit50 = '0x1531faee6c36746cf59aa4b7f849cf9449df5db8e7ff19946894c4897f14b620';
+  static const String itemCredit50 = '0x7505045914b82c9bf797aa8ca4453d8fc5e930838c3177675b729099c66de3ce';
   /// keccak256("CREDIT_100")
-  static const String itemCredit100 = '0x0d47eebe6295ea70857732a39a04f21cf47d3d0f7a0b5c1325d7e4860bcae28c';
+  static const String itemCredit100 = '0x8b9a394b146efab9660dcdbc0bfa8e7170295f6328bdba45e0347c83713142a1';
   /// keccak256("EVENT_WEDDING_300")
-  static const String itemEventWedding300 = '0xa8714eb6100ee9c558cf7b312be218c5417855b4a530eb74900a688fb5e05178';
+  static const String itemEventWedding300 = '0x9233a8a7b952e974a31dd572a946672d3f9802d9aa025ab175db2ae4ceb59e07';
+
+  static const String visionUrl = 'https://testnet.monadvision.com';
 
   /// Explorer URL helpers
-  static String txUrl(String txHash) => '$explorerUrl/tx/$txHash';
-  static String explorerTxUrl(String txHash) => txUrl(txHash);
-  static String addressUrl(String address) => '$explorerUrl/address/$address';
-  static String explorerAddressUrl(String address) => addressUrl(address);
-  static String paymentHubUrl() => '$explorerUrl/address/$paymentHubAddress';
-  static String nftUrl() => '$explorerUrl/address/$nftAddress';
+  static String txUrl(String txHash) => '$visionUrl/tx/$txHash';
+  static String explorerTxUrl(String txHash) => '$explorerUrl/tx/$txHash';
+  static String visionTxUrl(String txHash) => '$visionUrl/tx/$txHash';
+  static String visionTokenUrl(String tokenId) => '$visionUrl/token/$nftAddress/instance/$tokenId';
+  static String addressUrl(String address) => '$visionUrl/address/$address';
+  static String explorerAddressUrl(String address) => '$explorerUrl/address/$address';
+  static String paymentHubUrl() => '$visionUrl/address/$paymentHubAddress';
+  static String nftUrl() => '$visionUrl/token/$nftAddress';
 }

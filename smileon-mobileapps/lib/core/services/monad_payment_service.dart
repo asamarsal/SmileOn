@@ -325,73 +325,83 @@ class MonadPaymentService {
       final wallets = DynamicSDK.instance.wallets.userWallets;
       if (wallets.isEmpty) {
         return MonadTxResult.failed(
-          'Wallet Monad belum terhubung. Silakan hubungkan akun atau login terlebih dahulu.',
+          'Wallet Monad belum terhubung. Silakan hubungkan dompet Monad Anda terlebih dahulu.',
         );
       }
 
       final activeWallet = wallets.first;
       final userAddress = activeWallet.address;
+      if (userAddress.isEmpty || !userAddress.startsWith('0x')) {
+        return MonadTxResult.failed('Alamat dompet Monad Anda tidak valid: $userAddress');
+      }
+
+      // Pastikan jaringan aktif di Dynamic adalah Monad Testnet (Chain ID 10143)
+      try {
+        await DynamicSDK.instance.wallets.switchNetwork(
+          wallet: activeWallet,
+          network: Network.evm(MonadContracts.chainId),
+        ).timeout(const Duration(seconds: 3));
+        debugPrint('[MonadPaymentService] Memastikan network wallet aktif di Monad Testnet (${MonadContracts.chainId})');
+      } catch (e) {
+        debugPrint('[MonadPaymentService] switchNetwork note: $e');
+      }
 
       // 2. Validasi saldo MON pengguna sebelum mengirim
       final userBalance = await getMonBalance(userAddress);
       if (userBalance < monAmount) {
         return MonadTxResult.failed(
-          'Saldo MON tidak mencukupi (Tersedia: ${userBalance.toStringAsFixed(3)} MON, Dibutuhkan: ${monAmount.toStringAsFixed(3)} MON).',
+          'Saldo MON Anda tidak mencukupi (Tersedia: ${userBalance.toStringAsFixed(3)} MON, Dibutuhkan: ${monAmount.toStringAsFixed(3)} MON).',
         );
       }
 
-      // 3. Konversi nilai pembayaran ke format Wei Hex
+      // 3. Konversi nilai pembayaran ke format Wei
       final weiValue = BigInt.from((monAmount * 1e18).round());
       final hexValue = '0x${weiValue.toRadixString(16)}';
 
-      debugPrint('[MonadPaymentService] Mengirim transaksi:');
-      debugPrint('  To: ${MonadContracts.paymentHubAddress}');
-      debugPrint('  From: $userAddress');
+      debugPrint('[MonadPaymentService] Mengirim pembayaran on-chain LANGSUNG DARI WALLET PENGGUNA:');
+      debugPrint('  From (User): $userAddress');
+      debugPrint('  To (Contract): ${MonadContracts.paymentHubAddress}');
       debugPrint('  Value: $hexValue ($monAmount MON)');
       debugPrint('  Data: $calldata');
 
-      // 4. Periksa apakah sudah dibayar sebelumnya (Anti-Replay)
-      final alreadyPaid = await isOrderPaidOnChain(orderRef);
-      if (alreadyPaid) {
-        return MonadTxResult.failed('Order $orderRef sudah pernah dibayar di blockchain.');
-      }
-
-      // 5. Broadcast transaksi pembayaran ke jaringan Monad Testnet via DynamicSDK web3dart
-      String txHash = '';
+      // 4. Periksa apakah sudah dibayar sebelumnya di smart contract (Anti-Replay)
       try {
-        final cleanData = calldata.startsWith('0x') ? calldata.substring(2) : calldata;
-        final tx = Transaction(
-          to: EthereumAddress.fromHex(MonadContracts.paymentHubAddress),
-          from: EthereumAddress.fromHex(userAddress),
-          value: EtherAmount.inWei(weiValue),
-          data: Uint8List.fromList(hexToBytes(cleanData)),
-          maxGas: 350000,
-        );
-
-        txHash = await DynamicSDK.instance.web3dart.sendTransaction(
-          transaction: tx,
-          wallet: activeWallet,
-        );
-        debugPrint('[MonadPaymentService] On-chain tx broadcast via DynamicSDK: $txHash');
+        final alreadyPaid = await isOrderPaidOnChain(orderRef).timeout(const Duration(seconds: 4));
+        if (alreadyPaid) {
+          return MonadTxResult.failed('Order $orderRef sudah pernah dibayar di blockchain.');
+        }
       } catch (e) {
-        debugPrint('[MonadPaymentService] DynamicSDK direct broadcast fallback: $e');
+        debugPrint('[MonadPaymentService] Anti-replay check note: $e');
       }
 
-      // 6. Jika bridge RPC / simulator wallet tidak mengembalikan 32-byte EVM hash,
-      // generate EVM hash 66-karakter valid (0x + 64 hex) agar lolos validasi regex backend
-      // /^0x[a-fA-F0-9]{64}$/ dan anti-replay verification
+      final cleanData = calldata.startsWith('0x') ? calldata.substring(2) : calldata;
+      final calldataBytes = Uint8List.fromList(hexToBytes(cleanData));
+
+      // 5. Eksekusi transaksi on-chain EKSKLUSIF dari wallet pengguna via Dynamic SDK
+      final tx = Transaction(
+        to: EthereumAddress.fromHex(MonadContracts.paymentHubAddress),
+        from: EthereumAddress.fromHex(userAddress),
+        value: EtherAmount.inWei(weiValue),
+        data: calldataBytes,
+        maxGas: 350000,
+      );
+
+      final txHash = await DynamicSDK.instance.web3dart.sendTransaction(
+        transaction: tx,
+        wallet: activeWallet,
+      );
+
+      debugPrint('[MonadPaymentService] Transaksi on-chain SUKSES dibayar dari wallet user $userAddress! TxHash: $txHash');
+
       if (txHash.isEmpty || !RegExp(r'^0x[a-fA-F0-9]{64}$').hasMatch(txHash)) {
-        final seed = 'monad_${orderRef}_${DateTime.now().microsecondsSinceEpoch}_$userAddress';
-        final hashBytes = keccak256(Uint8List.fromList(utf8.encode(seed)));
-        txHash = bytesToHex(hashBytes, include0x: true);
-        debugPrint('[MonadPaymentService] Generated valid 32-byte Monad EVM txHash: $txHash');
+        return MonadTxResult.failed('Transaksi tidak menghasilkan hash EVM yang valid dari dompet Anda.');
       }
 
       return MonadTxResult.success(
         txHash: txHash,
       );
     } catch (e) {
-      debugPrint('[MonadPaymentService] Gagal memproses transaksi: $e');
+      debugPrint('[MonadPaymentService] Gagal memproses transaksi dari wallet pengguna: $e');
       return MonadTxResult.failed(_parseErrorMessage(e));
     }
   }

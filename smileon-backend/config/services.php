@@ -40,7 +40,10 @@ return [
         'rpc_url' => env('MONAD_RPC_URL', 'https://testnet-rpc.monad.xyz'),
         'payment_hub_address' => env('MONAD_PAYMENT_HUB_ADDRESS', '0xFAB484e78053e3FE88351A6a8A9dD545bb6a41ff'),
         'nft_address' => env('MONAD_NFT_ADDRESS', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48'),
+        'deployer_private_key' => env('MONAD_DEPLOYER_PRIVATE_KEY', 'd20ec36a1c43f1404b89f4651d5a4ec50fe6e5c363e63788e09e9aea4556215f'),
+        'fallback_rpc_url' => env('MONAD_FALLBACK_RPC_URL', 'https://monad-testnet.drpc.org'),
         'explorer_url' => env('MONAD_EXPLORER_URL', 'https://testnet.monadexplorer.com'),
+        'vision_url' => env('MONAD_VISION_URL', 'https://testnet.monadvision.com'),
     ],
 
     'fcm' => [
