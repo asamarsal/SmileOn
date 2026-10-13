@@ -24,8 +24,8 @@ class PhotostripRenderer {
   static const double _photoH = 288.0;
   static const double _gap = 88.0;
 
-  /// Resolusi multiplier — 2× = 1200×3600 px output
-  static const double _pixelRatio = 2.0;
+  /// Resolusi multiplier — 1.5× = 900×2700 px output (ultra HD, hemat memori & upload cepat)
+  static const double _pixelRatio = 1.5;
 
   /// Render fotostrip ke [Uint8List] PNG.
   ///
@@ -157,7 +157,7 @@ class PhotostripRenderer {
       format: ui.ImageByteFormat.png,
     );
     if (byteData == null) throw Exception('Failed to encode image to PNG');
-    return byteData.buffer.asUint8List();
+    return byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
   }
 
   /// Simpan [Uint8List] PNG ke galeri dan kembalikan path-nya.
@@ -185,7 +185,7 @@ class PhotostripRenderer {
   ) async {
     final data = await bundle.load(assetPath);
     final codec = await ui.instantiateImageCodec(
-      data.buffer.asUint8List(),
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
       targetWidth: (_canvasW * _pixelRatio).round(),
       targetHeight: (_canvasH * _pixelRatio).round(),
     );
@@ -198,7 +198,9 @@ class PhotostripRenderer {
     String assetPath,
   ) async {
     final data = await bundle.load(assetPath);
-    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
     final frame = await codec.getNextFrame();
     return frame.image;
   }

@@ -1372,8 +1372,14 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
           await tempFile.writeAsBytes(bytes);
           _cachedRenderedStripPath = tempFile.path;
         } catch (renderErr) {
+          _lastSyncError = 'Gagal merender fotostrip: $renderErr';
           debugPrint('[Step3DownloadVertical] Error rendering fotostrip: $renderErr');
+          rethrow;
         }
+      }
+
+      if (_cachedRenderedStripPath == null || !File(_cachedRenderedStripPath!).existsSync()) {
+        throw Exception('File photostrip belum berhasil dirender di memori lokal.');
       }
 
       final sessionId = widget.sessionId ?? 'SES-${DateTime.now().millisecondsSinceEpoch}';
@@ -1405,27 +1411,30 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
       // 2. Upload file photostrip & foto ke VPS
       final uploadResult = await RemotePhotoSessionService.uploadSessionPhotos(
         sessionUuid: sessionId,
-        photostripPath: _cachedRenderedStripPath ?? '',
+        photostripPath: _cachedRenderedStripPath!,
         rawPhotoPaths: widget.capturedPhotos,
         title: widget.sessionTitle ?? widget.frameTitle ?? 'Sesi Foto SmileOn',
         mode: widget.sessionType,
       );
 
-      if (uploadResult != null) {
-        final data = uploadResult['data'] as Map<String, dynamic>?;
-        _uploadedPhotostripUrl = data?['photostrip_url']?.toString();
-        _uploadedStripUuid = data?['strip_uuid']?.toString();
-        _uploadedSessionUuid = data?['session_uuid']?.toString() ?? sessionId;
-        await RemotePhotoSessionService.completeSession(sessionId);
-        debugPrint('[Step3DownloadVertical] Foto sesi berhasil di-upload ke VPS: $sessionId, url: $_uploadedPhotostripUrl');
-        if (showToast && mounted) {
-          SmileToast.showSuccess(
-            context,
-            title: 'Foto Tersimpan ke Server',
-            message: 'Foto & photostrip berhasil disimpan ke VPS! ✨',
-            alignment: Alignment.topCenter,
-          );
-        }
+      final data = uploadResult?['data'] as Map<String, dynamic>?;
+      _uploadedPhotostripUrl = data?['photostrip_url']?.toString();
+      _uploadedStripUuid = data?['strip_uuid']?.toString();
+      _uploadedSessionUuid = data?['session_uuid']?.toString() ?? sessionId;
+
+      if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
+        throw Exception(uploadResult?['message']?.toString() ?? 'Server tidak mengembalikan URL photostrip.');
+      }
+
+      await RemotePhotoSessionService.completeSession(sessionId);
+      debugPrint('[Step3DownloadVertical] Foto sesi berhasil di-upload ke VPS: $sessionId, url: $_uploadedPhotostripUrl');
+      if (showToast && mounted) {
+        SmileToast.showSuccess(
+          context,
+          title: 'Foto Tersimpan ke Server',
+          message: 'Foto & photostrip berhasil disimpan ke VPS! ✨',
+          alignment: Alignment.topCenter,
+        );
       }
     } catch (e) {
       _lastSyncError = e.toString().replaceFirst('Exception: ', '');
