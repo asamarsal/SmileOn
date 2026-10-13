@@ -77,6 +77,7 @@ class NftController extends Controller
                 $session = \App\Models\PhotoSession::firstOrCreate(
                     ['uuid' => ($sessionUuid && Str::isUuid($sessionUuid)) ? $sessionUuid : (string) Str::uuid()],
                     [
+                        'session_code'     => 'SO-' . date('Y') . '-' . strtoupper(Str::random(4)),
                         'user_id'          => $user?->id ?? 1,
                         'mode'             => 'personal',
                         'status'           => 'completed',
