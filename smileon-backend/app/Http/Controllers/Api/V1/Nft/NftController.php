@@ -43,215 +43,226 @@ class NftController extends Controller
             'frame_id'          => 'nullable|integer',
             'attributes'        => 'nullable|array',
             'force'             => 'nullable|boolean',
-        ]);
-
-        $user = $request->user('sanctum') ?? $request->user();
-        if (!$user) {
-            $user = \App\Models\User::first() ?? \App\Models\User::create([
-                'name'     => 'SmileOn Guest',
-                'email'    => 'guest@smileon-dapps.my.id',
-                'password' => bcrypt(Str::random(16)),
-            ]);
-        }
-        $userId = $user->id;
-        $stripUuid = $request->input('strip_uuid');
-        $sessionUuid = $request->input('session_uuid');
-
-        $strip = null;
-        if ($stripUuid && Str::isUuid($stripUuid)) {
-            $strip = PhotoStrip::where('uuid', $stripUuid)->first();
-        }
-        if (!$strip && $sessionUuid && Str::isUuid($sessionUuid)) {
-            $session = \App\Models\PhotoSession::where('uuid', $sessionUuid)->first();
-            if ($session) {
-                $strip = PhotoStrip::where('session_id', $session->id)->first();
-            }
-        }
-        if (!$strip && $user) {
-            $strip = PhotoStrip::where('user_id', $user->id)->latest()->first();
-        }
-
-        // Jika strip belum terdaftar di database, buat record default photostrip
-        if (!$strip) {
-            $session = \App\Models\PhotoSession::firstOrCreate(
-                ['uuid' => ($sessionUuid && Str::isUuid($sessionUuid)) ? $sessionUuid : (string) Str::uuid()],
-                [
-                    'user_id'          => $user?->id ?? 1,
-                    'title'            => 'Sesi Foto SmileOn',
-                    'mode'             => 'personal',
-                    'status'           => 'completed',
-                    'sync_status'      => 'synced',
-                    'credits_required' => 0,
-                    'photos_count'     => 4,
-                ]
-            );
-
-            $strip = PhotoStrip::create([
-                'uuid'            => (string) Str::uuid(),
-                'session_id'      => $session->id,
-                'user_id'         => $userId,
-                'storage_key'     => "strips/{$session->uuid}/photostrip_hd.png",
-                'clean_url'       => $request->image_url ?? 'https://smileon-dapps.my.id/storage/strips/default.png',
-                'watermarked_url' => $request->image_url ?? 'https://smileon-dapps.my.id/storage/strips/default.png',
-                'status'          => 'ready',
-                'share_token'     => Str::random(64),
-            ]);
-        }
-
-        $userId = $user?->id ?? $strip->user_id ?? 1;
-
-        // Tentukan alamat penerima (recipient wallet)
-        $recipient = $request->input('recipient_address')
-            ?? $user?->wallet_address
-            ?? '0xFeff727205Fe524A3A8A16C404FeC9Cfe4124aCd';
-
-        // Validasi format alamat
-        if (!preg_match('/^0x[a-fA-F0-9]{40}$/', $recipient)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Alamat wallet Monad tidak valid. Harap sambungkan wallet Anda.',
-            ], 422);
-        }
-
-        // Idempotency — jika sudah pernah di-mint secara nyata di Monad
-        if (!$request->boolean('force')) {
-            $existing = UserCollectible::where('strip_id', $strip->id)
-                ->where('user_id', $userId)
-                ->where('status', 'minted')
-                ->whereNotNull('tx_hash')
-                ->with('collection:id,name,contract_address,chain_id')
-                ->first();
-
-            // Cek apakah tx_hash adalah hash nyata (bukan simulated sha256 lama)
-            if ($existing && strlen($existing->tx_hash) === 66 && (int)$existing->token_id < 1000) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Collectible sudah pernah di-mint ke Monad Testnet.',
-                    'data'    => [
-                        'id'               => $existing->id,
-                        'uuid'             => $existing->uuid,
-                        'token_id'         => (string) $existing->token_id,
-                        'tx_hash'          => $existing->tx_hash,
-                        'mint_tx_hash'     => $existing->mint_tx_hash ?? $existing->tx_hash,
-                        'metadata_uri'     => $existing->metadata_uri,
-                        'recipient_address'=> $recipient,
-                        'contract_address' => $existing->collection?->contract_address ?? config('services.monad.nft_address'),
-                        'chain_id'         => 10143,
-                        'explorer_tx_url'  => "https://testnet.monadexplorer.com/tx/{$existing->tx_hash}",
-                        'vision_tx_url'    => "https://testnet.monadvision.com/tx/{$existing->tx_hash}",
-                        'vision_nft_url'   => "https://testnet.monadvision.com/token/" . ($existing->collection?->contract_address ?? config('services.monad.nft_address')) . "/instance/{$existing->token_id}",
-                        'traits'           => $existing->traits,
-                        'status'           => 'minted',
-                        'minted_at'        => $existing->minted_at?->toIso8601String(),
-                    ],
+        ]);        try {
+            $user = $request->user('sanctum') ?? $request->user();
+            if (!$user) {
+                $user = \App\Models\User::first() ?? \App\Models\User::create([
+                    'name'     => 'SmileOn Guest',
+                    'email'    => 'guest@smileon-dapps.my.id',
+                    'password' => bcrypt(Str::random(16)),
                 ]);
             }
-        }
+            $userId = $user->id;
+            $stripUuid = $request->input('strip_uuid');
+            $sessionUuid = $request->input('session_uuid');
 
-        $collection = NftCollection::where('is_active', true)->first();
-        if (!$collection) {
-            $collection = NftCollection::firstOrCreate(
-                ['contract_address' => config('services.monad.nft_address', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48')],
-                [
-                    'name'          => 'SmileOn Moments',
-                    'contract_type' => 'ERC721',
-                    'chain_id'      => 10143,
-                    'is_active'     => true,
-                ]
+            $strip = null;
+            if ($stripUuid && Str::isUuid($stripUuid)) {
+                $strip = PhotoStrip::where('uuid', $stripUuid)->first();
+            }
+            if (!$strip && $sessionUuid && Str::isUuid($sessionUuid)) {
+                $session = \App\Models\PhotoSession::where('uuid', $sessionUuid)->first();
+                if ($session) {
+                    $strip = PhotoStrip::where('session_id', $session->id)->first();
+                }
+            }
+            if (!$strip && $user) {
+                $strip = PhotoStrip::where('user_id', $user->id)->latest()->first();
+            }
+
+            // Jika strip belum terdaftar di database, buat record default photostrip
+            if (!$strip) {
+                $session = \App\Models\PhotoSession::firstOrCreate(
+                    ['uuid' => ($sessionUuid && Str::isUuid($sessionUuid)) ? $sessionUuid : (string) Str::uuid()],
+                    [
+                        'user_id'          => $user?->id ?? 1,
+                        'mode'             => 'personal',
+                        'status'           => 'completed',
+                        'credits_required' => 0,
+                        'photos_count'     => 4,
+                    ]
+                );
+
+                $strip = PhotoStrip::create([
+                    'uuid'            => (string) Str::uuid(),
+                    'session_id'      => $session->id,
+                    'user_id'         => $userId,
+                    'storage_key'     => "strips/{$session->uuid}/photostrip_hd.png",
+                    'clean_url'       => $request->image_url ?? 'https://smileon-dapps.my.id/storage/strips/default.png',
+                    'watermarked_url' => $request->image_url ?? 'https://smileon-dapps.my.id/storage/strips/default.png',
+                    'status'          => 'ready',
+                    'share_token'     => Str::random(64),
+                ]);
+            }
+
+            $userId = $user?->id ?? $strip->user_id ?? 1;
+
+            // Tentukan alamat penerima (recipient wallet)
+            $recipient = $request->input('recipient_address')
+                ?? $user?->wallet_address
+                ?? '0xFeff727205Fe524A3A8A16C404FeC9Cfe4124aCd';
+
+            // Validasi format alamat
+            if (!preg_match('/^0x[a-fA-F0-9]{40}$/', $recipient)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Alamat wallet Monad tidak valid. Harap sambungkan wallet Anda.',
+                ], 422);
+            }
+
+            // Idempotency — jika sudah pernah di-mint secara nyata di Monad
+            if (!$request->boolean('force')) {
+                $existing = UserCollectible::where('strip_id', $strip->id)
+                    ->where('user_id', $userId)
+                    ->where('status', 'minted')
+                    ->whereNotNull('tx_hash')
+                    ->with('collection:id,name,contract_address,chain_id')
+                    ->first();
+
+                // Cek apakah tx_hash adalah hash nyata (bukan simulated sha256 lama)
+                if ($existing && strlen($existing->tx_hash) === 66 && (int)$existing->token_id < 1000) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Collectible sudah pernah di-mint ke Monad Testnet.',
+                        'data'    => [
+                            'id'               => $existing->id,
+                            'uuid'             => $existing->uuid,
+                            'token_id'         => (string) $existing->token_id,
+                            'tx_hash'          => $existing->tx_hash,
+                            'mint_tx_hash'     => $existing->mint_tx_hash ?? $existing->tx_hash,
+                            'metadata_uri'     => $existing->metadata_uri,
+                            'recipient_address'=> $recipient,
+                            'contract_address' => $existing->collection?->contract_address ?? config('services.monad.nft_address'),
+                            'chain_id'         => 10143,
+                            'explorer_tx_url'  => "https://testnet.monadexplorer.com/tx/{$existing->tx_hash}",
+                            'vision_tx_url'    => "https://testnet.monadvision.com/tx/{$existing->tx_hash}",
+                            'vision_nft_url'   => "https://testnet.monadvision.com/token/" . ($existing->collection?->contract_address ?? config('services.monad.nft_address')) . "/instance/{$existing->token_id}",
+                            'traits'           => $existing->traits,
+                            'status'           => 'minted',
+                            'minted_at'        => $existing->minted_at?->toIso8601String(),
+                        ],
+                    ]);
+                }
+            }
+
+            $collection = NftCollection::where('is_active', true)->first();
+            if (!$collection) {
+                $collection = NftCollection::firstOrCreate(
+                    ['contract_address' => config('services.monad.nft_address', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48')],
+                    [
+                        'name'          => 'SmileOn Moments',
+                        'contract_type' => 'ERC721',
+                        'chain_id'      => 10143,
+                        'is_active'     => true,
+                    ]
+                );
+            }
+
+            // Build NFT metadata (EIP-721 standard)
+            $name        = $request->name ?? "SmileOn Photo #{$strip->id}";
+            $description = $request->description ?? "Kenangan foto resmi SmileOn pada Monad Testnet - " . ($strip->created_at?->format('d M Y') ?? date('d M Y'));
+            $imageUrl    = $request->input('image_url') ?? $strip->clean_url ?? $strip->watermarked_url ?? 'https://smileon-dapps.my.id/storage/strips/default.png';
+
+            $attributes  = array_merge([
+                ['trait_type' => 'Aspect Ratio', 'value' => $strip->aspect_ratio ?? '2:6'],
+                ['trait_type' => 'Print Size', 'value'   => $strip->print_size_inch ?? '2x6'],
+                ['trait_type' => 'Watermark', 'value'    => $strip->show_watermark ? 'Yes' : 'No'],
+                ['trait_type' => 'Chain', 'value'        => 'Monad Testnet (Chain ID 10143)'],
+                ['trait_type' => 'Contract', 'value'     => 'SmileOnNFT (ERC-721)'],
+            ], (array) $request->input('attributes', []));
+
+            $metadata = [
+                'name'         => $name,
+                'description'  => $description,
+                'image'        => $imageUrl,
+                'external_url' => config('app.url') . "/strips/share/{$strip->share_token}",
+                'attributes'   => $attributes,
+            ];
+
+            // Upload metadata to IPFS (Pinata) jika tersedia, fallback ke HTTPS tokenURI
+            $ipfsUri = $this->uploadToPinata($metadata);
+            if (str_starts_with($ipfsUri, 'ipfs://') && !str_contains($ipfsUri, 'QmError') && !str_contains($ipfsUri, 'QmPlaceholder')) {
+                $metadataUri = $ipfsUri;
+            } else {
+                $metadataUri = url("/api/v1/nft/metadata/{$strip->uuid}");
+            }
+
+            $frameId = (int) ($request->input('frame_id') ?? 1);
+            $sessionIdForContract = $sessionUuid ?? $strip->uuid;
+
+            // Eksekusi mint nyata on-chain ke Monad Testnet via relayer
+            $mintResult = MonadNftService::mintPhotostrip(
+                recipientAddress: $recipient,
+                metadataUri: $metadataUri,
+                sessionId: $sessionIdForContract,
+                frameId: $frameId
             );
-        }
 
-        // Build NFT metadata (EIP-721 standard)
-        $name        = $request->name ?? "SmileOn Photo #{$strip->id}";
-        $description = $request->description ?? "Kenangan foto resmi SmileOn pada Monad Testnet - " . ($strip->created_at?->format('d M Y') ?? date('d M Y'));
-        $imageUrl    = $request->input('image_url') ?? $strip->clean_url ?? $strip->watermarked_url ?? 'https://smileon-dapps.my.id/storage/strips/default.png';
+            if (!$mintResult['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mencetak NFT di Monad Testnet: ' . ($mintResult['error'] ?? 'RPC relayer timeout.'),
+                    'error'   => $mintResult['error'] ?? 'Relayer error',
+                ], 500);
+            }
 
-        $attributes  = array_merge([
-            ['trait_type' => 'Aspect Ratio', 'value' => $strip->aspect_ratio ?? '2:6'],
-            ['trait_type' => 'Print Size', 'value'   => $strip->print_size_inch ?? '2x6'],
-            ['trait_type' => 'Watermark', 'value'    => $strip->show_watermark ? 'Yes' : 'No'],
-            ['trait_type' => 'Chain', 'value'        => 'Monad Testnet (Chain ID 10143)'],
-            ['trait_type' => 'Contract', 'value'     => 'SmileOnNFT (ERC-721)'],
-        ], (array) $request->input('attributes', []));
+            $txHash   = $mintResult['tx_hash'];
+            $tokenId  = $mintResult['token_id'];
 
-        $metadata = [
-            'name'         => $name,
-            'description'  => $description,
-            'image'        => $imageUrl,
-            'external_url' => config('app.url') . "/strips/share/{$strip->share_token}",
-            'attributes'   => $attributes,
-        ];
+            $collectible = DB::transaction(function () use ($userId, $strip, $collection, $tokenId, $txHash, $metadataUri, $attributes) {
+                return UserCollectible::updateOrCreate(
+                    ['strip_id' => $strip->id],
+                    [
+                        'user_id'       => $userId,
+                        'collection_id' => $collection->id,
+                        'token_id'      => (string) $tokenId,
+                        'tx_hash'       => $txHash,
+                        'mint_tx_hash'  => $txHash,
+                        'metadata_uri'  => $metadataUri,
+                        'traits'        => $attributes,
+                        'status'        => 'minted',
+                        'minted_at'     => now(),
+                    ]
+                );
+            });
 
-        // Upload metadata to IPFS (Pinata) jika tersedia, fallback ke HTTPS tokenURI
-        $ipfsUri = $this->uploadToPinata($metadata);
-        if (str_starts_with($ipfsUri, 'ipfs://') && !str_contains($ipfsUri, 'QmError') && !str_contains($ipfsUri, 'QmPlaceholder')) {
-            $metadataUri = $ipfsUri;
-        } else {
-            $metadataUri = url("/api/v1/nft/metadata/{$strip->uuid}");
-        }
+            $contractAddr = $collection->contract_address ?? config('services.monad.nft_address', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48');
 
-        $frameId = (int) ($request->input('frame_id') ?? 1);
-        $sessionIdForContract = $sessionUuid ?? $strip->uuid;
+            return response()->json([
+                'success' => true,
+                'message' => 'NFT berhasil di-mint ke Monad Testnet!',
+                'data'    => [
+                    'id'               => $collectible->id,
+                    'uuid'             => $collectible->uuid,
+                    'token_id'         => (string) $tokenId,
+                    'tx_hash'          => $txHash,
+                    'mint_tx_hash'     => $txHash,
+                    'metadata_uri'     => $metadataUri,
+                    'recipient_address'=> $recipient,
+                    'contract_address' => $contractAddr,
+                    'chain_id'         => 10143,
+                    'explorer_tx_url'  => "https://testnet.monadexplorer.com/tx/{$txHash}",
+                    'vision_tx_url'    => "https://testnet.monadvision.com/tx/{$txHash}",
+                    'vision_nft_url'   => "https://testnet.monadvision.com/token/{$contractAddr}/instance/{$tokenId}",
+                    'traits'           => $attributes,
+                    'status'           => 'minted',
+                    'minted_at'        => $collectible->minted_at?->toIso8601String(),
+                ],
+            ], 201);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("[NftController] Error minting NFT: " . $e->getMessage(), [
+                'exception' => get_class($e),
+                'file'      => $e->getFile(),
+                'line'      => $e->getLine(),
+                'trace'     => $e->getTraceAsString(),
+            ]);
 
-        // Eksekusi mint nyata on-chain ke Monad Testnet via relayer
-        $mintResult = MonadNftService::mintPhotostrip(
-            recipientAddress: $recipient,
-            metadataUri: $metadataUri,
-            sessionId: $sessionIdForContract,
-            frameId: $frameId
-        );
-
-        if (!$mintResult['success']) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mencetak NFT di Monad Testnet: ' . ($mintResult['error'] ?? 'RPC relayer timeout.'),
-                'error'   => $mintResult['error'] ?? 'Relayer error',
+                'message' => 'Gagal memproses NFT: ' . $e->getMessage(),
+                'error'   => $e->getMessage(),
             ], 500);
         }
-
-        $txHash   = $mintResult['tx_hash'];
-        $tokenId  = $mintResult['token_id'];
-
-        $collectible = DB::transaction(function () use ($userId, $strip, $collection, $tokenId, $txHash, $metadataUri, $attributes) {
-            return UserCollectible::updateOrCreate(
-                ['strip_id' => $strip->id],
-                [
-                    'user_id'       => $userId,
-                    'collection_id' => $collection->id,
-                    'token_id'      => (string) $tokenId,
-                    'tx_hash'       => $txHash,
-                    'mint_tx_hash'  => $txHash,
-                    'metadata_uri'  => $metadataUri,
-                    'traits'        => $attributes,
-                    'status'        => 'minted',
-                    'minted_at'     => now(),
-                ]
-            );
-        });
-
-        $contractAddr = $collection->contract_address ?? config('services.monad.nft_address', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'NFT berhasil di-mint ke Monad Testnet!',
-            'data'    => [
-                'id'               => $collectible->id,
-                'uuid'             => $collectible->uuid,
-                'token_id'         => (string) $tokenId,
-                'tx_hash'          => $txHash,
-                'mint_tx_hash'     => $txHash,
-                'metadata_uri'     => $metadataUri,
-                'recipient_address'=> $recipient,
-                'contract_address' => $contractAddr,
-                'chain_id'         => 10143,
-                'explorer_tx_url'  => "https://testnet.monadexplorer.com/tx/{$txHash}",
-                'vision_tx_url'    => "https://testnet.monadvision.com/tx/{$txHash}",
-                'vision_nft_url'   => "https://testnet.monadvision.com/token/{$contractAddr}/instance/{$tokenId}",
-                'traits'           => $attributes,
-                'status'           => 'minted',
-                'minted_at'        => $collectible->minted_at?->toIso8601String(),
-            ],
-        ], 201);
     }
 
     /**

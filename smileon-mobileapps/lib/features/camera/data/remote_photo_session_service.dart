@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:smileon/core/network/api_client.dart';
+import 'package:smileon/core/network/api_exception.dart';
 
 /// Service untuk menghubungkan sesi kamera mobile dengan Backend VPS SmileOn.
 /// Mendukung pembuatan sesi di backend, auto-upload multipart foto & photostrip,
@@ -171,6 +172,9 @@ class RemotePhotoSessionService {
       }
     } catch (e) {
       debugPrint('[RemotePhotoSessionService] Gagal mint NFT ke Monad: $e');
+      if (e is ApiException) {
+        throw Exception(e.message);
+      }
       if (e is DioException) {
         final serverMsg = e.response?.data?['message']?.toString();
         if (serverMsg != null && serverMsg.isNotEmpty) {

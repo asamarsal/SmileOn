@@ -35,8 +35,19 @@ class MonadNftService
         $contractAddress = config('services.monad.nft_address', '0xd685CCC9EF93b027e0D1EF05d4eDf83EC0385d48');
         $rpcUrl = config('services.monad.fallback_rpc_url', 'https://monad-testnet.drpc.org');
 
+        $nodeBinary = config('services.monad.node_binary', env('NODE_BINARY'));
+        if (!$nodeBinary) {
+            if (file_exists('/usr/bin/node')) {
+                $nodeBinary = '/usr/bin/node';
+            } elseif (file_exists('/usr/local/bin/node')) {
+                $nodeBinary = '/usr/local/bin/node';
+            } else {
+                $nodeBinary = 'node';
+            }
+        }
+
         $command = [
-            'node',
+            $nodeBinary,
             $scriptPath,
             "--to={$recipientAddress}",
             "--uri={$metadataUri}",
@@ -48,7 +59,11 @@ class MonadNftService
         ];
 
         try {
-            $result = Process::timeout(60)->run($command);
+            $currentPath = getenv('PATH') ?: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
+            $result = Process::path(base_path())
+                ->env(['PATH' => $currentPath . ':/usr/local/bin:/usr/bin:/bin'])
+                ->timeout(60)
+                ->run($command);
             $output = trim($result->output());
             $errorOutput = trim($result->errorOutput());
 
