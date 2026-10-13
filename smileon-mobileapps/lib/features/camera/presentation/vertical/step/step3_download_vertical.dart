@@ -148,6 +148,9 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
     _startTimer();
     _checkInitialMonadWallet();
     _listenWalletChanges();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncPhotosToVps();
+    });
   }
 
   void _listenWalletChanges() {
@@ -1081,6 +1084,10 @@ class _Step3DownloadVerticalState extends ConsumerState<Step3DownloadVertical> {
       // Pastikan foto sesi & photostrip sudah di-upload ke server VPS terlebih dahulu
       if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
         await _syncPhotosToVps();
+      }
+
+      if (_uploadedPhotostripUrl == null || _uploadedPhotostripUrl!.isEmpty) {
+        throw Exception('Photostrip HD belum siap diunggah ke server. Pastikan foto selesai dirender lalu coba lagi.');
       }
 
       final res = await RemotePhotoSessionService.mintPhotostripNft(

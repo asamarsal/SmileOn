@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -35,7 +36,7 @@ class PhotostripRenderer {
   /// [mirroredStates] : daftar apakah foto di-mirror
   /// [filterMatrix]   : ColorFilter.matrix jika ada filter warna
   static Future<Uint8List> render({
-    required BuildContext context,
+    BuildContext? context,
     required String bgAssetPath,
     required String frameAssetPath,
     required List<String> photoPaths,
@@ -43,8 +44,7 @@ class PhotostripRenderer {
     List<double>? filterMatrix,
     bool withWatermark = false,
   }) async {
-    // Capture AssetBundle sebelum async gap
-    final bundle = DefaultAssetBundle.of(context);
+    final bundle = context != null ? DefaultAssetBundle.of(context) : rootBundle;
     final double w = _canvasW * _pixelRatio;
     final double h = _canvasH * _pixelRatio;
     final double scale = _pixelRatio;

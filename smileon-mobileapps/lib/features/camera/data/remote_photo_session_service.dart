@@ -88,6 +88,9 @@ class RemotePhotoSessionService {
           stripFile.path,
           filename: 'photostrip_hd.png',
         );
+        debugPrint('[RemotePhotoSessionService] Attaching photostrip: ${stripFile.path} (${await stripFile.length()} bytes)');
+      } else {
+        debugPrint('[RemotePhotoSessionService] WARNING: Photostrip file does NOT exist at path: "$photostripPath"');
       }
 
       if (rawPhotoPaths != null && rawPhotoPaths.isNotEmpty) {
@@ -98,14 +101,17 @@ class RemotePhotoSessionService {
           if (await f.exists()) {
             final fileName = 'shot_${i + 1}.jpg';
             photoUploads.add(await MultipartFile.fromFile(f.path, filename: fileName));
+          } else {
+            debugPrint('[RemotePhotoSessionService] Raw photo does NOT exist at: $p');
           }
         }
         if (photoUploads.isNotEmpty) {
           formMap['photos'] = photoUploads;
+          debugPrint('[RemotePhotoSessionService] Attaching ${photoUploads.length} raw photos');
         }
       }
 
-      final formData = FormData.fromMap(formMap);
+      final formData = FormData.fromMap(formMap, ListFormat.multiCompatible);
       final response = await _apiClient.post(
         '/sessions/upload',
         data: formData,
@@ -113,7 +119,7 @@ class RemotePhotoSessionService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('[RemotePhotoSessionService] Upload success for session $sessionUuid');
+        debugPrint('[RemotePhotoSessionService] Upload success for session $sessionUuid: ${response.data}');
         return response.data as Map<String, dynamic>?;
       }
     } catch (e) {

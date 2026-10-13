@@ -645,7 +645,11 @@ class SessionController extends Controller
 
             // Upload multiple shots jika dilampirkan
             if ($request->hasFile('photos')) {
-                foreach ($request->file('photos') as $idx => $photoFile) {
+                $photosList = $request->file('photos');
+                if (!is_array($photosList)) {
+                    $photosList = [$photosList];
+                }
+                foreach ($photosList as $idx => $photoFile) {
                     $shotNum = $idx + 1;
                     $ext = $photoFile->getClientOriginalExtension();
                     $path = $photoFile->storePubliclyAs(
