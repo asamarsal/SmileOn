@@ -20,11 +20,13 @@ return new class extends Migration
             }
         });
 
-        Schema::table('user_sessions', function (Blueprint $table) {
-            if (!Schema::hasColumn('user_sessions', 'fcm_token')) {
-                $table->string('fcm_token', 255)->nullable()->after('token_hash');
-            }
-        });
+        if (Schema::hasTable('user_sessions')) {
+            Schema::table('user_sessions', function (Blueprint $table) {
+                if (!Schema::hasColumn('user_sessions', 'fcm_token')) {
+                    $table->string('fcm_token', 255)->nullable();
+                }
+            });
+        }
 
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'fcm_token')) {
@@ -48,9 +50,11 @@ return new class extends Migration
             $table->dropColumn(['venue', 'host_voucher_code']);
         });
 
-        Schema::table('user_sessions', function (Blueprint $table) {
-            $table->dropColumn('fcm_token');
-        });
+        if (Schema::hasTable('user_sessions') && Schema::hasColumn('user_sessions', 'fcm_token')) {
+            Schema::table('user_sessions', function (Blueprint $table) {
+                $table->dropColumn('fcm_token');
+            });
+        }
 
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn('fcm_token');
