@@ -1,5 +1,7 @@
 <div align="center">
 
+(Will be private after hackathon and develop to grow and get real user)
+
 <img src="smileon-mobileapps/assets/icons/smileon-border.png" alt="SmileOn Logo" height="80"/>
 
 ### Photobox Anywhere, Anytime.
